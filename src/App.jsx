@@ -4,6 +4,7 @@ import { AuthProvider, useAuth } from './hooks/useAuth';
 import DashboardLayout from './components/layout/DashboardLayout';
 import Login from './pages/Login';
 import HomePage from './pages/HomePage'; // ← NOVO
+import Register from './pages/Register';
 
 import DashboardFinanceiro from './pages/admin/DashboardFinanceiro';
 import Transacoes from './pages/admin/Transacoes';
@@ -58,6 +59,8 @@ export default function App() {
           </Route>
 
           <Route path="*" element={<Navigate to="/" replace />} />
+
+          <Route path="/cadastro" element={<Register />} />
         </Routes>
       </BrowserRouter>
     </AuthProvider>

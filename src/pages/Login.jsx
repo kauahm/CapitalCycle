@@ -22,7 +22,7 @@ export default function Login() {
     
     try {
       await login(email, password);
-      navigate('/');
+      navigate('/capital/dashboard');
     } catch (error) {
       console.error("Erro no login:", error);
       setToast({ 

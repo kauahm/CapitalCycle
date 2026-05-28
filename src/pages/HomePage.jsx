@@ -447,6 +447,7 @@ const FEATURES = [
 
 const PLANS = [
   {
+    id: 'jovem',
     name: 'Jovem',
     price: '24',
     desc: 'Para quem está começando a organizar as finanças com controle prático.',
@@ -463,6 +464,7 @@ const PLANS = [
     ]
   },
   {
+    id: 'adulto',
     name: 'Adulto',
     price: '46',
     desc: 'Controle avançado com IA ilimitada, múltiplas contas e relatórios completos.',
@@ -643,9 +645,13 @@ export default function HomePage() {
                 <span className="cc-plan-period">/mês</span>
               </div>
               <p className="cc-plan-desc">{plan.desc}</p>
-              <a href="#" className={`cc-plan-cta ${plan.ctaClass}`}>
+              <Link
+                to="/cadastro"
+                state={{ plan: plan.id }}
+                className={`cc-plan-cta ${plan.ctaClass}`}
+              >
                 {plan.cta}
-              </a>
+              </Link>
               <hr className="cc-plan-divider" />
               <ul className="cc-plan-feats">
                 {plan.feats.map((feat, i) => (
