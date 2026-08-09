@@ -1,17 +1,21 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, ArrowUpCircle, ArrowDownCircle, Trash2, Search, Filter, X } from 'lucide-react';
+import { Plus, ArrowUpCircle, ArrowDownCircle, Trash2, Pencil, Search, Filter, X } from 'lucide-react';
 import { collection, onSnapshot, deleteDoc, doc, query, where, runTransaction } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
+import UpgradeModal from '../../components/ui/UpgradeModal';
+import { canAddTransacao, mesAtualKey } from '../../components/ui/plans';
 import { useAuth } from '../../hooks/useAuth';
 
 export default function Transacoes() {
-  const { currentUser } = useAuth();
+  const { currentUser, userProfile } = useAuth();
   const [transacoes, setTransacoes] = useState([]);
   const [contas, setContas] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingId, setEditingId] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [upgradeOpen, setUpgradeOpen] = useState(false);
 
   // Estados do formulário
   const [formData, setFormData] = useState({
@@ -28,6 +32,11 @@ export default function Transacoes() {
     entrada: ['Salário', 'Investimento', 'Rendimento', 'Venda', 'Outros'],
     saida: ['Alimentação', 'Moradia', 'Transporte', 'Saúde', 'Lazer', 'Educação', 'Outros']
   };
+
+  // Trava por plano: cota mensal de lançamentos do plano Jovem
+  const planId = userProfile?.plan || 'jovem';
+  const mesKey = mesAtualKey();
+  const lancamentosNoMes = transacoes.filter((t) => t.data && t.data.startsWith(mesKey)).length;
 
   useEffect(() => {
     if (!currentUser) return;
@@ -58,37 +67,117 @@ export default function Transacoes() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    // Trava por plano: não cria lançamento além da cota mensal do plano Jovem
+    if (!editingId && !canAddTransacao(planId, lancamentosNoMes)) {
+      setUpgradeOpen(true);
+      return;
+    }
+
     const valorNumerico = parseFloat(formData.valor);
-    const contaRef = doc(db, 'accounts', formData.conta_id);
-    const novaTransacaoRef = doc(collection(db, 'transactions'));
+    const novaContaRef = doc(db, 'accounts', formData.conta_id);
 
     try {
-      await runTransaction(db, async (transaction) => {
-        const contaSnap = await transaction.get(contaRef);
-        if (!contaSnap.exists()) {
-          throw new Error('Conta selecionada não existe mais.');
-        }
+      if (editingId) {
+        // EDIÇÃO: precisa reverter o efeito antigo no saldo e aplicar o novo,
+        // inclusive se o usuário trocou a transação de conta.
+        const original = transacoes.find(t => t.id === editingId);
+        const transacaoRef = doc(db, 'transactions', editingId);
 
-        const saldoAtual = parseFloat(contaSnap.data().saldo) || 0;
-        // Entrada soma ao saldo da conta, saída subtrai
-        const delta = formData.tipo === 'entrada' ? valorNumerico : -valorNumerico;
-        const novoSaldo = saldoAtual + delta;
+        await runTransaction(db, async (transaction) => {
+          const mesmaConta = original && original.conta_id === formData.conta_id;
 
-        transaction.set(novaTransacaoRef, {
-          ...formData,
-          valor: valorNumerico,
-          uid: currentUser.uid,
-          criadoEm: new Date()
+          if (mesmaConta) {
+            const contaSnap = await transaction.get(novaContaRef);
+            if (!contaSnap.exists()) throw new Error('Conta selecionada não existe mais.');
+
+            const saldoAtual = parseFloat(contaSnap.data().saldo) || 0;
+            const deltaReversao = original.tipo === 'entrada' ? -(parseFloat(original.valor) || 0) : (parseFloat(original.valor) || 0);
+            const deltaNovo = formData.tipo === 'entrada' ? valorNumerico : -valorNumerico;
+
+            transaction.update(novaContaRef, { saldo: saldoAtual + deltaReversao + deltaNovo });
+          } else {
+            const contaAntigaRef = original && original.conta_id ? doc(db, 'accounts', original.conta_id) : null;
+            const contaAntigaSnap = contaAntigaRef ? await transaction.get(contaAntigaRef) : null;
+            const contaNovaSnap = await transaction.get(novaContaRef);
+
+            if (!contaNovaSnap.exists()) throw new Error('Conta selecionada não existe mais.');
+
+            if (contaAntigaSnap && contaAntigaSnap.exists()) {
+              const saldoAntigo = parseFloat(contaAntigaSnap.data().saldo) || 0;
+              const deltaReversao = original.tipo === 'entrada' ? -(parseFloat(original.valor) || 0) : (parseFloat(original.valor) || 0);
+              transaction.update(contaAntigaRef, { saldo: saldoAntigo + deltaReversao });
+            }
+
+            const saldoNovo = parseFloat(contaNovaSnap.data().saldo) || 0;
+            const deltaAplicacao = formData.tipo === 'entrada' ? valorNumerico : -valorNumerico;
+            transaction.update(novaContaRef, { saldo: saldoNovo + deltaAplicacao });
+          }
+
+          transaction.update(transacaoRef, {
+            descricao: formData.descricao,
+            valor: valorNumerico,
+            tipo: formData.tipo,
+            categoria: formData.categoria,
+            conta_id: formData.conta_id,
+            data: formData.data,
+          });
         });
-        transaction.update(contaRef, { saldo: novoSaldo });
-      });
+      } else {
+        // CRIAÇÃO
+        const novaTransacaoRef = doc(collection(db, 'transactions'));
+        await runTransaction(db, async (transaction) => {
+          const contaSnap = await transaction.get(novaContaRef);
+          if (!contaSnap.exists()) {
+            throw new Error('Conta selecionada não existe mais.');
+          }
 
-      setIsModalOpen(false);
-      setFormData({ ...formData, descricao: '', valor: '' }); // Limpa o form
+          const saldoAtual = parseFloat(contaSnap.data().saldo) || 0;
+          // Entrada soma ao saldo da conta, saída subtrai
+          const delta = formData.tipo === 'entrada' ? valorNumerico : -valorNumerico;
+          const novoSaldo = saldoAtual + delta;
+
+          transaction.set(novaTransacaoRef, {
+            ...formData,
+            valor: valorNumerico,
+            uid: currentUser.uid,
+            criadoEm: new Date()
+          });
+          transaction.update(novaContaRef, { saldo: novoSaldo });
+        });
+      }
+
+      closeModal();
     } catch (error) {
-      console.error("Erro ao adicionar transação: ", error);
+      console.error("Erro ao salvar transação: ", error);
       alert("Erro ao salvar transação: " + error.message);
     }
+  };
+
+  const handleEdit = (t) => {
+    setFormData({
+      descricao: t.descricao || '',
+      valor: String(t.valor ?? ''),
+      tipo: t.tipo || 'saida',
+      categoria: t.categoria || categorias[t.tipo || 'saida'][0],
+      conta_id: t.conta_id || '',
+      data: t.data || new Date().toISOString().split('T')[0]
+    });
+    setEditingId(t.id);
+    setIsModalOpen(true);
+  };
+
+  const closeModal = () => {
+    setIsModalOpen(false);
+    setEditingId(null);
+    setFormData({
+      descricao: '',
+      valor: '',
+      tipo: 'saida',
+      categoria: 'Alimentação',
+      conta_id: '',
+      data: new Date().toISOString().split('T')[0]
+    });
   };
 
   const handleDelete = async (id) => {
@@ -155,8 +244,11 @@ export default function Transacoes() {
               className="w-full bg-[#101623] border border-[#1e293b] rounded-xl pl-10 pr-4 py-2.5 text-white focus:outline-none focus:border-indigo-500 transition-colors"
             />
           </div>
-          <button 
-            onClick={() => setIsModalOpen(true)}
+          <button
+            onClick={() => {
+              if (!canAddTransacao(planId, lancamentosNoMes)) { setUpgradeOpen(true); return; }
+              setEditingId(null); setIsModalOpen(true);
+            }}
             className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-xl font-medium transition-colors flex items-center gap-2 whitespace-nowrap shadow-lg shadow-indigo-600/20"
           >
             <Plus size={18} />
@@ -191,9 +283,16 @@ export default function Transacoes() {
                 </div>
 
                 <div className="flex items-center gap-4">
-                  <span className={`font-bold ${t.tipo === 'entrada' ? 'text-emerald-400' : 'text-white'}`}>
+                  <span className={`font-bold whitespace-nowrap ${t.tipo === 'entrada' ? 'text-emerald-400' : 'text-white'}`}>
                     {t.tipo === 'entrada' ? '+ ' : '- '}{formatarMoeda(t.valor)}
                   </span>
+                  <button 
+                    onClick={() => handleEdit(t)}
+                    className="text-slate-600 hover:text-indigo-400 opacity-0 group-hover:opacity-100 transition-all p-2"
+                    title="Editar"
+                  >
+                    <Pencil size={18} />
+                  </button>
                   <button 
                     onClick={() => handleDelete(t.id)}
                     className="text-slate-600 hover:text-rose-400 opacity-0 group-hover:opacity-100 transition-all p-2"
@@ -213,8 +312,8 @@ export default function Transacoes() {
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-[#101623] border border-[#1e293b] rounded-3xl w-full max-w-md overflow-hidden shadow-2xl animate-in fade-in zoom-in duration-200">
             <div className="p-6 border-b border-[#1e293b] flex justify-between items-center">
-              <h2 className="text-xl font-bold text-white">Nova Transação</h2>
-              <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-white">
+              <h2 className="text-xl font-bold text-white">{editingId ? 'Editar Transação' : 'Nova Transação'}</h2>
+              <button onClick={closeModal} className="text-slate-400 hover:text-white">
                 <X size={24} />
               </button>
             </div>
@@ -272,12 +371,15 @@ export default function Transacoes() {
               </div>
 
               <button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3.5 rounded-xl transition-colors mt-4">
-                Salvar Transação
+                {editingId ? 'Salvar Alterações' : 'Salvar Transação'}
               </button>
             </form>
           </div>
         </div>
       )}
+
+      {/* Modal de upgrade */}
+      <UpgradeModal feature="transacoes" open={upgradeOpen} onClose={() => setUpgradeOpen(false)} />
     </div>
   );
 }

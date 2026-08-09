@@ -4,6 +4,11 @@ import {
   TrendingUp, AlertTriangle, Lightbulb,
   Key, Eye, EyeOff, Settings
 } from 'lucide-react';
+import { doc, getDoc, updateDoc } from 'firebase/firestore';
+import { db } from '../../services/firebase';
+import UpgradeModal from '../../components/ui/UpgradeModal';
+import { canConsultarIA, getLimits, mesAtualKey } from '../../components/ui/plans';
+import { useAuth } from '../../hooks/useAuth';
 
 // ─────────────────────────────────────────────────────────
 // Configure no arquivo .env na raiz do projeto:
@@ -54,10 +59,31 @@ export default function AnaliseIA() {
   const [modelDraft, setModelDraft] = useState(ENV_MODEL || 'gemini-3.5-flash');
   const [showKey, setShowKey]       = useState(false);
 
+  // Trava por plano: cota mensal de consultas de IA (plano Jovem)
+  const { userProfile, currentUser } = useAuth();
+  const planId = userProfile?.plan || 'jovem';
+  const limiteIA = getLimits(planId).consultasIAMes;
+  const mesKey = mesAtualKey();
+  const [usoMes, setUsoMes] = useState(0);
+  const [upgradeOpen, setUpgradeOpen] = useState(false);
+
   const messagesEndRef = useRef(null);
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isTyping]);
+
+  // Carrega o contador de consultas de IA do mês corrente
+  useEffect(() => {
+    if (!currentUser) return;
+    let active = true;
+    getDoc(doc(db, 'usuarios', currentUser.uid))
+      .then((snap) => {
+        const uso = snap.exists() ? (snap.data().iaUso?.[mesKey] || 0) : 0;
+        if (active) setUsoMes(uso);
+      })
+      .catch(() => {});
+    return () => { active = false; };
+  }, [currentUser, mesKey]);
 
   const handleSaveConfig = () => {
     const key = keyDraft.trim() || apiKey;
@@ -78,12 +104,25 @@ export default function AnaliseIA() {
       return;
     }
 
+    // Trava por plano: cota mensal de consultas do plano Jovem
+    if (!canConsultarIA(planId, usoMes)) {
+      setUpgradeOpen(true);
+      return;
+    }
+
     const userMsg = { id: Date.now(), role: 'user', text: input.trim() };
     const updated = [...messages, userMsg];
     setMessages(updated);
     setInput('');
     setIsTyping(true);
     setError(null);
+
+    // Consome 1 consulta da cota (persistido no próprio doc do usuário)
+    if (limiteIA != null) {
+      const novoUso = usoMes + 1;
+      setUsoMes(novoUso);
+      updateDoc(doc(db, 'usuarios', currentUser.uid), { [`iaUso.${mesKey}`]: novoUso }).catch(() => {});
+    }
 
     try {
       const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
@@ -137,17 +176,30 @@ export default function AnaliseIA() {
           <p className="text-slate-400 text-sm">Seu assistente financeiro movido a Inteligência Artificial.</p>
         </div>
 
-        <button
-          onClick={() => setShowConfig(v => !v)}
-          className={`flex items-center gap-2 text-xs font-semibold px-4 py-2 rounded-xl border transition-colors ${
-            apiKey
-              ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20'
-              : 'bg-rose-500/10 border-rose-500/30 text-rose-400 hover:bg-rose-500/20'
-          }`}
-        >
-          <Settings size={13} />
-          {apiKey ? `Configurado · ${model}` : 'Configurar API'}
-        </button>
+        <div className="flex items-center gap-3 shrink-0">
+          {limiteIA != null && (
+            <span className={`text-xs font-semibold px-3 py-2 rounded-xl border whitespace-nowrap ${
+              usoMes >= limiteIA
+                ? 'bg-rose-500/10 border-rose-500/30 text-rose-400'
+                : 'bg-[#101623] border-[#1e293b] text-slate-400'
+            }`}>
+              {usoMes >= limiteIA
+                ? 'Cota do mês esgotada'
+                : `${limiteIA - usoMes} consulta${limiteIA - usoMes === 1 ? '' : 's'} restantes`}
+            </span>
+          )}
+          <button
+            onClick={() => setShowConfig(v => !v)}
+            className={`flex items-center gap-2 text-xs font-semibold px-4 py-2 rounded-xl border transition-colors ${
+              apiKey
+                ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20'
+                : 'bg-rose-500/10 border-rose-500/30 text-rose-400 hover:bg-rose-500/20'
+            }`}
+          >
+            <Settings size={13} />
+            {apiKey ? `Configurado · ${model}` : 'Configurar API'}
+          </button>
+        </div>
       </div>
 
       {/* PAINEL DE CONFIGURAÇÃO */}
@@ -306,6 +358,9 @@ export default function AnaliseIA() {
           </p>
         </div>
       </div>
+
+      {/* Modal de upgrade */}
+      <UpgradeModal feature="consultasIA" open={upgradeOpen} onClose={() => setUpgradeOpen(false)} />
 
     </div>
   );

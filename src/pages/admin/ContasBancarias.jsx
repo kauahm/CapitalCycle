@@ -1,15 +1,20 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Landmark, Wallet, TrendingUp, Trash2, X, Building2 } from 'lucide-react';
-import { collection, onSnapshot, addDoc, deleteDoc, doc, query, where } from 'firebase/firestore';
+import { Plus, Landmark, Wallet, TrendingUp, Trash2, Pencil, X, Building2 } from 'lucide-react';
+import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, query, where } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
+import CurrencyValue from '../../components/ui/CurrencyValue';
+import UpgradeModal from '../../components/ui/UpgradeModal';
+import { canAddConta, getLimits } from '../../components/ui/plans';
 import { useAuth } from '../../hooks/useAuth';
 
 export default function ContasBancarias() {
-  const { currentUser } = useAuth();
+  const { currentUser, userProfile } = useAuth();
   const [contas, setContas] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [upgradeOpen, setUpgradeOpen] = useState(false);
 
   const [formData, setFormData] = useState({
     nome: '',
@@ -19,6 +24,9 @@ export default function ContasBancarias() {
   });
 
   const tiposConta = ['Corrente', 'Poupança', 'Investimentos', 'Carteira Física'];
+
+  const planId = userProfile?.plan || 'jovem';
+  const limiteContas = getLimits(planId).contas;
 
   useEffect(() => {
     if (!currentUser) return;
@@ -32,18 +40,49 @@ export default function ContasBancarias() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    // Trava por plano: usuário do plano Jovem tem limite de contas
+    if (!editingId && !canAddConta(planId, contas.length)) {
+      setUpgradeOpen(true);
+      return;
+    }
+
     try {
-      await addDoc(collection(db, 'accounts'), {
+      const dados = {
         ...formData,
         saldo: parseFloat(formData.saldo) || 0,
-        uid: currentUser.uid,
-        criadoEm: new Date()
-      });
-      setIsModalOpen(false);
-      setFormData({ nome: '', banco: '', tipo: 'Corrente', saldo: '' });
+      };
+
+      if (editingId) {
+        await updateDoc(doc(db, 'accounts', editingId), dados);
+      } else {
+        await addDoc(collection(db, 'accounts'), {
+          ...dados,
+          uid: currentUser.uid,
+          criadoEm: new Date()
+        });
+      }
+      closeModal();
     } catch (error) {
-      console.error("Erro ao adicionar conta: ", error);
+      console.error("Erro ao salvar conta: ", error);
     }
+  };
+
+  const handleEdit = (conta) => {
+    setFormData({
+      nome: conta.nome || '',
+      banco: conta.banco || '',
+      tipo: conta.tipo || 'Corrente',
+      saldo: String(conta.saldo ?? '')
+    });
+    setEditingId(conta.id);
+    setIsModalOpen(true);
+  };
+
+  const closeModal = () => {
+    setIsModalOpen(false);
+    setEditingId(null);
+    setFormData({ nome: '', banco: '', tipo: 'Corrente', saldo: '' });
   };
 
   const handleDelete = async (id) => {
@@ -51,8 +90,6 @@ export default function ContasBancarias() {
       await deleteDoc(doc(db, 'accounts', id));
     }
   };
-
-  const formatarMoeda = (valor) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor);
 
   // Função para escolher o ícone e a cor baseada no tipo de conta
   const getEstiloConta = (tipo) => {
@@ -81,10 +118,18 @@ export default function ContasBancarias() {
         <div className="flex items-center gap-4">
           <div className="text-right hidden sm:block mr-4">
             <p className="text-xs text-slate-400 uppercase tracking-widest font-bold">Patrimônio Total</p>
-            <p className="text-xl font-black text-emerald-400">{formatarMoeda(totalGeral)}</p>
+            <CurrencyValue value={totalGeral} size="xl" className="font-black text-emerald-400" />
           </div>
-          <button 
-            onClick={() => setIsModalOpen(true)}
+          {limiteContas != null && (
+            <span className="text-xs font-semibold text-slate-500 whitespace-nowrap bg-[#101623] border border-[#1e293b] px-3 py-2 rounded-xl">
+              {contas.length}/{limiteContas} contas
+            </span>
+          )}
+          <button
+            onClick={() => {
+              if (!canAddConta(planId, contas.length)) { setUpgradeOpen(true); return; }
+              setEditingId(null); setFormData({ nome: '', banco: '', tipo: 'Corrente', saldo: '' }); setIsModalOpen(true);
+            }}
             className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-xl font-medium transition-colors flex items-center gap-2 shadow-lg shadow-indigo-600/20"
           >
             <Plus size={18} /> Nova Conta
@@ -108,14 +153,23 @@ export default function ContasBancarias() {
             return (
               <div key={conta.id} className={`bg-[#101623] border border-[#1e293b] p-6 rounded-3xl relative overflow-hidden group transition-all duration-300 ${Estilo.border}`}>
                 
-                {/* Botão Excluir (Aparece no Hover) */}
-                <button 
-                  onClick={() => handleDelete(conta.id)}
-                  className="absolute top-4 right-4 text-slate-600 hover:text-rose-400 opacity-0 group-hover:opacity-100 transition-opacity bg-[#070b14] p-2 rounded-lg"
-                  title="Excluir Conta"
-                >
-                  <Trash2 size={16} />
-                </button>
+                {/* Botões Editar/Excluir (Aparecem no Hover) */}
+                <div className="absolute top-4 right-4 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button 
+                    onClick={() => handleEdit(conta)}
+                    className="text-slate-600 hover:text-indigo-400 bg-[#070b14] p-2 rounded-lg"
+                    title="Editar Conta"
+                  >
+                    <Pencil size={16} />
+                  </button>
+                  <button 
+                    onClick={() => handleDelete(conta.id)}
+                    className="text-slate-600 hover:text-rose-400 bg-[#070b14] p-2 rounded-lg"
+                    title="Excluir Conta"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
 
                 <div className="flex items-center gap-4 mb-6">
                   <div className={`p-4 rounded-2xl ${Estilo.bg} ${Estilo.cor}`}>
@@ -129,7 +183,7 @@ export default function ContasBancarias() {
 
                 <div className="mt-4">
                   <p className="text-xs text-slate-500 font-medium uppercase tracking-wider mb-1">Saldo Atual</p>
-                  <h2 className={`text-3xl font-black ${Estilo.cor}`}>{formatarMoeda(conta.saldo)}</h2>
+                  <CurrencyValue value={conta.saldo} size="3xl" className={`font-black ${Estilo.cor}`} />
                 </div>
                 
                 {/* Efeito visual decorativo no fundo do card */}
@@ -147,8 +201,8 @@ export default function ContasBancarias() {
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-[#101623] border border-[#1e293b] rounded-3xl w-full max-w-md overflow-hidden shadow-2xl animate-in fade-in zoom-in duration-200">
             <div className="p-6 border-b border-[#1e293b] flex justify-between items-center">
-              <h2 className="text-xl font-bold text-white">Adicionar Conta</h2>
-              <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-white">
+              <h2 className="text-xl font-bold text-white">{editingId ? 'Editar Conta' : 'Adicionar Conta'}</h2>
+              <button onClick={closeModal} className="text-slate-400 hover:text-white">
                 <X size={24} />
               </button>
             </div>
@@ -178,12 +232,15 @@ export default function ContasBancarias() {
               </div>
 
               <button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3.5 rounded-xl transition-colors mt-4">
-                Salvar Conta
+                {editingId ? 'Salvar Alterações' : 'Salvar Conta'}
               </button>
             </form>
           </div>
         </div>
       )}
+
+      {/* Modal de upgrade */}
+      <UpgradeModal feature="contas" open={upgradeOpen} onClose={() => setUpgradeOpen(false)} />
     </div>
   );
 }

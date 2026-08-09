@@ -4,42 +4,7 @@ import { useAuth } from '../hooks/useAuth';
 import { Lock, Mail, Eye, EyeOff, User, Check, ArrowLeft, ArrowRight } from 'lucide-react';
 import Toast from '../components/ui/Toast';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
-
-// ─── Dados dos planos (espelhando HomePage) ───────────────────────────────────
-const PLANS = [
-  {
-    id: 'jovem',
-    name: 'Jovem',
-    price: '19,90',
-    desc: 'Para quem está começando a organizar as finanças com controle prático.',
-    featured: false,
-    feats: [
-      'Dashboard financeiro completo',
-      'Transações ilimitadas',
-      'Até 3 contas bancárias',
-      'Ciclos de investimento (2 ativos)',
-      'Capital Advisor — 50 consultas/mês',
-      'Sincronização em tempo real',
-    ],
-  },
-  {
-    id: 'adulto',
-    name: 'Adulto',
-    price: '47,90',
-    desc: 'Controle avançado com IA ilimitada, múltiplas contas e relatórios completos.',
-    featured: true,
-    badge: 'Mais popular',
-    feats: [
-      'Tudo do plano Jovem',
-      'Contas bancárias ilimitadas',
-      'Ciclos de investimento ilimitados',
-      'Capital Advisor — consultas ilimitadas',
-      'Relatórios exportáveis PDF/CSV',
-      'Análise comparativa de períodos',
-      'Suporte prioritário',
-    ],
-  },
-];
+import { PLAN_LIST as PLANS } from '../components/ui/plans';
 
 // ─── Componente Principal ──────────────────────────────────────────────────────
 export default function Register() {
@@ -76,8 +41,8 @@ export default function Register() {
     setStep(2);
   };
 
-  // Submete o cadastro
-  const handleRegister = async (e) => {
+  // Submete o cadastro — agora vai para a tela de pagamento (não cria a conta ainda)
+  const handleRegister = (e) => {
     e.preventDefault();
 
     if (password !== confirmPassword) {
@@ -89,33 +54,30 @@ export default function Register() {
       return;
     }
 
-    setLoading(true);
-    try {
-      await register(name, email, password, selectedPlan);
-      navigate('/capital/dashboard');
-    } catch (error) {
-      console.error('Erro no cadastro:', error);
-      setToast({ show: true, message: 'Erro ao criar conta. Tente novamente.', type: 'error' });
-      setLoading(false);
-    }
+    // Encaminha para a tela de pagamento com os dados do cadastro
+    navigate('/pagamento', {
+      state: {
+        name,
+        email,
+        password,
+        plan: selectedPlan,
+        isGoogle: false,
+      },
+    });
+  };
+
+  // Google: vai para a tela de pagamento (sem popup ainda) — o popup
+  // será aberto APÓS o usuário escolher e "pagar" (apenas simulação)
+  const handleGoogleRegister = () => {
+    navigate('/pagamento', {
+      state: {
+        plan: selectedPlan,
+        isGoogle: true,
+      },
+    });
   };
 
   const chosenPlan = PLANS.find((p) => p.id === selectedPlan);
-
-  const handleGoogleRegister = async () => {
-    setLoading(true);
-    try {
-      await loginWithGoogle(selectedPlan);
-      navigate('/capital/dashboard');
-    } catch (error) {
-      console.error('Erro no cadastro com Google:', error);
-      // Usuário fechou o popup — não é um erro real, só não faz nada.
-      if (error.code !== 'auth/popup-closed-by-user' && error.code !== 'auth/cancelled-popup-request') {
-        setToast({ show: true, message: 'Erro ao continuar com Google. Tente novamente.', type: 'error' });
-      }
-      setLoading(false);
-    }
-  };
 
   return (
     <div className="min-h-screen flex grid lg:grid-cols-2 bg-white">
@@ -154,6 +116,18 @@ export default function Register() {
             </div>
             <span className={`text-xs font-semibold ${step === 2 ? 'text-slate-900' : 'text-slate-400'}`}>
               Seus dados
+            </span>
+          </div>
+
+          <div className="flex-1 h-px bg-slate-200 max-w-[40px]" />
+
+          {/* Step 3 (indicativo, sem número forte) */}
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold bg-slate-200 text-slate-400">
+              3
+            </div>
+            <span className="text-xs font-semibold text-slate-400">
+              Pagamento
             </span>
           </div>
         </div>
@@ -376,7 +350,7 @@ export default function Register() {
                   disabled={loading}
                   className="w-full flex justify-center py-3.5 px-4 border border-transparent rounded-lg shadow-sm text-sm font-bold text-white bg-slate-900 hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-900 transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
                 >
-                  {loading ? <LoadingSpinner size="sm" color="text-white" /> : 'Criar minha conta'}
+                  {loading ? <LoadingSpinner size="sm" color="text-white" /> : 'Continuar para pagamento'}
                 </button>
               </div>
             </form>

@@ -3,6 +3,7 @@ import { TrendingUp, Activity, Wallet, Target, AlertTriangle } from 'lucide-reac
 import { collection, onSnapshot, query, where } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
+import CurrencyValue from '../../components/ui/CurrencyValue';
 import { useAuth } from '../../hooks/useAuth';
 
 export default function DashboardFinanceiro() {
@@ -115,7 +116,7 @@ export default function DashboardFinanceiro() {
         <div className="bg-[#101623] p-6 rounded-2xl border border-[#1e293b] shadow-lg flex flex-col justify-center relative overflow-hidden group hover:border-indigo-500/50 transition-colors">
           <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity group-hover:scale-110 duration-500"><Wallet size={80} /></div>
           <p className="text-slate-400 text-xs uppercase font-bold tracking-widest mb-1">Saldo Disponível</p>
-          <h2 className="text-4xl font-black text-indigo-400">{formatarMoeda(saldoDisponivel)}</h2>
+          <CurrencyValue value={saldoDisponivel} size="4xl" className="font-black text-indigo-400" />
           <div className={`mt-2 text-xs font-medium flex items-center gap-1 ${fluxoPositivo ? 'text-emerald-400' : 'text-rose-400'}`}>
             <TrendingUp size={14} className={!fluxoPositivo ? "rotate-180" : ""} /> 
             {fluxoPositivo ? 'Fluxo positivo este mês' : 'Fluxo negativo este mês'}
@@ -131,7 +132,7 @@ export default function DashboardFinanceiro() {
           <div className="flex justify-between items-start mb-6">
             <div>
               <p className="text-slate-400 text-sm font-medium mb-1">Total Investido</p>
-              <h3 className="text-3xl font-bold text-emerald-400">{formatarMoeda(totalInvestido)}</h3>
+              <CurrencyValue value={totalInvestido} size="3xl" className="font-bold text-emerald-400" />
             </div>
             <div className="bg-emerald-500/10 text-emerald-400 p-3 rounded-xl">
               <TrendingUp size={24} />

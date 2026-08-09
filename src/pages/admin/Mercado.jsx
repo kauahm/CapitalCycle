@@ -1,9 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   TrendingUp, TrendingDown, RefreshCw, Key, Eye, EyeOff,
   Search, X, BarChart2, Bitcoin, DollarSign, Globe,
   CheckCircle, Circle, ExternalLink, AlertTriangle
 } from 'lucide-react';
+import UpgradeModal from '../../components/ui/UpgradeModal';
+import { temMercado } from '../../components/ui/plans';
+import { useAuth } from '../../hooks/useAuth';
 
 
 const ENV_BRAPI = import.meta.env.VITE_BRAPI_KEY || '';
@@ -270,6 +274,29 @@ export default function Mercado() {
       </div>
     );
   };
+
+  // ─── Trava por plano ──────────────────────────────
+  // O Mercado é um recurso exclusivo do plano Adulto.
+  const { userProfile } = useAuth();
+  const navigate = useNavigate();
+  const planId = userProfile?.plan || 'jovem';
+
+  if (!temMercado(planId)) {
+    return (
+      <>
+        <UpgradeModal
+          feature="mercado"
+          open
+          onClose={() => navigate('/capital/dashboard')}
+        />
+        <div className="bg-[#101623] border border-[#1e293b] rounded-3xl p-12 text-center">
+          <BarChart2 size={48} className="mx-auto text-slate-600 mb-4" />
+          <h3 className="text-lg font-bold text-white mb-2">Mercado exclusivo do plano Adulto</h3>
+          <p className="text-slate-400">Faça upgrade para acompanhar cotações de B3, cripto e câmbio em tempo real.</p>
+        </div>
+      </>
+    );
+  }
 
   return (
     <div className="space-y-6">

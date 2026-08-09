@@ -32,6 +32,20 @@ service cloud.firestore {
         && request.auth.uid == request.resource.data.uid;
     }
 
+    // Pagamentos / comprovantes — cada usuário só vê e cria os seus.
+    // O id do documento é gerado como `${uid}_${idTransacao}`, então só o
+    // próprio dono pode criar (o uid precisa bater com o auth) e ninguém
+    // consegue editar/excluir um pagamento já registrado.
+    match /pagamentos/{pagamentoId} {
+      allow read: if request.auth != null
+        && resource.data.uid == request.auth.uid;
+      allow create: if request.auth != null
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.status == 'aprovado'
+        && request.resource.data.keys().hasAll(['uid', 'plan', 'metodo', 'valor', 'idTransacao', 'status']);
+      allow update, delete: if false;
+    }
+
     // Tudo o mais fica bloqueado por padrão
     match /{document=**} {
       allow read, write: if false;

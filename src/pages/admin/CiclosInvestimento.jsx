@@ -1,16 +1,21 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Target, Calendar, Trash2, X, PieChart, TrendingUp } from 'lucide-react';
-import { collection, onSnapshot, addDoc, deleteDoc, doc, query, where } from 'firebase/firestore';
+import { Plus, Target, Calendar, Trash2, Pencil, X, PieChart, TrendingUp } from 'lucide-react';
+import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, query, where } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
+import CurrencyValue from '../../components/ui/CurrencyValue';
+import UpgradeModal from '../../components/ui/UpgradeModal';
+import { canAddCiclo, getLimits } from '../../components/ui/plans';
 import { useAuth } from '../../hooks/useAuth';
 
 export default function CiclosInvestimento() {
-  const { currentUser } = useAuth();
+  const { currentUser, userProfile } = useAuth();
   const [ciclos, setCiclos] = useState([]);
   const [transacoes, setTransacoes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [upgradeOpen, setUpgradeOpen] = useState(false);
 
   const [formData, setFormData] = useState({
     nome: '',
@@ -19,6 +24,15 @@ export default function CiclosInvestimento() {
     inicio: '',
     fim: ''
   });
+
+  // Trava por plano: plano Jovem permite até 2 ciclos em andamento
+  const planId = userProfile?.plan || 'jovem';
+  const hojeStr = (() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  })();
+  const ciclosAtivos = ciclos.filter((c) => !c.fim || c.fim >= hojeStr).length;
+  const limiteCiclos = getLimits(planId).ciclosAtivos;
 
   useEffect(() => {
     if (!currentUser) return;
@@ -49,18 +63,50 @@ export default function CiclosInvestimento() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    // Trava por plano: não cria ciclo além do limite do plano Jovem
+    if (!editingId && !canAddCiclo(planId, ciclosAtivos)) {
+      setUpgradeOpen(true);
+      return;
+    }
+
     try {
-      await addDoc(collection(db, 'ciclos'), {
+      const dados = {
         ...formData,
         orcamento: parseFloat(formData.orcamento) || 0,
-        uid: currentUser.uid,
-        criadoEm: new Date()
-      });
-      setIsModalOpen(false);
-      setFormData({ nome: '', tipo: 'Orçamento', orcamento: '', inicio: '', fim: '' });
+      };
+
+      if (editingId) {
+        await updateDoc(doc(db, 'ciclos', editingId), dados);
+      } else {
+        await addDoc(collection(db, 'ciclos'), {
+          ...dados,
+          uid: currentUser.uid,
+          criadoEm: new Date()
+        });
+      }
+      closeModal();
     } catch (error) {
-      console.error("Erro ao adicionar ciclo: ", error);
+      console.error("Erro ao salvar ciclo: ", error);
     }
+  };
+
+  const handleEdit = (ciclo) => {
+    setFormData({
+      nome: ciclo.nome || '',
+      tipo: ciclo.tipo || 'Orçamento',
+      orcamento: String(ciclo.orcamento ?? ''),
+      inicio: ciclo.inicio || '',
+      fim: ciclo.fim || ''
+    });
+    setEditingId(ciclo.id);
+    setIsModalOpen(true);
+  };
+
+  const closeModal = () => {
+    setIsModalOpen(false);
+    setEditingId(null);
+    setFormData({ nome: '', tipo: 'Orçamento', orcamento: '', inicio: '', fim: '' });
   };
 
   const handleDelete = async (id) => {
@@ -83,13 +129,23 @@ export default function CiclosInvestimento() {
           <h1 className="text-3xl font-bold text-white tracking-tight">Ciclos e Metas</h1>
           <p className="text-slate-400 text-sm">Defina seus orçamentos mensais e acompanhe seus grandes objetivos.</p>
         </div>
-        
-        <button 
-          onClick={() => setIsModalOpen(true)}
-          className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-xl font-medium transition-colors flex items-center gap-2 shadow-lg shadow-indigo-600/20"
-        >
-          <Plus size={18} /> Novo Objetivo
-        </button>
+
+        <div className="flex items-center gap-3">
+          {limiteCiclos != null && (
+            <span className="text-xs font-semibold text-slate-500 whitespace-nowrap bg-[#101623] border border-[#1e293b] px-3 py-2 rounded-xl">
+              {ciclosAtivos}/{limiteCiclos} em andamento
+            </span>
+          )}
+          <button
+            onClick={() => {
+              if (!canAddCiclo(planId, ciclosAtivos)) { setUpgradeOpen(true); return; }
+              setEditingId(null); setIsModalOpen(true);
+            }}
+            className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-xl font-medium transition-colors flex items-center gap-2 shadow-lg shadow-indigo-600/20"
+          >
+            <Plus size={18} /> Novo Objetivo
+          </button>
+        </div>
       </div>
 
       {/* LISTA DE METAS E ORÇAMENTOS */}
@@ -120,13 +176,22 @@ export default function CiclosInvestimento() {
             return (
               <div key={ciclo.id} className="bg-[#101623] border border-[#1e293b] p-6 rounded-3xl relative overflow-hidden group hover:border-indigo-500/30 transition-colors">
                 
-                <button 
-                  onClick={() => handleDelete(ciclo.id)}
-                  className="absolute top-4 right-4 text-slate-600 hover:text-rose-400 opacity-0 group-hover:opacity-100 transition-opacity bg-[#070b14] p-2 rounded-lg"
-                  title="Excluir"
-                >
-                  <Trash2 size={16} />
-                </button>
+                <div className="absolute top-4 right-4 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button 
+                    onClick={() => handleEdit(ciclo)}
+                    className="text-slate-600 hover:text-indigo-400 bg-[#070b14] p-2 rounded-lg"
+                    title="Editar"
+                  >
+                    <Pencil size={16} />
+                  </button>
+                  <button 
+                    onClick={() => handleDelete(ciclo.id)}
+                    className="text-slate-600 hover:text-rose-400 bg-[#070b14] p-2 rounded-lg"
+                    title="Excluir"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
 
                 <div className="flex items-center gap-3 mb-4">
                   <div className={`p-3 rounded-xl ${ciclo.tipo === 'Meta' ? 'bg-indigo-500/10 text-indigo-400' : 'bg-emerald-500/10 text-emerald-400'}`}>
@@ -144,13 +209,11 @@ export default function CiclosInvestimento() {
                 </div>
 
                 <div className="space-y-2">
-                  <div className="flex justify-between items-end">
-                    <span className="text-slate-400 text-xs uppercase font-bold tracking-wider">
+                  <div className="flex justify-between items-end gap-3">
+                    <span className="text-slate-400 text-xs uppercase font-bold tracking-wider whitespace-nowrap">
                       {ciclo.tipo === 'Orçamento' ? 'Gasto' : 'Acumulado'}
                     </span>
-                    <span className={`font-bold ${isEstourado ? 'text-rose-400' : 'text-white'}`}>
-                      {formatarMoeda(valorAtual)}
-                    </span>
+                    <CurrencyValue value={valorAtual} size="lg" className={`font-bold min-w-0 ${isEstourado ? 'text-rose-400' : 'text-white'}`} />
                   </div>
                   
                   <div className="w-full bg-[#1e293b] h-2 rounded-full overflow-hidden">
@@ -175,8 +238,8 @@ export default function CiclosInvestimento() {
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-[#101623] border border-[#1e293b] rounded-3xl w-full max-w-md overflow-hidden shadow-2xl animate-in fade-in zoom-in duration-200">
             <div className="p-6 border-b border-[#1e293b] flex justify-between items-center">
-              <h2 className="text-xl font-bold text-white">Novo Ciclo / Meta</h2>
-              <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-white">
+              <h2 className="text-xl font-bold text-white">{editingId ? 'Editar Ciclo / Meta' : 'Novo Ciclo / Meta'}</h2>
+              <button onClick={closeModal} className="text-slate-400 hover:text-white">
                 <X size={24} />
               </button>
             </div>
@@ -214,12 +277,15 @@ export default function CiclosInvestimento() {
               </div>
 
               <button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3.5 rounded-xl transition-colors mt-4">
-                Salvar {formData.tipo}
+                {editingId ? 'Salvar Alterações' : `Salvar ${formData.tipo}`}
               </button>
             </form>
           </div>
         </div>
       )}
+
+      {/* Modal de upgrade */}
+      <UpgradeModal feature="ciclos" open={upgradeOpen} onClose={() => setUpgradeOpen(false)} />
     </div>
   );
 }

@@ -1,9 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import {
-  ArrowRight, BarChart3, RefreshCcw, Landmark,
-  Sparkles, Target, TrendingUp, Shield
-} from 'lucide-react';
+import { ArrowRight, BarChart3, RefreshCcw, Sparkles, Target } from 'lucide-react';
 
 import logoImg from '../assets/logo-topo.png';
 
@@ -55,39 +52,51 @@ const GLOBAL_CSS = `
 
   /* Botão Premium (Alto Contraste) */
   .cc-btn-premium {
-    background: #ffffff; 
+    background: #ffffff;
     color: #05070e; /* Texto escuro */
     padding: 0.6rem 1.6rem;
-    border-radius: 8px; 
-    font-weight: 700; 
+    border-radius: 8px;
+    font-weight: 700;
     font-size: 0.85rem;
-    text-decoration: none; 
+    text-decoration: none;
     transition: all 0.3s ease;
     display: inline-flex; align-items: center; gap: 6px;
     box-shadow: 0 4px 14px rgba(255,255,255,0.1);
   }
-  .cc-btn-premium:hover { 
-    background: #f0f0f0; 
-    transform: translateY(-2px); 
+  .cc-btn-premium:hover {
+    background: #f0f0f0;
+    transform: translateY(-2px);
     box-shadow: 0 6px 20px rgba(255,255,255,0.2);
   }
 
   /* Botão Ghost Premium */
   .cc-btn-ghost {
-    background: transparent; 
+    background: transparent;
     color: #ffffff;
-    padding: 0.6rem 1.6rem; 
-    border-radius: 8px; 
-    font-weight: 500; 
+    padding: 0.6rem 1.6rem;
+    border-radius: 8px;
+    font-weight: 500;
     font-size: 0.85rem;
-    text-decoration: none; 
+    text-decoration: none;
     border: 1px solid rgba(255,255,255,0.2);
-    transition: all 0.3s ease; 
+    transition: all 0.3s ease;
     display: inline-flex; align-items: center; gap: 6px;
   }
-  .cc-btn-ghost:hover { 
-    border-color: #ffffff; 
+  .cc-btn-ghost:hover {
+    border-color: #ffffff;
     background: rgba(255,255,255,0.05);
+  }
+  /* Botão Primário (CTA principal) */
+  .cc-btn-primary {
+    background: #6366f1; color: #fff;
+    padding: 0.6rem 1.6rem; border-radius: 8px;
+    font-weight: 700; font-size: 0.85rem; text-decoration: none;
+    transition: all 0.3s ease;
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .cc-btn-primary:hover {
+    background: #4f46e5;
+    transform: translateY(-2px);
   }
   /* Hero */
   .cc-hero {
@@ -107,22 +116,7 @@ const GLOBAL_CSS = `
     max-width: 380px; margin: 1.75rem 0 2.25rem;
     font-weight: 400;
   }
-  .cc-hero-ctas { display: flex; gap: 0.75rem; align-items: center; margin-bottom: 3.5rem; }
-
-  /* Progress bars */
-  .cc-bars { display: flex; flex-direction: column; gap: 1rem; }
-  .cc-bar-label {
-    font-size: 0.72rem; font-weight: 600; color: rgba(255,255,255,0.35);
-    letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 0.5rem;
-  }
-  .cc-bar-track {
-    height: 3px; background: rgba(255,255,255,0.07); border-radius: 100px; overflow: hidden;
-  }
-  .cc-bar-fill {
-    height: 100%; background: #6366f1; border-radius: 100px;
-    transition: width 1.4s cubic-bezier(0.4,0,0.2,1);
-  }
-  .cc-bar-fill.emerald { background: #22d3a0; }
+  .cc-hero-ctas { display: flex; gap: 0.75rem; align-items: center; margin-bottom: 2.5rem; }
 
   /* 3D Cards Visual */
   .cc-cards-scene {
@@ -134,7 +128,6 @@ const GLOBAL_CSS = `
     border-radius: 20px; padding: 1.5rem;
     display: flex; flex-direction: column; justify-content: space-between;
     transition: transform 0.6s cubic-bezier(0.34,1.56,0.64,1);
-    margin-right:80px;
   }
   .cc-card:hover { transform: var(--hover-transform) !important; }
   .cc-card-back {
@@ -157,7 +150,6 @@ const GLOBAL_CSS = `
     width: 260px; height: 30px; z-index: 0;
     background: radial-gradient(ellipse, rgba(99,102,241,0.3) 0%, transparent 70%);
     filter: blur(8px);
-    margin-right:80px;
   }
   .cc-card-chip {
     width: 34px; height: 26px; border-radius: 5px;
@@ -182,23 +174,6 @@ const GLOBAL_CSS = `
   }
   .cc-card-logo-a { background: rgba(255,255,255,0.5); }
   .cc-card-logo-b { background: rgba(255,255,255,0.25); margin-left: -8px; }
-
-  /* Stats */
-  .cc-stats {
-    position: absolute; right: 0; top: 50%; transform: translateY(-50%);
-    display: flex; flex-direction: column; gap: 1.5rem;
-  }
-  .cc-stat-item { text-align: left; }
-  .cc-stat-dot {
-    width: 7px; height: 7px; border-radius: 50%; background: #6366f1;
-    display: inline-block; margin-right: 6px; vertical-align: middle;
-  }
-  .cc-stat-dot.em { background: #22d3a0; }
-  .cc-stat-micro { font-size: 0.65rem; color: rgba(255,255,255,0.3); letter-spacing: 0.08em; text-transform: uppercase; }
-  .cc-stat-num {
-    font-family: 'DM Mono', monospace; font-size: 2rem;
-    font-weight: 500; letter-spacing: -0.04em; line-height: 1;
-  }
 
   /* Marquee divider */
   .cc-marquee-wrap {
@@ -258,12 +233,12 @@ const GLOBAL_CSS = `
   .cc-feat-desc { font-size: 0.78rem; color: rgba(255,255,255,0.3); line-height: 1.6; }
 
   /* Pricing */
-  .cc-pricing-wrap { 
-    padding: 7rem 3rem; 
-    max-width: 1400px; 
-    margin: 0 auto; 
+  .cc-pricing-wrap {
+    padding: 7rem 3rem;
+    max-width: 1400px;
+    margin: 0 auto;
     display: flex; /* Adicionado para facilitar o alinhamento */
-    flex-direction: column; 
+    flex-direction: column;
     align-items: center; /* Centraliza tudo dentro do wrap */
   }.cc-pricing-header {
     text-align: center;
@@ -272,15 +247,15 @@ const GLOBAL_CSS = `
     flex-direction: column;
     align-items: center;
   }
-  .cc-plans-grid { 
-    display: grid; 
-    grid-template-columns: 1fr 1fr; 
-    gap: 1px; 
-    background: rgba(255,255,255,0.07); 
-    border: 1px solid rgba(255,255,255,0.07); 
-    border-radius: 20px; 
-    overflow: hidden; 
-    max-width: 820px; 
+  .cc-plans-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1px;
+    background: rgba(255,255,255,0.07);
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 20px;
+    overflow: hidden;
+    max-width: 820px;
     margin: 0 auto; /* Isso garante que a grid fique no centro */
     width: 100%;
   }
@@ -339,7 +314,6 @@ const GLOBAL_CSS = `
     .cc-hero { grid-template-columns: 1fr; padding: 8rem 1.5rem 4rem; min-height: auto; gap: 4rem; }
     .cc-cards-scene { height: 320px; }
     .cc-card { width: 240px; height: 145px; }
-    .cc-stats { position: relative; top: auto; right: auto; transform: none; flex-direction: row; justify-content: center; gap: 2.5rem; margin-top: 1.5rem; }
     .cc-gestao-grid { grid-template-columns: 1fr; gap: 2rem; margin-bottom: 3rem; }
     .cc-feat-grid { grid-template-columns: 1fr 1fr; }
     .cc-plans-grid { grid-template-columns: 1fr; max-width: 420px; }
@@ -359,22 +333,6 @@ const GLOBAL_CSS = `
    COMPONENTES INTERNOS
 ───────────────────────────────────────────── */
 
-function ProgressBar({ label, pct, color }) {
-  const [width, setWidth] = useState(0);
-  useEffect(() => {
-    const t = setTimeout(() => setWidth(pct), 300);
-    return () => clearTimeout(t);
-  }, [pct]);
-  return (
-    <div>
-      <div className="cc-bar-label">{label}</div>
-      <div className="cc-bar-track">
-        <div className={`cc-bar-fill${color === 'emerald' ? ' emerald' : ''}`} style={{ width: `${width}%` }} />
-      </div>
-    </div>
-  );
-}
-
 function FloatingCards() {
   return (
     <div className="cc-cards-scene">
@@ -384,7 +342,7 @@ function FloatingCards() {
           <div className="cc-card-chip cc-card-chip-dark" />
           <div style={{ textAlign: 'right' }}>
             <div className="cc-card-label">Ciclo Ativo</div>
-            <div className="cc-card-value" style={{ fontSize: '0.85rem' }}>Maio 2026</div>
+            <div className="cc-card-value" style={{ fontSize: '0.85rem' }}>Agosto 2026</div>
           </div>
         </div>
         <div>
@@ -442,8 +400,8 @@ const FEATURES = [
   },
   {
     icon: <Sparkles size={20} />,
-    title: 'Capital Advisor IA',
-    desc: 'Análise dos seus dados financeiros em linguagem natural. Disponível 24/7.'
+    title: 'Capital Advisor',
+    desc: 'Análise dos seus dados financeiros em linguagem natural, direto no aplicativo.'
   },
 ];
 
@@ -487,9 +445,9 @@ const PLANS = [
 ];
 
 const MARQUEE_ITEMS = [
-  'Dashboard em Tempo Real', 'Capital Advisor IA', 'Ciclos de Investimento',
-  'Contas Bancárias', 'Análise de Fluxo', 'Transações Inteligentes',
-  'Relatórios Automáticos', 'Segurança Firebase',
+  'Dashboard em tempo real', 'Capital Advisor', 'Ciclos de investimento',
+  'Contas bancárias', 'Análise de fluxo', 'Transações inteligentes',
+  'Relatórios automáticos', 'Segurança de dados',
 ];
 
 /* ─────────────────────────────────────────────
@@ -518,19 +476,19 @@ export default function HomePage() {
 
   return (
     <div className="cc-home">
-      
+
       <nav className="cc-nav">
         {/* Nova Logo em Imagem */}
         <Link to="/" className="cc-nav-logo">
           <img src={logoImg} alt="CapitalCycle Logo" className="cc-nav-logo-img" />
         </Link>
-        
+
         <div className="cc-nav-links">
           <a href="#recursos">Recursos</a>
-          <a href="#advisor">Capital Advisor</a>
+          <a href="#recursos">Capital Advisor</a>
           <a href="#planos">Planos</a>
         </div>
-        
+
         {/* Novos Botões (Login e Cadastro) */}
         <div className="cc-nav-actions">
           <Link to="/login" className="cc-btn-ghost">
@@ -556,31 +514,17 @@ export default function HomePage() {
           </p>
           <div className="cc-hero-ctas">
             <a href="#planos" className="cc-btn-primary">
-              Começar agora 
+              Começar agora
             </a>
             <Link to="/login" className="cc-btn-ghost">
               Já tenho conta
             </Link>
-          </div>
-          <div className="cc-bars">
-            <ProgressBar label="Precisão do Capital Advisor" pct={95} />
-            <ProgressBar label="Satisfação dos usuários" pct={88} color="emerald" />
           </div>
         </div>
 
         {/* Direita */}
         <div style={{ position: 'relative' }}>
           <FloatingCards />
-          <div className="cc-stats">
-            <div className="cc-stat-item">
-              <div className="cc-stat-micro"><span className="cc-stat-dot" /> Fluxo Positivo</div>
-              <div className="cc-stat-num">R$ 18k</div>
-            </div>
-            <div className="cc-stat-item">
-              <div className="cc-stat-micro"><span className="cc-stat-dot em" /> Ciclos Ativos</div>
-              <div className="cc-stat-num">4+</div>
-            </div>
-          </div>
         </div>
       </div>
 
@@ -589,7 +533,7 @@ export default function HomePage() {
         <div className="cc-marquee-track">
           {[...MARQUEE_ITEMS, ...MARQUEE_ITEMS].map((item, i) => (
             <div key={i} className="cc-marquee-item">
-              <span>✦</span> {item}
+              <span>•</span> {item}
             </div>
           ))}
         </div>
@@ -675,8 +619,8 @@ export default function HomePage() {
       {/* ── FOOTER ── */}
       <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
         <footer className="cc-footer">
-          
-          <span className="cc-copy">© 2026 CapitalCycle  </span>
+
+          <span className="cc-copy">© 2026 CapitalCycle</span>
           <div className="cc-footer-links">
             <a href="#">Termos</a>
             <a href="#">Privacidade</a>
