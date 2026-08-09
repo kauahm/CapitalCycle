@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Landmark, Wallet, TrendingUp, Trash2, X, Building2 } from 'lucide-react';
-import { collection, onSnapshot, addDoc, deleteDoc, doc } from 'firebase/firestore';
+import { collection, onSnapshot, addDoc, deleteDoc, doc, query, where } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
+import { useAuth } from '../../hooks/useAuth';
 
 export default function ContasBancarias() {
+  const { currentUser } = useAuth();
   const [contas, setContas] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -19,12 +21,14 @@ export default function ContasBancarias() {
   const tiposConta = ['Corrente', 'Poupança', 'Investimentos', 'Carteira Física'];
 
   useEffect(() => {
-    const unsub = onSnapshot(collection(db, 'accounts'), (snapshot) => {
+    if (!currentUser) return;
+    const q = query(collection(db, 'accounts'), where('uid', '==', currentUser.uid));
+    const unsub = onSnapshot(q, (snapshot) => {
       setContas(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
       setLoading(false);
     });
     return () => unsub();
-  }, []);
+  }, [currentUser]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -32,6 +36,7 @@ export default function ContasBancarias() {
       await addDoc(collection(db, 'accounts'), {
         ...formData,
         saldo: parseFloat(formData.saldo) || 0,
+        uid: currentUser.uid,
         criadoEm: new Date()
       });
       setIsModalOpen(false);

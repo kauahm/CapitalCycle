@@ -1,20 +1,40 @@
-// Import the functions you need from the SDKs you need
-import { initializeApp } from "firebase/app";
-import { getAnalytics } from "firebase/analytics";
-// TODO: Add SDKs for Firebase products that you want to use
-// https://firebase.google.com/docs/web/setup#available-libraries
+rules_version = '2';
 
-// Your web app's Firebase configuration
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
-const firebaseConfig = {
-   apiKey: "AIzaSyCth4rT2YCERCYMwL44ZuOpDrXvYk1xyyI",
-  authDomain: "capitalcycle-tcc.firebaseapp.com",
-  projectId: "capitalcycle-tcc",
-  storageBucket: "capitalcycle-tcc.firebasestorage.app",
-  messagingSenderId: "188739395268",
-  appId: "1:188739395268:web:d2d783a1bb54c86c3ff391"
-};
+service cloud.firestore {
+  match /databases/{database}/documents {
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-const analytics = getAnalytics(app);
+    // Perfil do usuário — cada um só lê/escreve o próprio documento
+    match /usuarios/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Contas bancárias/carteiras — só o dono (campo uid) pode ler/escrever
+    match /accounts/{accountId} {
+      allow read, update, delete: if request.auth != null
+        && request.auth.uid == resource.data.uid;
+      allow create: if request.auth != null
+        && request.auth.uid == request.resource.data.uid;
+    }
+
+    // Transações — só o dono (campo uid) pode ler/escrever
+    match /transactions/{transactionId} {
+      allow read, update, delete: if request.auth != null
+        && request.auth.uid == resource.data.uid;
+      allow create: if request.auth != null
+        && request.auth.uid == request.resource.data.uid;
+    }
+
+    // Ciclos / Metas / Orçamentos — só o dono (campo uid) pode ler/escrever
+    match /ciclos/{cicloId} {
+      allow read, update, delete: if request.auth != null
+        && request.auth.uid == resource.data.uid;
+      allow create: if request.auth != null
+        && request.auth.uid == request.resource.data.uid;
+    }
+
+    // Tudo o mais fica bloqueado por padrão
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, ArrowUpCircle, ArrowDownCircle, Trash2, Search, Filter, X } from 'lucide-react';
-import { collection, onSnapshot, addDoc, deleteDoc, doc, query, orderBy } from 'firebase/firestore';
+import { collection, onSnapshot, deleteDoc, doc, query, where, runTransaction } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
+import { useAuth } from '../../hooks/useAuth';
 
 export default function Transacoes() {
+  const { currentUser } = useAuth();
   const [transacoes, setTransacoes] = useState([]);
   const [contas, setContas] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -28,15 +30,23 @@ export default function Transacoes() {
   };
 
   useEffect(() => {
-    // Buscar Contas (para o select do formulário)
-    const unsubContas = onSnapshot(collection(db, 'accounts'), (snapshot) => {
+    if (!currentUser) return;
+
+    // Buscar Contas (para o select do formulário) — apenas as do usuário logado
+    const qContas = query(collection(db, 'accounts'), where('uid', '==', currentUser.uid));
+    const unsubContas = onSnapshot(qContas, (snapshot) => {
       setContas(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
     });
 
-    // Buscar Transações (ordenadas das mais recentes para as mais antigas)
-    const qTransacoes = query(collection(db, 'transactions'), orderBy('data', 'desc'));
+    // Buscar Transações do usuário logado (ordenadas das mais recentes para as mais antigas)
+    const qTransacoes = query(
+      collection(db, 'transactions'),
+      where('uid', '==', currentUser.uid)
+    );
     const unsubTransacoes = onSnapshot(qTransacoes, (snapshot) => {
-      setTransacoes(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      docs.sort((a, b) => (b.data || '').localeCompare(a.data || ''));
+      setTransacoes(docs);
       setLoading(false);
     });
 
@@ -44,27 +54,69 @@ export default function Transacoes() {
       unsubContas();
       unsubTransacoes();
     };
-  }, []);
+  }, [currentUser]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    const valorNumerico = parseFloat(formData.valor);
+    const contaRef = doc(db, 'accounts', formData.conta_id);
+    const novaTransacaoRef = doc(collection(db, 'transactions'));
+
     try {
-      await addDoc(collection(db, 'transactions'), {
-        ...formData,
-        valor: parseFloat(formData.valor),
-        criadoEm: new Date()
+      await runTransaction(db, async (transaction) => {
+        const contaSnap = await transaction.get(contaRef);
+        if (!contaSnap.exists()) {
+          throw new Error('Conta selecionada não existe mais.');
+        }
+
+        const saldoAtual = parseFloat(contaSnap.data().saldo) || 0;
+        // Entrada soma ao saldo da conta, saída subtrai
+        const delta = formData.tipo === 'entrada' ? valorNumerico : -valorNumerico;
+        const novoSaldo = saldoAtual + delta;
+
+        transaction.set(novaTransacaoRef, {
+          ...formData,
+          valor: valorNumerico,
+          uid: currentUser.uid,
+          criadoEm: new Date()
+        });
+        transaction.update(contaRef, { saldo: novoSaldo });
       });
+
       setIsModalOpen(false);
       setFormData({ ...formData, descricao: '', valor: '' }); // Limpa o form
     } catch (error) {
       console.error("Erro ao adicionar transação: ", error);
-      alert("Erro ao salvar transação.");
+      alert("Erro ao salvar transação: " + error.message);
     }
   };
 
   const handleDelete = async (id) => {
-    if (window.confirm("Tem certeza que deseja excluir esta transação?")) {
-      await deleteDoc(doc(db, 'transactions', id));
+    if (!window.confirm("Tem certeza que deseja excluir esta transação?")) return;
+
+    const transacao = transacoes.find(t => t.id === id);
+    const transacaoRef = doc(db, 'transactions', id);
+
+    try {
+      if (transacao && transacao.conta_id) {
+        // Reverte o efeito da transação no saldo da conta antes de excluir
+        const contaRef = doc(db, 'accounts', transacao.conta_id);
+        await runTransaction(db, async (transaction) => {
+          const contaSnap = await transaction.get(contaRef);
+          if (contaSnap.exists()) {
+            const saldoAtual = parseFloat(contaSnap.data().saldo) || 0;
+            const valor = parseFloat(transacao.valor) || 0;
+            const delta = transacao.tipo === 'entrada' ? -valor : valor;
+            transaction.update(contaRef, { saldo: saldoAtual + delta });
+          }
+          transaction.delete(transacaoRef);
+        });
+      } else {
+        await deleteDoc(transacaoRef);
+      }
+    } catch (error) {
+      console.error("Erro ao excluir transação: ", error);
+      alert("Erro ao excluir transação: " + error.message);
     }
   };
 
@@ -76,8 +128,8 @@ export default function Transacoes() {
 
   // Filtro de busca simples
   const transacoesFiltradas = transacoes.filter(t => 
-    t.descricao.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    t.categoria.toLowerCase().includes(searchTerm.toLowerCase())
+    (t.descricao || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
+    (t.categoria || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   if (loading) return <div className="h-[80vh] flex items-center justify-center"><LoadingSpinner size="lg" color="text-indigo-500" /></div>;

@@ -7,6 +7,7 @@ import {
   PieChart, 
   Sparkles, 
   LogOut,
+  BarChart2,
   X
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
@@ -23,6 +24,7 @@ export default function Sidebar({ isMobileMenuOpen, setIsMobileMenuOpen }) {
     { icon: Landmark, label: 'Contas e Caixas', path: '/capital/contas' },
     { icon: PieChart, label: 'Ciclos e Metas', path: '/capital/ciclos' },
     { icon: Sparkles, label: 'Capital Advisor (IA)', path: '/capital/analise-ia' },
+    { path: '/capital/mercado', icon: BarChart2, label: 'Mercado' }
   ];
 
   const handleLogout = async () => {

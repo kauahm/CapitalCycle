@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   ArrowRight, BarChart3, RefreshCcw, Landmark,
@@ -134,6 +134,7 @@ const GLOBAL_CSS = `
     border-radius: 20px; padding: 1.5rem;
     display: flex; flex-direction: column; justify-content: space-between;
     transition: transform 0.6s cubic-bezier(0.34,1.56,0.64,1);
+    margin-right:80px;
   }
   .cc-card:hover { transform: var(--hover-transform) !important; }
   .cc-card-back {
@@ -156,6 +157,7 @@ const GLOBAL_CSS = `
     width: 260px; height: 30px; z-index: 0;
     background: radial-gradient(ellipse, rgba(99,102,241,0.3) 0%, transparent 70%);
     filter: blur(8px);
+    margin-right:80px;
   }
   .cc-card-chip {
     width: 34px; height: 26px; border-radius: 5px;
@@ -449,7 +451,7 @@ const PLANS = [
   {
     id: 'jovem',
     name: 'Jovem',
-    price: '24',
+    price: '19,90',
     desc: 'Para quem está começando a organizar as finanças com controle prático.',
     cta: 'Começar com o Jovem',
     ctaClass: 'cc-cta-outline',
@@ -466,7 +468,7 @@ const PLANS = [
   {
     id: 'adulto',
     name: 'Adulto',
-    price: '46',
+    price: '47,90',
     desc: 'Controle avançado com IA ilimitada, múltiplas contas e relatórios completos.',
     cta: 'Começar com o Adulto',
     ctaClass: 'cc-cta-filled',

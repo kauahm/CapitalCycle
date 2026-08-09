@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { Suspense, lazy } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './hooks/useAuth';
 import DashboardLayout from './components/layout/DashboardLayout';
@@ -6,11 +6,21 @@ import Login from './pages/Login';
 import HomePage from './pages/HomePage'; // ← NOVO
 import Register from './pages/Register';
 
-import DashboardFinanceiro from './pages/admin/DashboardFinanceiro';
-import Transacoes from './pages/admin/Transacoes';
-import ContasBancarias from './pages/admin/ContasBancarias';
-import CiclosInvestimento from './pages/admin/CiclosInvestimento';
-import AnaliseIA from './pages/admin/AnaliseIA';
+// Rotas internas carregadas sob demanda (reduz o bundle inicial)
+const DashboardFinanceiro = lazy(() => import('./pages/admin/DashboardFinanceiro'));
+const Transacoes = lazy(() => import('./pages/admin/Transacoes'));
+const ContasBancarias = lazy(() => import('./pages/admin/ContasBancarias'));
+const CiclosInvestimento = lazy(() => import('./pages/admin/CiclosInvestimento'));
+const AnaliseIA = lazy(() => import('./pages/admin/AnaliseIA'));
+const Mercado = lazy(() => import('./pages/admin/Mercado'));
+
+function RouteLoading() {
+  return (
+    <div className="h-[80vh] flex items-center justify-center text-slate-400">
+      Carregando...
+    </div>
+  );
+}
 
 // Protetor de Rotas Inteligente
 function PrivateRoute({ children }) {
@@ -42,6 +52,9 @@ export default function App() {
           {/* Login */}
           <Route path="/login" element={<Login />} />
 
+          {/* Cadastro — deve vir ANTES do wildcard * */}
+          <Route path="/cadastro" element={<Register />} />
+
           {/* Rotas Protegidas do Sistema Financeiro */}
           <Route
             path="/capital"
@@ -51,16 +64,16 @@ export default function App() {
               </PrivateRoute>
             }
           >
-            <Route path="dashboard" element={<DashboardFinanceiro />} />
-            <Route path="transacoes" element={<Transacoes />} />
-            <Route path="contas" element={<ContasBancarias />} />
-            <Route path="ciclos" element={<CiclosInvestimento />} />
-            <Route path="analise-ia" element={<AnaliseIA />} />
+            <Route path="dashboard" element={<Suspense fallback={<RouteLoading />}><DashboardFinanceiro /></Suspense>} />
+            <Route path="transacoes" element={<Suspense fallback={<RouteLoading />}><Transacoes /></Suspense>} />
+            <Route path="contas" element={<Suspense fallback={<RouteLoading />}><ContasBancarias /></Suspense>} />
+            <Route path="ciclos" element={<Suspense fallback={<RouteLoading />}><CiclosInvestimento /></Suspense>} />
+            <Route path="analise-ia" element={<Suspense fallback={<RouteLoading />}><AnaliseIA /></Suspense>} />
+            <Route path="mercado" element={<Suspense fallback={<RouteLoading />}><Mercado /></Suspense>} />
           </Route>
 
+          {/* Wildcard — redireciona qualquer rota desconhecida para home */}
           <Route path="*" element={<Navigate to="/" replace />} />
-
-          <Route path="/cadastro" element={<Register />} />
         </Routes>
       </BrowserRouter>
     </AuthProvider>

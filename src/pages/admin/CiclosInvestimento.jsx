@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Target, Calendar, Trash2, X, PieChart, TrendingUp } from 'lucide-react';
-import { collection, onSnapshot, addDoc, deleteDoc, doc, query, orderBy } from 'firebase/firestore';
+import { collection, onSnapshot, addDoc, deleteDoc, doc, query, where } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
+import { useAuth } from '../../hooks/useAuth';
 
 export default function CiclosInvestimento() {
+  const { currentUser } = useAuth();
   const [ciclos, setCiclos] = useState([]);
   const [transacoes, setTransacoes] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -19,14 +21,22 @@ export default function CiclosInvestimento() {
   });
 
   useEffect(() => {
-    // 1. Buscar as Metas e Ciclos
-    const qCiclos = query(collection(db, 'ciclos'), orderBy('fim', 'asc'));
+    if (!currentUser) return;
+
+    // 1. Buscar as Metas e Ciclos do usuário logado
+    const qCiclos = query(
+      collection(db, 'ciclos'),
+      where('uid', '==', currentUser.uid)
+    );
     const unsubCiclos = onSnapshot(qCiclos, (snapshot) => {
-      setCiclos(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      docs.sort((a, b) => (a.fim || '').localeCompare(b.fim || ''));
+      setCiclos(docs);
     });
 
-    // 2. Buscar Transações para calcular as barras de progresso
-    const unsubTransacoes = onSnapshot(collection(db, 'transactions'), (snapshot) => {
+    // 2. Buscar Transações do usuário logado para calcular as barras de progresso
+    const qTransacoes = query(collection(db, 'transactions'), where('uid', '==', currentUser.uid));
+    const unsubTransacoes = onSnapshot(qTransacoes, (snapshot) => {
       setTransacoes(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
       setLoading(false);
     });
@@ -35,7 +45,7 @@ export default function CiclosInvestimento() {
       unsubCiclos();
       unsubTransacoes();
     };
-  }, []);
+  }, [currentUser]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -43,6 +53,7 @@ export default function CiclosInvestimento() {
       await addDoc(collection(db, 'ciclos'), {
         ...formData,
         orcamento: parseFloat(formData.orcamento) || 0,
+        uid: currentUser.uid,
         criadoEm: new Date()
       });
       setIsModalOpen(false);

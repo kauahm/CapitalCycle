@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { TrendingUp, Activity, Wallet, Target, AlertTriangle } from 'lucide-react';
-import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
+import { collection, onSnapshot, query, where } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import { useAuth } from '../../hooks/useAuth';
 
 export default function DashboardFinanceiro() {
-  const { userProfile } = useAuth(); 
+  const { userProfile, currentUser } = useAuth(); 
   const [loading, setLoading] = useState(true);
   
  
@@ -15,21 +15,34 @@ export default function DashboardFinanceiro() {
   const [ciclos, setCiclos] = useState([]);
 
   useEffect(() => {
-    // 1. Buscar Contas
-    const unsubContas = onSnapshot(collection(db, 'accounts'), (snapshot) => {
+    if (!currentUser) return;
+
+    // 1. Buscar Contas do usuário logado
+    const qContas = query(collection(db, 'accounts'), where('uid', '==', currentUser.uid));
+    const unsubContas = onSnapshot(qContas, (snapshot) => {
       setContas(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
     });
 
-    // 2. Buscar Transações
-    const qTransacoes = query(collection(db, 'transactions'), orderBy('data', 'desc'));
+    // 2. Buscar Transações do usuário logado
+    const qTransacoes = query(
+      collection(db, 'transactions'),
+      where('uid', '==', currentUser.uid)
+    );
     const unsubTransacoes = onSnapshot(qTransacoes, (snapshot) => {
-      setTransacoes(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      docs.sort((a, b) => (b.data || '').localeCompare(a.data || ''));
+      setTransacoes(docs);
     });
 
-    // 3. Buscar Ciclos/Metas
-    const qCiclos = query(collection(db, 'ciclos'), orderBy('fim', 'asc'));
+    // 3. Buscar Ciclos/Metas do usuário logado
+    const qCiclos = query(
+      collection(db, 'ciclos'),
+      where('uid', '==', currentUser.uid)
+    );
     const unsubCiclos = onSnapshot(qCiclos, (snapshot) => {
-      setCiclos(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      docs.sort((a, b) => (a.fim || '').localeCompare(b.fim || ''));
+      setCiclos(docs);
       setLoading(false); // Para o loading quando tudo carregar
     });
 
@@ -38,7 +51,7 @@ export default function DashboardFinanceiro() {
       unsubTransacoes();
       unsubCiclos();
     };
-  }, []);
+  }, [currentUser]);
 
   // Formatador de Moeda
   const formatarMoeda = (valor) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor || 0);
