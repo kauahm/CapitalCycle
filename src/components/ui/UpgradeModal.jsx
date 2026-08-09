@@ -21,10 +21,10 @@ export default function UpgradeModal({ feature, open, onClose }) {
 
   return (
     <div className="fixed inset-0 z-[90] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-[#101623] border border-indigo-500/30 rounded-3xl w-full max-w-md overflow-hidden shadow-2xl">
+      <div className="bg-[#101623] border border-indigo-500/30 rounded-2xl w-full max-w-md overflow-hidden shadow-2xl">
         <div className="p-6 border-b border-[#1e293b] flex justify-between items-start gap-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-indigo-500/15 text-indigo-400 flex items-center justify-center shrink-0">
+            <div className="w-10 h-10 rounded-xl bg-indigo-500/15 text-indigo-400 flex items-center justify-center shrink-0">
               <Crown size={20} />
             </div>
             <h2 className="text-lg font-bold text-white leading-snug">{gate.title}</h2>

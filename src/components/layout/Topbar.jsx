@@ -26,15 +26,14 @@ export default function Topbar({ onMenuClick }) {
     <header className="bg-[#101623] shadow-sm h-16 flex items-center justify-between px-6 md:ml-64 w-full md:w-[calc(100%-16rem)] fixed top-0 z-10 border-b border-[#1e293b]">
       <div className="flex items-center gap-3">
         <button onClick={onMenuClick} className="p-2 text-slate-400 hover:bg-[#1a2234] rounded-lg md:hidden transition-colors">
-          <Menu size={24} />
+          <Menu size={22} />
         </button>
-        <h2 className="text-xl font-bold text-white">{getPageTitle()}</h2>
+        <h2 className="text-lg font-semibold text-white">{getPageTitle()}</h2>
       </div>
 
       <div className="flex items-center gap-4">
-        <button className="text-slate-400 hover:text-white transition-colors relative">
-          <Bell size={20} />
-          <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-rose-500 rounded-full border-2 border-[#101623]"></span>
+        <button className="text-slate-500 hover:text-white transition-colors" title="Notificações">
+          <Bell size={19} />
         </button>
         <div className="h-6 w-px bg-[#1e293b]"></div>
         {/* Avatar / nome clicável → Meu Perfil */}
@@ -44,10 +43,10 @@ export default function Topbar({ onMenuClick }) {
           className="flex items-center gap-3 rounded-xl px-1.5 py-1 hover:bg-[#1a2234] transition-colors"
         >
           <div className="text-right hidden sm:block">
-            <p className="text-sm font-medium text-white">{nome}</p>
-            <p className="text-xs text-indigo-400 capitalize">{userProfile?.perfil || 'Investidor'}</p>
+            <p className="text-sm font-medium text-white leading-tight">{nome}</p>
+            <p className="text-xs text-slate-500 capitalize leading-tight">{userProfile?.perfil || 'Investidor'}</p>
           </div>
-          <div className="w-9 h-9 rounded-full bg-indigo-600 text-white flex items-center justify-center text-sm font-bold uppercase shrink-0">
+          <div className="w-8 h-8 rounded-full bg-indigo-500/15 text-indigo-400 flex items-center justify-center text-xs font-semibold uppercase shrink-0">
             {inicial}
           </div>
         </Link>

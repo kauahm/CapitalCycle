@@ -102,19 +102,16 @@ export default function Perfil() {
       {/* HEADER */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-white tracking-tight flex items-center gap-2">
-            <User className="text-indigo-400" size={28} /> Meu Perfil
-          </h1>
+          <h1 className="text-3xl font-bold text-white tracking-tight">Meu Perfil</h1>
           <p className="text-slate-400 text-sm">Informações da conta, plano e segurança.</p>
         </div>
       </div>
 
       {/* ── INFORMAÇÕES DA CONTA ─────────────────────── */}
       <div className="bg-[#101623] border border-[#1e293b] rounded-2xl p-6">
-        <div className="flex items-center gap-2 mb-6">
-          <User size={16} className="text-indigo-400" />
-          <h2 className="text-sm font-bold text-slate-300 uppercase tracking-widest">Informações da conta</h2>
-        </div>
+        <h3 className="text-sm font-semibold text-slate-300 flex items-center gap-2 mb-6">
+          <User size={16} className="text-slate-500" /> Informações da conta
+        </h3>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-center">
           {/* Nome + avatar */}
@@ -159,10 +156,9 @@ export default function Perfil() {
 
         {/* Seu plano */}
         <div className="bg-[#101623] border border-[#1e293b] rounded-2xl p-6 flex flex-col">
-          <div className="flex items-center gap-2 mb-4">
-            <Crown size={16} className="text-indigo-400" />
-            <h2 className="text-sm font-bold text-slate-300 uppercase tracking-widest">Seu plano</h2>
-          </div>
+          <h3 className="text-sm font-semibold text-slate-300 flex items-center gap-2 mb-4">
+            <Crown size={16} className="text-slate-500" /> Seu plano
+          </h3>
 
           <div className="flex items-center justify-between gap-4">
             <div>
@@ -191,10 +187,9 @@ export default function Perfil() {
 
         {/* Segurança */}
         <div className="bg-[#101623] border border-[#1e293b] rounded-2xl p-6 flex flex-col">
-          <div className="flex items-center gap-2 mb-4">
-            <ShieldCheck size={16} className="text-indigo-400" />
-            <h2 className="text-sm font-bold text-slate-300 uppercase tracking-widest">Segurança</h2>
-          </div>
+          <h3 className="text-sm font-semibold text-slate-300 flex items-center gap-2 mb-4">
+            <ShieldCheck size={16} className="text-slate-500" /> Segurança
+          </h3>
 
           {usaSenha ? (
             <>
@@ -221,9 +216,7 @@ export default function Perfil() {
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-[#101623] border border-[#1e293b] rounded-3xl w-full max-w-md overflow-hidden shadow-2xl animate-in fade-in zoom-in duration-200">
             <div className="p-6 border-b border-[#1e293b] flex justify-between items-center">
-              <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                <Lock size={18} className="text-indigo-400" /> Trocar senha
-              </h2>
+              <h2 className="text-xl font-bold text-white">Trocar senha</h2>
               <button onClick={() => setPwdOpen(false)} className="text-slate-400 hover:text-white">
                 <X size={24} />
               </button>

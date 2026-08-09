@@ -2,17 +2,17 @@ import React from 'react';
 
 /**
  * Exibe um valor monetário que nunca "some": ao invés de estourar o card e ser
- * cortado pelo overflow-hidden, o texto fica ancorado à direita e encolhe
- * suavemente a fonte conforme o número fica mais comprido — crescendo para a
- * esquerda até o limite do espaço disponível, e diminuindo o tamanho da fonte
- * apenas se realmente não couber.
+ * cortado pelo overflow-hidden, o texto fica ancorado à direita (ou à esquerda,
+ * se align="left") e encolhe suavemente a fonte conforme o número fica mais
+ * comprido — crescendo até o limite do espaço disponível, e diminuindo o
+ * tamanho da fonte apenas se realmente não couber.
  *
- * size: '4xl' | '3xl' | '2xl' | 'xl' | 'lg'  (equivalente ao tamanho máximo em Tailwind)
+ * size: '6xl' | '5xl' | '4xl' | '3xl' | '2xl' | 'xl' | 'lg'
  */
-const SIZE_MAP_PX = { '4xl': 36, '3xl': 30, '2xl': 24, xl: 20, lg: 18 };
+const SIZE_MAP_PX = { '6xl': 56, '5xl': 46, '4xl': 36, '3xl': 30, '2xl': 24, xl: 20, lg: 18 };
 const BASE_LENGTH = 11; // tamanho aproximado de "R$ 1.234,56"
 
-export default function CurrencyValue({ value, size = '3xl', className = '' }) {
+export default function CurrencyValue({ value, size = '3xl', className = '', align = 'right' }) {
   const formatted = new Intl.NumberFormat('pt-BR', {
     style: 'currency',
     currency: 'BRL',
@@ -25,7 +25,7 @@ export default function CurrencyValue({ value, size = '3xl', className = '' }) {
 
   return (
     <span
-      className={`${className} block text-right whitespace-nowrap tabular-nums`}
+      className={`${className} block ${align === 'left' ? 'text-left' : 'text-right'} whitespace-nowrap tabular-nums`}
       style={{ fontSize: `${fontSize}px`, lineHeight: 1.15 }}
       title={formatted}
     >

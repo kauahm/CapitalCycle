@@ -55,17 +55,14 @@ export default function Sidebar({ isMobileMenuOpen, setIsMobileMenuOpen }) {
       `}>
         {/* Cabeçalho com Logo */}
         <div className="p-6 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <img src={logoTopo} alt="Logo" className="w-[300px] h-[100px] object-contain" />
-           
-          </div>
-          <button className="md:hidden" onClick={() => setIsMobileMenuOpen(false)}>
+          <img src={logoTopo} alt="CapitalCycle" className="h-9 w-auto object-contain" />
+          <button className="md:hidden text-slate-500 hover:text-white transition-colors" onClick={() => setIsMobileMenuOpen(false)}>
             <X size={20} />
           </button>
         </div>
 
         {/* Links do Menu */}
-        <nav className="mt-4 px-4 space-y-1">
+        <nav className="mt-2 px-3 space-y-0.5">
           {menuItems.map((item) => {
             const isActive = location.pathname === item.path;
             return (
@@ -74,13 +71,13 @@ export default function Sidebar({ isMobileMenuOpen, setIsMobileMenuOpen }) {
                 to={item.path}
                 onClick={() => setIsMobileMenuOpen(false)}
                 className={`
-                  flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors
-                  ${isActive 
-                    ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20' 
-                    : 'text-slate-400 hover:bg-slate-800 hover:text-white'}
+                  flex items-center gap-3 pl-3.5 pr-4 py-2.5 rounded-lg text-sm font-medium border-l-2 transition-colors
+                  ${isActive
+                    ? 'border-indigo-500 bg-indigo-500/10 text-white'
+                    : 'border-transparent text-slate-400 hover:bg-slate-800/60 hover:text-white'}
                 `}
               >
-                <item.icon size={20} />
+                <item.icon size={18} className={isActive ? 'text-indigo-400' : 'text-slate-500'} />
                 {item.label}
               </Link>
             );
@@ -88,12 +85,12 @@ export default function Sidebar({ isMobileMenuOpen, setIsMobileMenuOpen }) {
         </nav>
 
         {/* Botão de Sair (Fixo no rodapé) */}
-        <div className="absolute bottom-0 w-full p-4 border-t border-slate-800">
+        <div className="absolute bottom-0 w-full p-3 border-t border-slate-800">
           <button
             onClick={handleLogout}
-            className="flex items-center gap-3 w-full px-4 py-3 text-sm font-medium text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors"
+            className="flex items-center gap-3 w-full pl-3.5 pr-4 py-2.5 text-sm font-medium text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors"
           >
-            <LogOut size={20} />
+            <LogOut size={18} />
             Sair
           </button>
         </div>

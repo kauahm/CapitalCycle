@@ -228,10 +228,7 @@ export default function Transacoes() {
       
       {/* HEADER E BARRA DE BUSCA */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-          <h1 className="text-3xl font-bold text-white tracking-tight">Transações</h1>
-          <p className="text-slate-400 text-sm">Gerencie suas entradas e saídas.</p>
-        </div>
+        <p className="text-sm text-slate-400">Gerencie suas entradas e saídas.</p>
         
         <div className="flex items-center gap-3 w-full md:w-auto">
           <div className="relative flex-1 md:w-64">
@@ -249,7 +246,7 @@ export default function Transacoes() {
               if (!canAddTransacao(planId, lancamentosNoMes)) { setUpgradeOpen(true); return; }
               setEditingId(null); setIsModalOpen(true);
             }}
-            className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-xl font-medium transition-colors flex items-center gap-2 whitespace-nowrap shadow-lg shadow-indigo-600/20"
+            className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-xl font-medium transition-colors flex items-center gap-2 whitespace-nowrap"
           >
             <Plus size={18} />
             Nova
@@ -258,10 +255,12 @@ export default function Transacoes() {
       </div>
 
       {/* LISTA DE TRANSAÇÕES (ESTILO EXTRATO) */}
-      <div className="bg-[#101623] border border-[#1e293b] rounded-3xl overflow-hidden">
+      <div className="bg-[#101623] border border-[#1e293b] rounded-2xl overflow-hidden">
         {transacoesFiltradas.length === 0 ? (
-          <div className="p-8 text-center text-slate-500">
-            Nenhuma transação encontrada.
+          <div className="p-10 text-center">
+            <p className="text-slate-500 text-sm">
+              {searchTerm ? 'Nenhuma transação encontrada para essa busca.' : 'Nenhuma transação lançada ainda.'}
+            </p>
           </div>
         ) : (
           <div className="divide-y divide-[#1e293b]">
@@ -310,7 +309,7 @@ export default function Transacoes() {
       {/* MODAL DE NOVA TRANSAÇÃO */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-[#101623] border border-[#1e293b] rounded-3xl w-full max-w-md overflow-hidden shadow-2xl animate-in fade-in zoom-in duration-200">
+          <div className="bg-[#101623] border border-[#1e293b] rounded-2xl w-full max-w-md overflow-hidden shadow-2xl">
             <div className="p-6 border-b border-[#1e293b] flex justify-between items-center">
               <h2 className="text-xl font-bold text-white">{editingId ? 'Editar Transação' : 'Nova Transação'}</h2>
               <button onClick={closeModal} className="text-slate-400 hover:text-white">

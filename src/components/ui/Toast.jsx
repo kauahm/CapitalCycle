@@ -10,25 +10,21 @@ export default function Toast({ message, type = 'success', onClose }) {
   }, [onClose]);
 
   const styles = {
-    success: 'bg-green-100 text-green-800 border-green-200',
-    error: 'bg-red-100 text-red-800 border-red-200',
-    warning: 'bg-orange-100 text-orange-800 border-orange-200'
-  };
-
-  const icons = {
-    success: <CheckCircle className="w-5 h-5 text-green-600" />,
-    error: <XCircle className="w-5 h-5 text-red-600" />,
-    warning: <AlertCircle className="w-5 h-5 text-orange-600" />
+    success: { border: 'border-emerald-500/30', icon: 'text-emerald-400', Icon: CheckCircle },
+    error: { border: 'border-rose-500/30', icon: 'text-rose-400', Icon: XCircle },
+    warning: { border: 'border-amber-500/30', icon: 'text-amber-400', Icon: AlertCircle },
   };
 
   if (!message) return null;
 
+  const { border, icon, Icon } = styles[type] || styles.success;
+
   return (
-    <div className={`fixed top-4 right-4 z-50 flex items-center p-4 border rounded shadow-lg transition-all duration-300 ${styles[type]}`}>
-      <div className="mr-3">{icons[type]}</div>
-      <p className="flex-1 font-medium">{message}</p>
-      <button onClick={onClose} className="ml-4 text-gray-500 hover:text-gray-700">
-        <X className="w-4 h-4" />
+    <div className={`fixed top-4 right-4 z-50 flex items-center gap-3 px-4 py-3.5 bg-[#101623] border ${border} rounded-xl shadow-lg shadow-black/40 max-w-sm`}>
+      <Icon size={18} className={`${icon} shrink-0`} />
+      <p className="flex-1 text-sm text-slate-200">{message}</p>
+      <button onClick={onClose} className="text-slate-500 hover:text-white transition-colors shrink-0">
+        <X size={16} />
       </button>
     </div>
   );

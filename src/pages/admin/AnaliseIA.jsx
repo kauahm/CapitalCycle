@@ -169,12 +169,7 @@ export default function AnaliseIA() {
 
       {/* HEADER */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 shrink-0">
-        <div>
-          <h1 className="text-3xl font-bold text-white tracking-tight flex items-center gap-2">
-            <Sparkles className="text-indigo-400" size={28} /> Capital Advisor
-          </h1>
-          <p className="text-slate-400 text-sm">Seu assistente financeiro movido a Inteligência Artificial.</p>
-        </div>
+        <p className="text-sm text-slate-400">Converse com o assistente sobre seus gastos, investimentos e metas.</p>
 
         <div className="flex items-center gap-3 shrink-0">
           {limiteIA != null && (
@@ -265,33 +260,33 @@ export default function AnaliseIA() {
         </div>
       )}
 
-      {/* INSIGHTS */}
+      {/* GUIA RÁPIDO */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 shrink-0">
         <div className="bg-[#101623] border border-[#1e293b] p-5 rounded-2xl flex gap-4 items-start">
           <div className="p-3 bg-emerald-500/10 text-emerald-400 rounded-xl shrink-0"><TrendingUp size={20} /></div>
           <div>
-            <h4 className="text-white font-bold text-sm mb-1">Oportunidade</h4>
-            <p className="text-xs text-slate-400 leading-relaxed">Seu fluxo de caixa está positivo. Considere transferir R$ 500 para sua conta de Investimentos.</p>
+            <h4 className="text-white font-semibold text-sm mb-1">Sobre investimentos</h4>
+            <p className="text-xs text-slate-400 leading-relaxed">Pergunte se faz sentido mover parte do seu saldo disponível para investimentos, com base no que você já tem cadastrado.</p>
           </div>
         </div>
         <div className="bg-[#101623] border border-[#1e293b] p-5 rounded-2xl flex gap-4 items-start">
           <div className="p-3 bg-rose-500/10 text-rose-400 rounded-xl shrink-0"><AlertTriangle size={20} /></div>
           <div>
-            <h4 className="text-white font-bold text-sm mb-1">Alerta de Gasto</h4>
-            <p className="text-xs text-slate-400 leading-relaxed">Os gastos com &quot;Alimentação&quot; subiram 18% em relação ao mês passado.</p>
+            <h4 className="text-white font-semibold text-sm mb-1">Sobre seus gastos</h4>
+            <p className="text-xs text-slate-400 leading-relaxed">Peça uma leitura de qual categoria pesou mais no mês e o que dá pra ajustar.</p>
           </div>
         </div>
-        <div className="bg-indigo-600 p-5 rounded-2xl flex gap-4 items-start shadow-lg shadow-indigo-600/20">
-          <div className="p-3 bg-white/20 rounded-xl shrink-0"><Lightbulb size={20} /></div>
+        <div className="bg-[#101623] border border-[#1e293b] p-5 rounded-2xl flex gap-4 items-start">
+          <div className="p-3 bg-indigo-500/10 text-indigo-400 rounded-xl shrink-0"><Lightbulb size={20} /></div>
           <div>
-            <h4 className="font-bold text-sm mb-1 text-white">Dica do Advisor</h4>
-            <p className="text-xs text-indigo-100 leading-relaxed">A meta &quot;Viagem Japão&quot; está atrasada. Tente poupar mais R$ 150/mês.</p>
+            <h4 className="text-white font-semibold text-sm mb-1">Sobre suas metas</h4>
+            <p className="text-xs text-slate-400 leading-relaxed">Pergunte se o ritmo atual é suficiente para bater uma meta antes do prazo.</p>
           </div>
         </div>
       </div>
 
       {/* CHAT */}
-      <div className="flex-1 bg-[#101623] border border-[#1e293b] rounded-3xl flex flex-col overflow-hidden min-h-[400px]">
+      <div className="flex-1 bg-[#101623] border border-[#1e293b] rounded-2xl flex flex-col overflow-hidden min-h-[400px]">
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
 
           {messages.map(msg => (

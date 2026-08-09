@@ -125,10 +125,7 @@ export default function CiclosInvestimento() {
       
       {/* HEADER */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-          <h1 className="text-3xl font-bold text-white tracking-tight">Ciclos e Metas</h1>
-          <p className="text-slate-400 text-sm">Defina seus orçamentos mensais e acompanhe seus grandes objetivos.</p>
-        </div>
+        <p className="text-sm text-slate-400">Defina seus orçamentos mensais e acompanhe seus grandes objetivos.</p>
 
         <div className="flex items-center gap-3">
           {limiteCiclos != null && (
@@ -141,7 +138,7 @@ export default function CiclosInvestimento() {
               if (!canAddCiclo(planId, ciclosAtivos)) { setUpgradeOpen(true); return; }
               setEditingId(null); setIsModalOpen(true);
             }}
-            className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-xl font-medium transition-colors flex items-center gap-2 shadow-lg shadow-indigo-600/20"
+            className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-xl font-medium transition-colors flex items-center gap-2"
           >
             <Plus size={18} /> Novo Objetivo
           </button>
@@ -150,7 +147,7 @@ export default function CiclosInvestimento() {
 
       {/* LISTA DE METAS E ORÇAMENTOS */}
       {ciclos.length === 0 ? (
-        <div className="bg-[#101623] border border-[#1e293b] rounded-3xl p-12 text-center">
+        <div className="bg-[#101623] border border-[#1e293b] rounded-2xl p-12 text-center">
           <Target size={48} className="mx-auto text-slate-600 mb-4" />
           <h3 className="text-lg font-bold text-white mb-2">Nenhum ciclo ativo</h3>
           <p className="text-slate-400">Crie um orçamento para o mês ou uma meta financeira (ex: Reserva de Emergência).</p>
@@ -174,7 +171,7 @@ export default function CiclosInvestimento() {
             const isEstourado = ciclo.tipo === 'Orçamento' && porcentagem >= 100;
 
             return (
-              <div key={ciclo.id} className="bg-[#101623] border border-[#1e293b] p-6 rounded-3xl relative overflow-hidden group hover:border-indigo-500/30 transition-colors">
+              <div key={ciclo.id} className="bg-[#101623] border border-[#1e293b] p-6 rounded-2xl relative overflow-hidden group hover:border-indigo-500/30 transition-colors">
                 
                 <div className="absolute top-4 right-4 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                   <button 
@@ -236,7 +233,7 @@ export default function CiclosInvestimento() {
       {/* MODAL NOVO CICLO */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-[#101623] border border-[#1e293b] rounded-3xl w-full max-w-md overflow-hidden shadow-2xl animate-in fade-in zoom-in duration-200">
+          <div className="bg-[#101623] border border-[#1e293b] rounded-2xl w-full max-w-md overflow-hidden shadow-2xl">
             <div className="p-6 border-b border-[#1e293b] flex justify-between items-center">
               <h2 className="text-xl font-bold text-white">{editingId ? 'Editar Ciclo / Meta' : 'Novo Ciclo / Meta'}</h2>
               <button onClick={closeModal} className="text-slate-400 hover:text-white">
