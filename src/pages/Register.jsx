@@ -10,7 +10,7 @@ const PLANS = [
   {
     id: 'jovem',
     name: 'Jovem',
-    price: '24',
+    price: '19,90',
     desc: 'Para quem está começando a organizar as finanças com controle prático.',
     featured: false,
     feats: [
@@ -25,7 +25,7 @@ const PLANS = [
   {
     id: 'adulto',
     name: 'Adulto',
-    price: '46',
+    price: '47,90',
     desc: 'Controle avançado com IA ilimitada, múltiplas contas e relatórios completos.',
     featured: true,
     badge: 'Mais popular',
@@ -415,7 +415,7 @@ export default function Register() {
 
         {/* Rodapé */}
         <div className="text-center text-xs text-slate-400 font-medium pt-8">
-          CapitalCycle © 2024 - TCC Solutions
+          CapitalCycle © 2026 - TCC Solutions
         </div>
       </div>
 

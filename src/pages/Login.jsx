@@ -165,7 +165,7 @@ export default function Login() {
 
         {/* Rodapé */}
         <div className="text-center text-xs text-slate-400 font-medium pt-8">
-          CapitalCycle © 2024 - TCC Solutions
+          CapitalCycle © 2026 - TCC Solutions
         </div>
       </div>
 
