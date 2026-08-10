@@ -304,9 +304,6 @@ export default function Mercado() {
       {/* ── HEADER ──────────────────────────────────── */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-white tracking-tight flex items-center gap-2">
-            <BarChart2 className="text-indigo-400" size={28} /> Mercado
-          </h1>
           <p className="text-slate-400 text-sm">
             Cotações em tempo real · B3, Cripto e Câmbio
             {lastUpdate && (
@@ -316,20 +313,14 @@ export default function Mercado() {
             )}
           </p>
         </div>
-        <div className="flex gap-2">
-          <button
-            onClick={handleRefresh}
-            disabled={loadingStocks}
-            className="flex items-center gap-2 text-xs font-semibold px-4 py-2 rounded-xl border border-[#1e293b] bg-[#101623] text-slate-400 hover:text-white hover:border-slate-600 transition-colors disabled:opacity-40"
-          >
-            <RefreshCw size={13} className={loadingStocks ? 'animate-spin' : ''} />
-            Atualizar
-          </button>
-          
-            
-           
-          
-        </div>
+        <button
+          onClick={handleRefresh}
+          disabled={loadingStocks}
+          className="flex items-center gap-2 text-xs font-semibold px-4 py-2 rounded-xl border border-[#1e293b] bg-[#101623] text-slate-400 hover:text-white hover:border-slate-600 transition-colors disabled:opacity-40"
+        >
+          <RefreshCw size={13} className={loadingStocks ? 'animate-spin' : ''} />
+          Atualizar
+        </button>
       </div>
 
       {/* ── PAINEL DE CONFIGURAÇÃO ───────────────────── */}
@@ -345,8 +336,6 @@ export default function Mercado() {
               brapi.dev <ExternalLink size={11} />
             </a>
           </div>
-
-         
 
           {/* CoinGecko — sem chave */}
           <div className="bg-emerald-500/5 border border-emerald-500/15 rounded-xl p-4">
@@ -424,7 +413,6 @@ export default function Mercado() {
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-3">
           <h2 className="text-slate-400 text-xs font-bold uppercase tracking-wider flex items-center gap-2">
             <TrendingUp size={13} /> Ações B3
-           
           </h2>
 
           {/* Buscar ticker */}

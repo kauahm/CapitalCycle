@@ -101,10 +101,7 @@ export default function Perfil() {
 
       {/* HEADER */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-          <h1 className="text-3xl font-bold text-white tracking-tight">Meu Perfil</h1>
-          <p className="text-slate-400 text-sm">Informações da conta, plano e segurança.</p>
-        </div>
+        <p className="text-sm text-slate-400">Informações da conta, plano e segurança.</p>
       </div>
 
       {/* ── INFORMAÇÕES DA CONTA ─────────────────────── */}
@@ -178,10 +175,10 @@ export default function Perfil() {
           <p className="text-sm text-slate-400 leading-relaxed mt-2">{plan.desc}</p>
 
           <button
-            onClick={() => navigate('/cadastro')}
+            onClick={() => navigate('/cadastro', { state: { changePlan: true, currentPlan: planId } })}
             className="mt-5 w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold transition-colors"
           >
-            Ver planos <ArrowRight size={15} />
+            Trocar plano <ArrowRight size={15} />
           </button>
         </div>
 

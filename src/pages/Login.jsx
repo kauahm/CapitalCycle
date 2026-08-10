@@ -41,7 +41,10 @@ export default function Login() {
       navigate('/capital/dashboard');
     } catch (error) {
       console.error("Erro no login com Google:", error);
-      if (error.code !== 'auth/popup-closed-by-user' && error.code !== 'auth/cancelled-popup-request') {
+      if (error.code === 'auth/new-google-user') {
+        setToast({ show: true, message: 'Não encontramos uma conta com esse Google. Escolha um plano para se cadastrar.', type: 'warning' });
+        navigate('/cadastro');
+      } else if (error.code !== 'auth/popup-closed-by-user' && error.code !== 'auth/cancelled-popup-request') {
         setToast({ show: true, message: 'Erro ao entrar com Google. Tente novamente.', type: 'error' });
       }
       setLoading(false);

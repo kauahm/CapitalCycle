@@ -110,10 +110,11 @@ const formatExpiry = (v) => {
 export default function Payment() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { registerWithPayment, registerWithPaymentGoogle } = useAuth();
+  const { registerWithPayment, registerWithPaymentGoogle, changePlanWithPayment } = useAuth();
 
   // Dados que chegam da tela Register
   const registrationData = location.state;
+  const isPlanChange = !!registrationData?.isPlanChange;
 
   // Guarda de rota: se chegar sem dados, volta para o cadastro
   useEffect(() => {
@@ -275,8 +276,11 @@ export default function Payment() {
   // ── Finaliza cadastro: cria usuário no Firebase Auth + registra pagamento ──
   const finishRegistration = async (payment) => {
     try {
-      // Se veio do fluxo Google, abre o popup aqui (após pagamento)
-      if (registrationData.isGoogle) {
+      if (isPlanChange) {
+        // Usuário já autenticado trocando de plano — só atualiza o plano, não cria conta nova
+        await changePlanWithPayment({ plan: plan.id, payment });
+      } else if (registrationData.isGoogle) {
+        // Se veio do fluxo Google, abre o popup aqui (após pagamento)
         await registerWithPaymentGoogle({ plan: plan.id, payment });
       } else {
         await registerWithPayment({ ...registrationData, payment });
@@ -297,7 +301,7 @@ export default function Payment() {
     }
   };
 
-  const goToDashboard = () => navigate('/capital/dashboard');
+  const goToDashboard = () => navigate(isPlanChange ? '/capital/perfil' : '/capital/dashboard');
 
   // ── Formata mm:ss para o cronômetro ──
   const fmtTimer = (s) => {
@@ -669,15 +673,18 @@ export default function Payment() {
               Pagamento confirmado!
             </h2>
             <p className="mt-2 text-sm text-slate-500 text-center font-medium">
-              Sua conta foi criada com sucesso.
-              <br />Bem-vindo ao <span className="font-bold text-slate-900">CapitalCycle {plan.name}</span>.
+              {isPlanChange ? (
+                <>Seu plano foi atualizado com sucesso.<br />Agora você está no <span className="font-bold text-slate-900">CapitalCycle {plan.name}</span>.</>
+              ) : (
+                <>Sua conta foi criada com sucesso.<br />Bem-vindo ao <span className="font-bold text-slate-900">CapitalCycle {plan.name}</span>.</>
+              )}
             </p>
 
             <button
               onClick={goToDashboard}
               className="mt-8 w-full py-3.5 text-sm font-bold text-white bg-slate-900 hover:bg-slate-800 rounded-lg transition-colors flex items-center justify-center gap-2"
             >
-              Acessar Dashboard
+              {isPlanChange ? 'Ver meu perfil' : 'Acessar Dashboard'}
               <ArrowLeft size={14} className="rotate-180" />
             </button>
           </div>

@@ -28,16 +28,26 @@ export default function Register() {
   const { register, loginWithGoogle } = useAuth();
   const navigate = useNavigate();
 
+  // Troca de plano: veio do botão "Trocar plano" em Perfil.jsx, usuário já está logado
+  const isChangingPlan = !!location.state?.changePlan;
+
   useEffect(() => {
     if (location.state?.plan) {
       setSelectedPlan(location.state.plan);
-      setStep(2);
+      if (!isChangingPlan) setStep(2);
+    } else if (location.state?.currentPlan) {
+      setSelectedPlan(location.state.currentPlan);
     }
   }, []);
 
-  // Avança para o step 2 após escolher o plano
+  // Avança para o step 2 após escolher o plano — ou, em troca de plano, vai
+  // direto para o pagamento (não precisa recoletar nome/e-mail/senha)
   const handleSelectPlan = (planId) => {
     setSelectedPlan(planId);
+    if (isChangingPlan) {
+      navigate('/pagamento', { state: { plan: planId, isPlanChange: true, changePlan: true } });
+      return;
+    }
     setStep(2);
   };
 
@@ -140,7 +150,7 @@ export default function Register() {
                 CapitalCycle
               </h2>
               <p className="mt-2 text-sm text-slate-500 font-medium">
-                Escolha o plano ideal para você
+                {isChangingPlan ? 'Escolha o novo plano para sua conta' : 'Escolha o plano ideal para você'}
               </p>
             </div>
 

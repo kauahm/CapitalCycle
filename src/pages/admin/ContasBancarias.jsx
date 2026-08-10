@@ -96,7 +96,7 @@ export default function ContasBancarias() {
     switch(tipo) {
       case 'Investimentos': return { icon: TrendingUp, cor: 'text-indigo-400', bg: 'bg-indigo-500/10', border: 'hover:border-indigo-500/50' };
       case 'Carteira Física': return { icon: Wallet, cor: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'hover:border-emerald-500/50' };
-      case 'Poupança': return { icon: Building2, cor: 'text-blue-400', bg: 'bg-blue-500/10', border: 'hover:border-blue-500/50' };
+      case 'Poupança': return { icon: Building2, cor: 'text-amber-400', bg: 'bg-amber-500/10', border: 'hover:border-amber-500/50' };
       default: return { icon: Landmark, cor: 'text-slate-200', bg: 'bg-slate-700/30', border: 'hover:border-slate-500/50' };
     }
   };
@@ -110,10 +110,7 @@ export default function ContasBancarias() {
       
       {/* HEADER */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-          <h1 className="text-3xl font-bold text-white tracking-tight">Contas e Caixas</h1>
-          <p className="text-slate-400 text-sm">Gerencie de onde o dinheiro sai e para onde vai.</p>
-        </div>
+        <p className="text-sm text-slate-400">Gerencie de onde o dinheiro sai e para onde vai.</p>
         
         <div className="flex items-center gap-4">
           <div className="text-right hidden sm:block mr-4">

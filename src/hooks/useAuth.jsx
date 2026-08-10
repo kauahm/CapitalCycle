@@ -43,31 +43,48 @@ export function AuthProvider({ children }) {
   const login = (email, password) => signInWithEmailAndPassword(auth, email, password);
   const logout = () => signOut(auth);
 
-  // Login/cadastro via Google. Se for a primeira vez desse usuário (uid novo),
-  // cria o documento de perfil em 'usuarios'; se já existir, apenas autentica
-  // sem sobrescrever dados que o usuário já tenha (plano, etc).
-  const loginWithGoogle = async (plan) => {
+  // Login via Google — apenas para quem JÁ tem conta (perfil já existe em 'usuarios').
+  // Se for a primeira vez desse uid, desfaz o login (signOut) e recusa: contas novas
+  // só devem ser criadas pelo fluxo de cadastro (escolha de plano + pagamento).
+  const loginWithGoogle = async () => {
     const { user } = await signInWithPopup(auth, googleProvider);
 
     const docRef = doc(db, 'usuarios', user.uid);
     const docSnap = await getDoc(docRef);
 
-    let profile;
-    if (docSnap.exists()) {
-      profile = docSnap.data();
-    } else {
-      profile = {
-        nome: user.displayName || 'Usuário',
-        perfil: 'investidor',
-        email: user.email,
-        plan: plan || 'jovem',
-        createdAt: new Date(),
-      };
-      await setDoc(docRef, profile);
+    if (!docSnap.exists()) {
+      await signOut(auth);
+      const erro = new Error('Nenhuma conta encontrada para esse Google. Escolha um plano para se cadastrar.');
+      erro.code = 'auth/new-google-user';
+      throw erro;
     }
 
-    setUserProfile(profile);
+    setUserProfile(docSnap.data());
     return user;
+  };
+
+  // Troca o plano de um usuário já autenticado (upgrade/downgrade), registrando
+  // o comprovante de pagamento associado — usado pela tela de Pagamento quando
+  // o fluxo é de troca de plano, e não de cadastro novo.
+  const changePlanWithPayment = async ({ plan, payment }) => {
+    if (!currentUser) throw new Error('Usuário não autenticado.');
+
+    await setDoc(doc(db, 'usuarios', currentUser.uid), { plan }, { merge: true });
+
+    if (payment) {
+      await setDoc(doc(db, 'pagamentos', `${currentUser.uid}_${payment.idTransacao}`), {
+        uid: currentUser.uid,
+        plan,
+        metodo: payment.metodo,
+        valor: payment.valor,
+        idTransacao: payment.idTransacao,
+        status: 'aprovado',
+        cartaoFinal: payment.cartaoFinal || null,
+        createdAt: serverTimestamp(),
+      });
+    }
+
+    setUserProfile((prev) => ({ ...(prev || {}), plan }));
   };
 
   // Cadastro tradicional: agora é invocado SOMENTE após a confirmação de pagamento.
@@ -149,6 +166,7 @@ export function AuthProvider({ children }) {
     register: registerWithPayment,
     registerWithPayment: registerWithPayment,
     loginWithPaymentGoogle: registerWithPaymentGoogle,
+    changePlanWithPayment: changePlanWithPayment,
     login: login,
     loginWithGoogle: loginWithGoogle,
     logout: logout,
