@@ -12,6 +12,7 @@ const DashboardFinanceiro = lazy(() => import('./pages/admin/DashboardFinanceiro
 const Transacoes = lazy(() => import('./pages/admin/Transacoes'));
 const ContasBancarias = lazy(() => import('./pages/admin/ContasBancarias'));
 const CiclosInvestimento = lazy(() => import('./pages/admin/CiclosInvestimento'));
+const OrcamentoCategoria = lazy(() => import('./pages/admin/OrcamentoCategoria'));
 const AnaliseIA = lazy(() => import('./pages/admin/AnaliseIA'));
 const Mercado = lazy(() => import('./pages/admin/Mercado'));
 const Perfil = lazy(() => import('./pages/admin/Perfil'));
@@ -46,7 +47,7 @@ function PrivateRoute({ children }) {
 export default function App() {
   return (
     <AuthProvider>
-      <BrowserRouter>
+      <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <Routes>
           {/* Página inicial pública */}
           <Route path="/" element={<HomePage />} />
@@ -73,6 +74,7 @@ export default function App() {
             <Route path="transacoes" element={<Suspense fallback={<RouteLoading />}><Transacoes /></Suspense>} />
             <Route path="contas" element={<Suspense fallback={<RouteLoading />}><ContasBancarias /></Suspense>} />
             <Route path="ciclos" element={<Suspense fallback={<RouteLoading />}><CiclosInvestimento /></Suspense>} />
+            <Route path="orcamento" element={<Suspense fallback={<RouteLoading />}><OrcamentoCategoria /></Suspense>} />
             <Route path="analise-ia" element={<Suspense fallback={<RouteLoading />}><AnaliseIA /></Suspense>} />
             <Route path="mercado" element={<Suspense fallback={<RouteLoading />}><Mercado /></Suspense>} />
             <Route path="perfil" element={<Suspense fallback={<RouteLoading />}><Perfil /></Suspense>} />

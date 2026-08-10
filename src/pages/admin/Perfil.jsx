@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  User, Mail, Crown, Lock, ShieldCheck, Eye, EyeOff, X, ArrowRight, AlertTriangle,
+  User, Mail, Crown, Lock, ShieldCheck, Eye, EyeOff, X, ArrowRight, AlertTriangle, Wallet, Check,
 } from 'lucide-react';
 import { updatePassword, reauthenticateWithCredential, EmailAuthProvider } from 'firebase/auth';
 import { useAuth } from '../../hooks/useAuth';
@@ -34,7 +34,7 @@ function formatCreatedAt(valor) {
 }
 
 export default function Perfil() {
-  const { currentUser, userProfile } = useAuth();
+  const { currentUser, userProfile, updateUserProfile } = useAuth();
   const navigate = useNavigate();
 
   // ── Dados reais da conta ─────────────────────────
@@ -60,6 +60,36 @@ export default function Perfil() {
   const [pwdError, setPwdError] = useState(null);
   const [loadingPwd, setLoadingPwd] = useState(false);
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
+
+  // ── Renda mensal (Fase 1) ────────────────────────
+  // Valor fixo, editável a qualquer momento — sem histórico por mês nesta fase.
+  const [editandoRenda, setEditandoRenda] = useState(false);
+  const [rendaInput, setRendaInput] = useState(String(userProfile?.renda_mensal ?? ''));
+  const [salvandoRenda, setSalvandoRenda] = useState(false);
+
+  const abrirEdicaoRenda = () => {
+    setRendaInput(String(userProfile?.renda_mensal ?? ''));
+    setEditandoRenda(true);
+  };
+
+  const salvarRenda = async (e) => {
+    e.preventDefault();
+    const valor = parseFloat(rendaInput.replace(',', '.'));
+    if (Number.isNaN(valor) || valor < 0) {
+      setToast({ show: true, message: 'Informe um valor de renda válido.', type: 'error' });
+      return;
+    }
+    setSalvandoRenda(true);
+    try {
+      await updateUserProfile({ renda_mensal: valor });
+      setEditandoRenda(false);
+      setToast({ show: true, message: 'Renda mensal atualizada.', type: 'success' });
+    } catch (erro) {
+      setToast({ show: true, message: 'Não foi possível salvar a renda mensal.', type: 'error' });
+    } finally {
+      setSalvandoRenda(false);
+    }
+  };
 
   const abrirModal = () => {
     setSenhaAtual('');
@@ -145,6 +175,67 @@ export default function Perfil() {
           <p className="mt-6 pt-4 border-t border-[#1e293b] text-xs text-slate-500">
             Membro desde {membroDesde}
           </p>
+        )}
+      </div>
+
+      {/* ── RENDA MENSAL (Fase 1) ────────────────────── */}
+      <div className="bg-[#101623] border border-[#1e293b] rounded-2xl p-6">
+        <h3 className="text-sm font-semibold text-slate-300 flex items-center gap-2 mb-4">
+          <Wallet size={16} className="text-slate-500" /> Renda mensal
+        </h3>
+
+        {editandoRenda ? (
+          <form onSubmit={salvarRenda} className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+            <div className="flex-1 w-full">
+              <label className="block text-xs font-medium text-slate-400 mb-1">Valor (R$)</label>
+              <input
+                autoFocus
+                type="number"
+                step="0.01"
+                min="0"
+                value={rendaInput}
+                onChange={(e) => setRendaInput(e.target.value)}
+                className="w-full bg-[#070b14] border border-[#1e293b] rounded-xl px-4 py-3 text-white focus:border-indigo-500 outline-none"
+                placeholder="0,00"
+              />
+            </div>
+            <div className="flex gap-2 shrink-0 sm:mt-6">
+              <button
+                type="submit"
+                disabled={salvandoRenda}
+                className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-sm font-bold px-4 py-3 rounded-xl transition-colors"
+              >
+                <Check size={15} /> {salvandoRenda ? 'Salvando...' : 'Salvar'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setEditandoRenda(false)}
+                className="flex items-center gap-1.5 bg-[#1a2234] border border-[#1e293b] hover:border-indigo-500/40 text-slate-300 text-sm font-bold px-4 py-3 rounded-xl transition-colors"
+              >
+                <X size={15} /> Cancelar
+              </button>
+            </div>
+          </form>
+        ) : (
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              {userProfile?.renda_mensal ? (
+                <p className="text-2xl font-extrabold text-white tabular-nums">
+                  {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(userProfile.renda_mensal)}
+                </p>
+              ) : (
+                <p className="text-sm text-slate-400">
+                  Defina sua renda mensal para ver economia do mês e % da renda comprometida no Dashboard.
+                </p>
+              )}
+            </div>
+            <button
+              onClick={abrirEdicaoRenda}
+              className="shrink-0 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-[#1a2234] border border-[#1e293b] hover:border-indigo-500/40 hover:bg-[#1e293b] text-white text-sm font-bold transition-colors"
+            >
+              {userProfile?.renda_mensal ? 'Editar' : 'Definir renda'}
+            </button>
+          </div>
         )}
       </div>
 

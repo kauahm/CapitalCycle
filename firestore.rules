@@ -30,6 +30,22 @@ service cloud.firestore {
         && request.auth.uid == resource.data.uid;
       allow create: if request.auth != null
         && request.auth.uid == request.resource.data.uid;
+
+      // Aportes de uma meta (Fase 1) — mesmo padrão dono-only do restante do
+      // app, com uid denormalizado no próprio aporte para não precisar de
+      // get() extra no ciclo pai.
+      match /aportes/{aporteId} {
+        allow read, update, delete: if request.auth != null
+          && request.auth.uid == resource.data.uid;
+        allow create: if request.auth != null
+          && request.auth.uid == request.resource.data.uid;
+      }
+    }
+
+    // Limites de orçamento por categoria (Fase 1) — um documento por
+    // usuário, mesmo padrão de `usuarios`.
+    match /orcamentosPorCategoria/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
     }
 
     // Pagamentos / comprovantes — cada usuário só vê e cria os seus.

@@ -160,9 +160,19 @@ export function AuthProvider({ children }) {
     return user;
   };
 
+  // Atualiza campos simples do perfil (ex.: renda_mensal em Perfil.jsx),
+  // gravando com merge no Firestore e refletindo local sem esperar o
+  // próximo snapshot.
+  const updateUserProfile = async (dados) => {
+    if (!currentUser) throw new Error('Usuário não autenticado.');
+    await setDoc(doc(db, 'usuarios', currentUser.uid), dados, { merge: true });
+    setUserProfile((prev) => ({ ...(prev || {}), ...dados }));
+  };
+
   const contextValue = {
     currentUser: currentUser,
     userProfile: userProfile,
+    updateUserProfile: updateUserProfile,
     register: registerWithPayment,
     registerWithPayment: registerWithPayment,
     loginWithPaymentGoogle: registerWithPaymentGoogle,

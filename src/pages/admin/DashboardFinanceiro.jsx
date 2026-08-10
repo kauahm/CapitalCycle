@@ -1,11 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { TrendingUp, TrendingDown, AlertTriangle, ArrowRight, Target, Wallet } from 'lucide-react';
-import { collection, onSnapshot, query, where } from 'firebase/firestore';
+import { TrendingUp, TrendingDown, AlertTriangle, ArrowRight, Target, Wallet, PiggyBank, Clock, PieChart } from 'lucide-react';
+import { collection, doc, onSnapshot, query, where } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import CurrencyValue from '../../components/ui/CurrencyValue';
 import { useAuth } from '../../hooks/useAuth';
+import { useAportesPorMeta } from '../../hooks/useAportesPorMeta';
+import { calcularProgressoMeta } from '../../utils/metas';
+import { calcularProgressoCategorias } from '../../utils/orcamentoCategoria';
+import { calcularVariacaoPct } from '../../utils/comparativoMensal';
+import { hojeStr, mesAnteriorPrefixo } from '../../utils/data';
 
 export default function DashboardFinanceiro() {
   const { userProfile, currentUser } = useAuth();
@@ -14,6 +19,7 @@ export default function DashboardFinanceiro() {
   const [contas, setContas] = useState([]);
   const [transacoes, setTransacoes] = useState([]);
   const [ciclos, setCiclos] = useState([]);
+  const [limitesCategorias, setLimitesCategorias] = useState({});
 
   useEffect(() => {
     if (!currentUser) return;
@@ -47,12 +53,23 @@ export default function DashboardFinanceiro() {
       setLoading(false); // Para o loading quando tudo carregar
     });
 
+    // 4. Buscar limites de orçamento por categoria (Fase 1)
+    const unsubOrcamento = onSnapshot(doc(db, 'orcamentosPorCategoria', currentUser.uid), (snap) => {
+      setLimitesCategorias(snap.exists() ? (snap.data().limites || {}) : {});
+    });
+
     return () => {
       unsubContas();
       unsubTransacoes();
       unsubCiclos();
+      unsubOrcamento();
     };
   }, [currentUser]);
+
+  // Aportes das metas — usados para o progresso real das metas (não mais
+  // inferido de transações de entrada, ver especificação Fase 1 item 2).
+  const metaIds = ciclos.filter((c) => c.tipo === 'Meta').map((c) => c.id);
+  const aportesMap = useAportesPorMeta(metaIds);
 
   // Formatador de Moeda
   const formatarMoeda = (valor) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor || 0);
@@ -96,6 +113,36 @@ export default function DashboardFinanceiro() {
   const totalSaidasMes = Object.values(gastosPorCategoria).reduce((a, b) => a + b, 0);
   const fluxoPositivo = totalEntradasMes >= totalSaidasMes;
   const diferencaMes = totalEntradasMes - totalSaidasMes;
+
+  // ── Renda mensal, economia e % da renda comprometida (Fase 1) ──
+  const rendaMensal = parseFloat(userProfile?.renda_mensal) || 0;
+  const temRenda = rendaMensal > 0;
+  const economiaMes = temRenda ? rendaMensal - totalSaidasMes : null;
+  const rendaComprometidaPct = temRenda ? (totalSaidasMes / rendaMensal) * 100 : null;
+
+  // ── Comparação com o mês anterior (Fase 1) ──
+  const mesAnteriorPrefixoStr = mesAnteriorPrefixo(mesAtualPrefixo);
+  const gastoMesAnterior = transacoes
+    .filter(t => t.tipo === 'saida' && t.data && t.data.startsWith(mesAnteriorPrefixoStr))
+    .reduce((acc, t) => acc + (parseFloat(t.valor) || 0), 0);
+  const houveMesAnterior = transacoes.some(t => t.data && t.data.startsWith(mesAnteriorPrefixoStr));
+  const variacaoGastoPct = houveMesAnterior ? calcularVariacaoPct(totalSaidasMes, gastoMesAnterior) : null;
+
+  const economiaMesAnterior = temRenda && houveMesAnterior ? rendaMensal - gastoMesAnterior : null;
+  const variacaoEconomiaPct = economiaMesAnterior != null && economiaMes != null
+    ? calcularVariacaoPct(economiaMes, economiaMesAnterior)
+    : null;
+
+  // ── Meta em destaque: primeira meta com prazo em aberto (ou a mais recente, se todas encerradas) ──
+  const metasTipo = ciclos.filter(c => c.tipo === 'Meta');
+  const hoje = hojeStr();
+  const metaDestaque = metasTipo.find(c => !c.fim || c.fim >= hoje) || metasTipo[0] || null;
+  const progressoMetaDestaque = metaDestaque
+    ? calcularProgressoMeta(metaDestaque, aportesMap[metaDestaque.id] || [])
+    : null;
+
+  // ── Orçamento por categoria (Fase 1) ──
+  const progressoCategorias = calcularProgressoCategorias(limitesCategorias, transacoes, mesAtualPrefixo);
 
   // 3. Evolução dos últimos 6 meses (entradas - saídas) — usa só transações reais,
   //    substitui as barras decorativas que existiam antes.
@@ -206,6 +253,27 @@ export default function DashboardFinanceiro() {
           ) : (
             <div className="space-y-4">
               {ciclos.slice(0, 2).map((ciclo) => {
+                if (ciclo.tipo === 'Meta') {
+                  // Progresso vem dos aportes registrados, não de transações (Fase 1)
+                  const p = calcularProgressoMeta(ciclo, aportesMap[ciclo.id] || []);
+                  return (
+                    <div key={ciclo.id} className="bg-[#101623] border border-[#1e293b] rounded-xl p-5">
+                      <div className="flex justify-between items-baseline mb-3">
+                        <h4 className="font-medium text-white text-sm">{ciclo.nome}</h4>
+                        <span className="text-xs text-slate-500 tabular-nums">Alvo: {formatarMoeda(p.valorMeta)}</span>
+                      </div>
+                      <div className="w-full bg-[#1e293b] h-1.5 rounded-full overflow-hidden mb-2">
+                        <div className="h-full rounded-full bg-indigo-500 transition-all duration-700" style={{ width: `${p.progressoPct}%` }} />
+                      </div>
+                      <div className="flex justify-between items-baseline">
+                        <span className="text-xs font-medium text-slate-400">{p.progressoPct.toFixed(0)}% concluído</span>
+                        <span className="text-sm font-semibold text-white tabular-nums">{formatarMoeda(p.valorAcumulado)}</span>
+                      </div>
+                    </div>
+                  );
+                }
+
+                // Orçamento ad-hoc: sem mudança — soma as saídas no período
                 const gasto = transacoes
                   .filter(t => t.tipo === 'saida' && t.data >= ciclo.inicio && t.data <= ciclo.fim)
                   .reduce((acc, t) => acc + (parseFloat(t.valor) || 0), 0);
@@ -235,6 +303,192 @@ export default function DashboardFinanceiro() {
               })}
             </div>
           )}
+        </div>
+      </div>
+
+      <div className="h-px bg-[#1e293b]" />
+
+      {/* ── RENDA MENSAL: ECONOMIA E % COMPROMETIDA (Fase 1) ── */}
+      {temRenda ? (
+        <div>
+          <h3 className="text-sm font-semibold text-slate-300 mb-6 flex items-center gap-2">
+            <Wallet size={16} className="text-slate-500" /> Renda do mês
+          </h3>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-8">
+            <div>
+              <p className="text-xs uppercase font-semibold tracking-widest text-slate-500 mb-1">Renda mensal</p>
+              <CurrencyValue value={rendaMensal} size="2xl" align="left" className="font-bold text-white" />
+            </div>
+            <div>
+              <p className="text-xs uppercase font-semibold tracking-widest text-slate-500 mb-1">Economia do mês</p>
+              <CurrencyValue value={economiaMes} size="2xl" align="left" className={`font-bold ${economiaMes >= 0 ? 'text-emerald-400' : 'text-rose-400'}`} />
+              {variacaoEconomiaPct != null && (
+                <p className={`text-xs mt-1 flex items-center gap-1 ${variacaoEconomiaPct >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                  {variacaoEconomiaPct >= 0 ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
+                  {variacaoEconomiaPct >= 0 ? '+' : ''}{variacaoEconomiaPct.toFixed(0)}% vs. mês anterior
+                </p>
+              )}
+            </div>
+            <div>
+              <p className="text-xs uppercase font-semibold tracking-widest text-slate-500 mb-1">Renda comprometida</p>
+              <p className={`text-2xl font-bold tabular-nums ${rendaComprometidaPct > 100 ? 'text-rose-400' : rendaComprometidaPct >= 80 ? 'text-amber-400' : 'text-white'}`}>
+                {rendaComprometidaPct.toFixed(0)}%
+              </p>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="border border-dashed border-[#1e293b] rounded-xl p-6 text-center">
+          <Wallet size={20} className="text-slate-600 mx-auto mb-3" />
+          <p className="text-slate-400 text-sm mb-3">Defina sua renda mensal para acompanhar economia e % da renda comprometida.</p>
+          <Link to="/capital/perfil" className="text-sm text-indigo-400 hover:text-indigo-300 font-medium inline-flex items-center gap-1">
+            Definir renda mensal <ArrowRight size={14} />
+          </Link>
+        </div>
+      )}
+
+      <div className="h-px bg-[#1e293b]" />
+
+      {/* ── META EM DESTAQUE: RITMO E PREVISÃO (Fase 1) ── */}
+      {metaDestaque && progressoMetaDestaque && (
+        <div>
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-sm font-semibold text-slate-300 flex items-center gap-2">
+              <Target size={16} className="text-slate-500" /> Meta em destaque
+            </h3>
+            <Link to="/capital/ciclos" className="text-xs text-slate-500 hover:text-indigo-400 transition-colors flex items-center gap-1">
+              Ver todas <ArrowRight size={12} />
+            </Link>
+          </div>
+
+          <div className="bg-[#101623] border border-[#1e293b] rounded-2xl p-6">
+            <div className="flex justify-between items-baseline mb-4">
+              <h4 className="font-bold text-white">{metaDestaque.nome}</h4>
+              {progressoMetaDestaque.prazoEncerrado && <span className="text-xs text-rose-400 font-semibold">Prazo encerrado</span>}
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <div className="flex justify-between items-baseline mb-1.5">
+                  <span className="text-xs text-slate-400">{progressoMetaDestaque.progressoPct.toFixed(0)}% concluído</span>
+                  <CurrencyValue value={progressoMetaDestaque.valorAcumulado} size="lg" className="font-bold min-w-0 text-white" />
+                </div>
+                <div className="w-full bg-[#1e293b] h-2 rounded-full overflow-hidden mb-2">
+                  <div className="h-full bg-indigo-500 transition-all duration-1000" style={{ width: `${progressoMetaDestaque.progressoPct}%` }} />
+                </div>
+                <p className="text-xs text-slate-500">
+                  Faltam {formatarMoeda(progressoMetaDestaque.valorRestante)} de {formatarMoeda(progressoMetaDestaque.valorMeta)}
+                  {progressoMetaDestaque.diasRestantes != null && !progressoMetaDestaque.prazoEncerrado && ` · ${progressoMetaDestaque.diasRestantes} dia(s) restante(s)`}
+                </p>
+              </div>
+
+              <div className="space-y-1.5">
+                {progressoMetaDestaque.ritmoNecessario != null && (
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-slate-500 flex items-center gap-1"><Clock size={12} /> Ritmo necessário</span>
+                    <span className="text-slate-300 font-medium">{formatarMoeda(progressoMetaDestaque.ritmoNecessario)}/dia</span>
+                  </div>
+                )}
+                {progressoMetaDestaque.ritmoAtual != null && progressoMetaDestaque.ritmoAtual > 0 ? (
+                  <>
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-slate-500 flex items-center gap-1"><PiggyBank size={12} /> Ritmo atual</span>
+                      <span className="text-slate-300 font-medium">{formatarMoeda(progressoMetaDestaque.ritmoAtual)}/dia</span>
+                    </div>
+                    {progressoMetaDestaque.diferencaPct != null && (
+                      <p className={`text-xs font-semibold ${progressoMetaDestaque.diferencaPct >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                        {progressoMetaDestaque.diferencaPct >= 0 ? 'Acima' : 'Abaixo'} do ritmo necessário ({progressoMetaDestaque.diferencaPct >= 0 ? '+' : ''}{progressoMetaDestaque.diferencaPct.toFixed(0)}%)
+                      </p>
+                    )}
+                    {progressoMetaDestaque.dataPrevista && (
+                      <p className="text-xs text-slate-500">
+                        Previsão: {progressoMetaDestaque.dataPrevista.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                      </p>
+                    )}
+                  </>
+                ) : (
+                  <p className="text-xs text-slate-500">
+                    {progressoMetaDestaque.temAporte ? 'Sem ritmo recente (nenhum aporte nos últimos 30 dias)' : 'Registre um aporte para ver seu ritmo'}
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="h-px bg-[#1e293b]" />
+
+      {/* ── ORÇAMENTO POR CATEGORIA (Fase 1) ── */}
+      <div>
+        <div className="flex items-center justify-between mb-6">
+          <h3 className="text-sm font-semibold text-slate-300 flex items-center gap-2">
+            <PieChart size={16} className="text-slate-500" /> Orçamento por categoria
+          </h3>
+          <Link to="/capital/orcamento" className="text-xs text-slate-500 hover:text-indigo-400 transition-colors flex items-center gap-1">
+            Ver todas <ArrowRight size={12} />
+          </Link>
+        </div>
+
+        {progressoCategorias.length === 0 ? (
+          <div className="border border-dashed border-[#1e293b] rounded-xl p-6 text-center">
+            <p className="text-slate-500 text-sm mb-3">Nenhum limite por categoria definido ainda.</p>
+            <Link to="/capital/orcamento" className="text-sm text-indigo-400 hover:text-indigo-300 font-medium inline-flex items-center gap-1">
+              Definir limites por categoria <ArrowRight size={14} />
+            </Link>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {progressoCategorias.slice(0, 3).map((c) => (
+              <div key={c.categoria} className="space-y-2">
+                <div className="flex justify-between items-baseline">
+                  <span className="text-slate-400 text-sm">{c.categoria}</span>
+                  <span className="font-semibold text-white tabular-nums">{formatarMoeda(c.gasto)}</span>
+                </div>
+                <div className="w-full bg-[#1e293b] h-1.5 rounded-full overflow-hidden">
+                  <div
+                    className={`h-full transition-all duration-700 ${c.estado === 'estourado' ? 'bg-rose-500' : c.estado === 'alerta' ? 'bg-amber-500' : 'bg-emerald-400'}`}
+                    style={{ width: `${Math.min(100, c.pct)}%` }}
+                  />
+                </div>
+                <p className={`text-xs ${c.estado === 'estourado' ? 'text-rose-400' : c.estado === 'alerta' ? 'text-amber-400' : 'text-slate-500'}`}>
+                  {c.pct.toFixed(0)}% de {formatarMoeda(c.limite)}
+                  {c.estado === 'estourado' && ' · ultrapassou o limite'}
+                </p>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="h-px bg-[#1e293b]" />
+
+      {/* ── COMPARAÇÃO COM O MÊS ANTERIOR (Fase 1) ── */}
+      <div>
+        <h3 className="text-sm font-semibold text-slate-300 mb-6">Comparação com o mês anterior</h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
+          <div>
+            <p className="text-xs uppercase font-semibold tracking-widest text-slate-500 mb-1">Gasto total</p>
+            {variacaoGastoPct != null ? (
+              <p className={`text-sm font-medium flex items-center gap-1.5 ${variacaoGastoPct <= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                {variacaoGastoPct <= 0 ? <TrendingDown size={14} /> : <TrendingUp size={14} />}
+                {variacaoGastoPct >= 0 ? '+' : ''}{variacaoGastoPct.toFixed(0)}% vs. {formatarMoeda(gastoMesAnterior)} no mês anterior
+              </p>
+            ) : (
+              <p className="text-sm text-slate-500">Sem dado do mês anterior</p>
+            )}
+          </div>
+          <div>
+            <p className="text-xs uppercase font-semibold tracking-widest text-slate-500 mb-1">Economia</p>
+            {variacaoEconomiaPct != null ? (
+              <p className={`text-sm font-medium flex items-center gap-1.5 ${variacaoEconomiaPct >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                {variacaoEconomiaPct >= 0 ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
+                {variacaoEconomiaPct >= 0 ? '+' : ''}{variacaoEconomiaPct.toFixed(0)}% vs. mês anterior
+              </p>
+            ) : (
+              <p className="text-sm text-slate-500">Sem dado do mês anterior</p>
+            )}
+          </div>
         </div>
       </div>
 

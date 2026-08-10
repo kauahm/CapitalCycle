@@ -5,6 +5,7 @@ import {
   Receipt,
   Landmark,
   PieChart,
+  Wallet,
   Sparkles,
   LogOut,
   BarChart2,
@@ -24,6 +25,7 @@ export default function Sidebar({ isMobileMenuOpen, setIsMobileMenuOpen }) {
     { icon: Receipt, label: 'Transações', path: '/capital/transacoes' },
     { icon: Landmark, label: 'Contas e Caixas', path: '/capital/contas' },
     { icon: PieChart, label: 'Ciclos e Metas', path: '/capital/ciclos' },
+    { icon: Wallet, label: 'Orçamento por Categoria', path: '/capital/orcamento' },
     { icon: Sparkles, label: 'Capital Advisor (IA)', path: '/capital/analise-ia' },
     { path: '/capital/mercado', icon: BarChart2, label: 'Mercado' },
     { icon: User, label: 'Meu Perfil', path: '/capital/perfil' }

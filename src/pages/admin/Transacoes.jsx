@@ -6,6 +6,7 @@ import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import UpgradeModal from '../../components/ui/UpgradeModal';
 import { canAddTransacao, mesAtualKey } from '../../components/ui/plans';
 import { useAuth } from '../../hooks/useAuth';
+import { CATEGORIAS_ENTRADA, CATEGORIAS_SAIDA } from '../../utils/categorias';
 
 export default function Transacoes() {
   const { currentUser, userProfile } = useAuth();
@@ -27,10 +28,11 @@ export default function Transacoes() {
     data: new Date().toISOString().split('T')[0]
   });
 
-  // Categorias predefinidas
+  // Categorias predefinidas (fonte única em utils/categorias.js — também
+  // usada em Orçamento por Categoria)
   const categorias = {
-    entrada: ['Salário', 'Investimento', 'Rendimento', 'Venda', 'Outros'],
-    saida: ['Alimentação', 'Moradia', 'Transporte', 'Saúde', 'Lazer', 'Educação', 'Outros']
+    entrada: CATEGORIAS_ENTRADA,
+    saida: CATEGORIAS_SAIDA
   };
 
   // Trava por plano: cota mensal de lançamentos do plano Jovem
@@ -141,6 +143,8 @@ export default function Transacoes() {
             ...formData,
             valor: valorNumerico,
             uid: currentUser.uid,
+            origem: 'manual',
+            identificador_externo: null,
             criadoEm: new Date()
           });
           transaction.update(novaContaRef, { saldo: novoSaldo });
