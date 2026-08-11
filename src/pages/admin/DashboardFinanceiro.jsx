@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { TrendingUp, TrendingDown, AlertTriangle, ArrowRight, Target, Wallet, PiggyBank, Clock, PieChart } from 'lucide-react';
-import { collection, doc, onSnapshot, query, where } from 'firebase/firestore';
+import { TrendingUp, TrendingDown, AlertTriangle, ArrowRight, Target, Wallet, PiggyBank, Clock, PieChart, RefreshCw } from 'lucide-react';
+import { collection, doc, getDoc, updateDoc, onSnapshot, query, where } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import CurrencyValue from '../../components/ui/CurrencyValue';
@@ -11,6 +11,13 @@ import { calcularProgressoMeta } from '../../utils/metas';
 import { calcularProgressoCategorias } from '../../utils/orcamentoCategoria';
 import { calcularVariacaoPct } from '../../utils/comparativoMensal';
 import { hojeStr, mesAnteriorPrefixo } from '../../utils/data';
+import { gerarResumoFinanceiro, formatarResumoParaPrompt } from '../../utils/resumoFinanceiro';
+import { canConsultarIA, getLimits, mesAtualKey } from '../../components/ui/plans';
+
+// Mesmo padrão de configuração de API já usado em AnaliseIA.jsx — este card
+// só consome a chave/modelo já configurados por lá (.env), sem duplicar UI.
+const ENV_KEY   = import.meta.env.VITE_GEMINI_API_KEY || '';
+const ENV_MODEL = import.meta.env.VITE_GEMINI_MODEL   || 'gemini-3.5-flash';
 
 export default function DashboardFinanceiro() {
   const { userProfile, currentUser } = useAuth();
@@ -70,6 +77,95 @@ export default function DashboardFinanceiro() {
   // inferido de transações de entrada, ver especificação Fase 1 item 2).
   const metaIds = ciclos.filter((c) => c.tipo === 'Meta').map((c) => c.id);
   const aportesMap = useAportesPorMeta(metaIds);
+
+  // ── Resumo do Capital Advisor (card com IA no topo) ──
+  // Reaproveita a mesma agregação usada para os cards do dashboard, via
+  // utils/resumoFinanceiro.js, para montar um prompt curto para a IA.
+  const resumoFinanceiroObj = useMemo(
+    () => gerarResumoFinanceiro({ contas, transacoes, ciclos, aportesMap, limitesCategorias }),
+    [contas, transacoes, ciclos, aportesMap, limitesCategorias]
+  );
+  const resumoParaPrompt = useMemo(() => formatarResumoParaPrompt(resumoFinanceiroObj), [resumoFinanceiroObj]);
+
+  const planId = userProfile?.plan || 'jovem';
+  const limiteIA = getLimits(planId).consultasIAMes;
+  const mesKeyIA = mesAtualKey();
+
+  const [usoMesIA, setUsoMesIA] = useState(0);
+  const [resumoIA, setResumoIA] = useState('');
+  const [resumoIALoading, setResumoIALoading] = useState(false);
+  const [resumoIAError, setResumoIAError] = useState(null);
+  const autoFetchRef = useRef(false);
+
+  // Carrega o contador de consultas de IA do mês corrente (mesma trava usada em AnaliseIA.jsx)
+  useEffect(() => {
+    if (!currentUser) return;
+    let active = true;
+    getDoc(doc(db, 'usuarios', currentUser.uid))
+      .then((snap) => {
+        const uso = snap.exists() ? (snap.data().iaUso?.[mesKeyIA] || 0) : 0;
+        if (active) setUsoMesIA(uso);
+      })
+      .catch(() => {});
+    return () => { active = false; };
+  }, [currentUser, mesKeyIA]);
+
+  const gerarResumoIA = async () => {
+    if (!currentUser || resumoIALoading) return;
+
+    if (!ENV_KEY) {
+      setResumoIAError('api-key-ausente');
+      return;
+    }
+    if (!canConsultarIA(planId, usoMesIA)) {
+      setResumoIAError('cota-esgotada');
+      return;
+    }
+
+    setResumoIALoading(true);
+    setResumoIAError(null);
+
+    try {
+      const prompt = `Escreva de 1 a 2 frases curtas em português do Brasil apontando o único ponto que mais merece atenção agora nestes dados financeiros (gasto, meta ou orçamento). Regras: não invente valores fora dos dados abaixo; não cumprimente, não se apresente, não use markdown, não escreva "resumo" ou qualquer meta-comentário sobre a resposta; vá direto ao ponto como quem manda um recado rápido, tom neutro e factual.\n\nDados:\n${resumoParaPrompt}`;
+
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${ENV_MODEL}:generateContent?key=${ENV_KEY}`;
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: prompt }] }] })
+      });
+
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({}));
+        throw new Error(errJson?.error?.message || `Erro ${res.status}`);
+      }
+
+      const data = await res.json();
+      const texto = data?.candidates?.[0]?.content?.parts?.[0]?.text
+        || 'Não consegui gerar uma resposta. Tente novamente.';
+      setResumoIA(texto);
+
+      // Consome 1 consulta da mesma cota mensal usada em AnaliseIA.jsx
+      if (limiteIA != null) {
+        const novoUso = usoMesIA + 1;
+        setUsoMesIA(novoUso);
+        updateDoc(doc(db, 'usuarios', currentUser.uid), { [`iaUso.${mesKeyIA}`]: novoUso }).catch(() => {});
+      }
+    } catch (e) {
+      setResumoIAError(e.message);
+    } finally {
+      setResumoIALoading(false);
+    }
+  };
+
+  // Gera o resumo uma única vez ao montar (com dados já carregados) — nunca a cada render.
+  // Atualizações posteriores só acontecem pelo botão "Atualizar resumo".
+  useEffect(() => {
+    if (loading || autoFetchRef.current || !currentUser) return;
+    autoFetchRef.current = true;
+    gerarResumoIA();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, currentUser]);
 
   // Formatador de Moeda
   const formatarMoeda = (valor) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor || 0);
@@ -177,7 +273,28 @@ export default function DashboardFinanceiro() {
       {/* ── CABEÇALHO: saldo é o dado hero, o resto orbita em escala menor ── */}
       <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-8">
         <div>
-          <p className="text-sm text-slate-500 mb-4">Olá, {primeiroNome}. Aqui está o resumo do seu capital.</p>
+          <p className="text-sm text-slate-500 mb-1">Olá, {primeiroNome}.</p>
+
+          {/* Leitura rápida da situação atual — mesma agregação de sempre,
+              só que narrada. Fica junto da saudação em vez de virar um
+              "card de IA" separado. */}
+          <div className="flex items-start gap-2 mb-4 max-w-xl">
+            <p className="text-sm text-slate-400 leading-relaxed">
+              {resumoIAError === 'cota-esgotada'
+                ? 'Cota de consultas do mês esgotada — a leitura volta no próximo ciclo.'
+                : resumoIA || 'Aqui está o resumo do seu capital.'}
+            </p>
+            {ENV_KEY && resumoIAError !== 'cota-esgotada' && (
+              <button
+                onClick={gerarResumoIA}
+                disabled={resumoIALoading}
+                title="Atualizar leitura"
+                className="text-slate-600 hover:text-slate-400 disabled:opacity-40 transition-colors shrink-0 mt-0.5"
+              >
+                <RefreshCw size={12} className={resumoIALoading ? 'animate-spin' : ''} />
+              </button>
+            )}
+          </div>
           <p className="text-xs uppercase font-semibold tracking-widest text-slate-500 mb-1">Saldo disponível</p>
           <CurrencyValue value={saldoDisponivel} size="6xl" align="left" className="font-bold text-white tracking-tight" />
           <div className={`mt-3 inline-flex items-center gap-1.5 text-sm font-medium ${fluxoPositivo ? 'text-emerald-400' : 'text-rose-400'}`}>

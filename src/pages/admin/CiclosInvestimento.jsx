@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Plus, Target, Calendar, Trash2, Pencil, X, PieChart, TrendingUp, TrendingDown, PiggyBank, Clock } from 'lucide-react';
 import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, query, where } from 'firebase/firestore';
 import { db } from '../../services/firebase';
@@ -26,9 +26,13 @@ export default function CiclosInvestimento() {
   const [aporteData, setAporteData] = useState(hojeStr());
   const [salvandoAporte, setSalvandoAporte] = useState(false);
 
+  // Modal "Excluir aporte" — lista os aportes do ciclo e permite escolher um para apagar
+  const [excluirCiclo, setExcluirCiclo] = useState(null); // ciclo alvo, ou null se fechado
+  const [excluindoAporte, setExcluindoAporte] = useState(false);
+
   const [formData, setFormData] = useState({
     nome: '',
-    tipo: 'Orçamento', // Pode ser 'Orçamento' ou 'Meta'
+    tipo: 'Meta', // Pode ser 'Orçamento' ou 'Meta'
     orcamento: '',
     inicio: '',
     fim: ''
@@ -117,12 +121,33 @@ export default function CiclosInvestimento() {
   const closeModal = () => {
     setIsModalOpen(false);
     setEditingId(null);
-    setFormData({ nome: '', tipo: 'Orçamento', orcamento: '', inicio: '', fim: '' });
+    setFormData({ nome: '', tipo: 'Meta', orcamento: '', inicio: '', fim: '' });
   };
 
   const handleDelete = async (id) => {
     if (window.confirm("Deseja realmente excluir esta meta/orçamento?")) {
       await deleteDoc(doc(db, 'ciclos', id));
+    }
+  };
+
+  const abrirExcluir = (ciclo) => {
+    setExcluirCiclo(ciclo);
+  };
+
+  const fecharExcluir = () => {
+    setExcluirCiclo(null);
+  };
+
+  const confirmarExcluirAporte = async (cicloId, aporteId) => {
+    if (!window.confirm('Excluir este aporte? Isso diminui o valor acumulado da meta.')) return;
+    setExcluindoAporte(true);
+    try {
+      await deleteDoc(doc(db, 'ciclos', cicloId, 'aportes', aporteId));
+    } catch (error) {
+      console.error('Erro ao excluir aporte:', error);
+      alert('Erro ao excluir aporte: ' + error.message);
+    } finally {
+      setExcluindoAporte(false);
     }
   };
 
@@ -137,12 +162,33 @@ export default function CiclosInvestimento() {
     setAporteValor('');
   };
 
+  // ── Preview do ritmo, calculado em tempo real no modal de aporte ──
+  // Simula o novo aporte somado aos já registrados, sem gravar nada.
+  // Reaproveita a mesma função usada no card do ciclo (calcularProgressoMeta).
+  const previewAporte = useMemo(() => {
+    if (!aporteCiclo || aporteCiclo.tipo !== 'Meta') return null;
+
+    const valorNumerico = parseFloat(aporteValor);
+    if (!aporteValor || Number.isNaN(valorNumerico) || valorNumerico <= 0) return null;
+
+    const aportesAtuais = aportesMap[aporteCiclo.id] || [];
+    const aportesSimulados = [
+      ...aportesAtuais,
+      { valor: valorNumerico, data: aporteData || hojeStr() }
+    ];
+
+    return calcularProgressoMeta(aporteCiclo, aportesSimulados);
+  }, [aporteCiclo, aporteValor, aporteData, aportesMap]);
+
   const salvarAporte = async (e) => {
     e.preventDefault();
     if (!aporteCiclo) return;
 
     const valorNumerico = parseFloat(aporteValor);
-    if (Number.isNaN(valorNumerico) || valorNumerico <= 0) return;
+    if (!aporteValor || Number.isNaN(valorNumerico) || valorNumerico <= 0) {
+      alert('Informe um valor maior que zero para registrar o aporte.');
+      return;
+    }
 
     setSalvandoAporte(true);
     try {
@@ -344,6 +390,15 @@ export default function CiclosInvestimento() {
                     </div>
                   )}
 
+                  {aportes.length > 0 && (
+                    <button
+                      onClick={() => abrirExcluir(ciclo)}
+                      className="w-full mt-2 flex items-center justify-center gap-2 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-300 text-xs font-bold py-2.5 rounded-xl transition-colors"
+                    >
+                      <Trash2 size={14} /> Excluir aporte
+                    </button>
+                  )}
+
                   <button
                     onClick={() => abrirAporte(ciclo)}
                     className="w-full mt-3 flex items-center justify-center gap-2 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/30 text-indigo-300 text-xs font-bold py-2.5 rounded-xl transition-colors"
@@ -440,6 +495,11 @@ export default function CiclosInvestimento() {
                   className="w-full bg-[#070b14] border border-[#1e293b] rounded-xl px-4 py-3 text-white focus:border-indigo-500 outline-none"
                   placeholder="0,00"
                 />
+                {previewAporte && previewAporte.ritmoNecessario != null && previewAporte.diferencaPct != null && (
+                  <p className={`mt-1.5 text-xs font-semibold ${previewAporte.diferencaPct >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                    Com este aporte, o ritmo fica {previewAporte.diferencaPct >= 0 ? 'acima' : 'abaixo'} do necessário ({previewAporte.diferencaPct >= 0 ? '+' : ''}{previewAporte.diferencaPct.toFixed(0)}%)
+                  </p>
+                )}
               </div>
 
               <div>
@@ -461,6 +521,60 @@ export default function CiclosInvestimento() {
                 {salvandoAporte ? 'Salvando...' : 'Registrar aporte'}
               </button>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL EXCLUIR APORTE */}
+      {excluirCiclo && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-[#101623] border border-[#1e293b] rounded-2xl w-full max-w-md overflow-hidden shadow-2xl">
+            <div className="p-6 border-b border-[#1e293b] flex justify-between items-center">
+              <div>
+                <h2 className="text-xl font-bold text-white">Excluir aporte</h2>
+                <p className="text-xs text-slate-400 mt-1">{excluirCiclo.nome}</p>
+              </div>
+              <button onClick={fecharExcluir} className="text-slate-400 hover:text-white">
+                <X size={24} />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-3">
+              <p className="text-xs text-slate-500 leading-relaxed">
+                Selecione o aporte que deseja apagar. O valor acumulado da meta diminuirá.
+              </p>
+
+              <div className="max-h-72 overflow-y-auto space-y-1.5 pr-1">
+                {[...(aportesMap[excluirCiclo.id] || [])]
+                  .sort((a, b) => (b.data || '').localeCompare(a.data || ''))
+                  .map((a) => (
+                    <div
+                      key={a.id}
+                      className="flex items-center justify-between gap-3 bg-[#070b14] border border-[#1e293b] rounded-lg px-3 py-2.5"
+                    >
+                      <div className="flex flex-col min-w-0">
+                        <span className="text-sm text-slate-200 font-semibold truncate">
+                          {formatarMoeda(parseFloat(a.valor) || 0)}
+                        </span>
+                        <span className="text-xs text-slate-500">
+                          {formatarData(a.data)}
+                        </span>
+                      </div>
+                      <button
+                        onClick={async () => {
+                          await confirmarExcluirAporte(excluirCiclo.id, a.id);
+                          // fecha o modal após excluir (snapshot do hook atualiza a lista)
+                          setExcluirCiclo(null);
+                        }}
+                        disabled={excluindoAporte}
+                        className="flex items-center gap-1.5 text-rose-300 hover:text-rose-200 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-xs font-bold px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50"
+                      >
+                        <Trash2 size={14} /> Excluir
+                      </button>
+                    </div>
+                  ))}
+              </div>
+            </div>
           </div>
         </div>
       )}

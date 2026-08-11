@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Plus, ArrowUpCircle, ArrowDownCircle, Trash2, Pencil, Search, Filter, X } from 'lucide-react';
 import { collection, onSnapshot, deleteDoc, doc, query, where, runTransaction } from 'firebase/firestore';
 import { db } from '../../services/firebase';
@@ -7,11 +7,14 @@ import UpgradeModal from '../../components/ui/UpgradeModal';
 import { canAddTransacao, mesAtualKey } from '../../components/ui/plans';
 import { useAuth } from '../../hooks/useAuth';
 import { CATEGORIAS_ENTRADA, CATEGORIAS_SAIDA } from '../../utils/categorias';
+import { calcularProgressoCategorias } from '../../utils/orcamentoCategoria';
+import { mesAtualPrefixo, hojeStr } from '../../utils/data';
 
 export default function Transacoes() {
   const { currentUser, userProfile } = useAuth();
   const [transacoes, setTransacoes] = useState([]);
   const [contas, setContas] = useState([]);
+  const [limitesCategorias, setLimitesCategorias] = useState({});
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
@@ -61,9 +64,16 @@ export default function Transacoes() {
       setLoading(false);
     });
 
+    // Buscar limites de orçamento por categoria (mesmo padrão do Dashboard) —
+    // usado só para o preview em tempo real no modal, sem gravar nada.
+    const unsubOrcamento = onSnapshot(doc(db, 'orcamentosPorCategoria', currentUser.uid), (snap) => {
+      setLimitesCategorias(snap.exists() ? (snap.data().limites || {}) : {});
+    });
+
     return () => {
       unsubContas();
       unsubTransacoes();
+      unsubOrcamento();
     };
   }, [currentUser]);
 
@@ -219,6 +229,31 @@ export default function Transacoes() {
     return `${dia}/${mes}/${ano}`;
   };
 
+  // ── Preview do orçamento por categoria, calculado em tempo real no modal ──
+  // Simula a soma do lançamento em edição aos gastos já carregados em
+  // memória, sem gravar nada no Firestore. Reaproveita a mesma função usada
+  // no DashboardFinanceiro (calcularProgressoCategorias).
+  const previewCategoria = useMemo(() => {
+    if (formData.tipo !== 'saida') return null;
+
+    const limite = parseFloat(limitesCategorias?.[formData.categoria]) || 0;
+    if (limite <= 0) return null;
+
+    const valorSimulado = parseFloat(formData.valor);
+    if (!formData.valor || Number.isNaN(valorSimulado) || valorSimulado <= 0) return null;
+
+    // Ao editar, remove a versão antiga da transação antes de simular a nova,
+    // para não contar o mesmo lançamento duas vezes.
+    const transacoesBase = editingId ? transacoes.filter((t) => t.id !== editingId) : transacoes;
+    const transacoesSimuladas = [
+      ...transacoesBase,
+      { tipo: 'saida', categoria: formData.categoria, valor: valorSimulado, data: formData.data || hojeStr() }
+    ];
+
+    const resultado = calcularProgressoCategorias(limitesCategorias, transacoesSimuladas, mesAtualPrefixo());
+    return resultado.find((c) => c.categoria === formData.categoria) || null;
+  }, [formData.tipo, formData.categoria, formData.valor, formData.data, editingId, transacoes, limitesCategorias]);
+
   // Filtro de busca simples
   const transacoesFiltradas = transacoes.filter(t => 
     (t.descricao || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -363,6 +398,15 @@ export default function Transacoes() {
                   <select required value={formData.categoria} onChange={e => setFormData({...formData, categoria: e.target.value})} className="w-full bg-[#070b14] border border-[#1e293b] rounded-xl px-4 py-3 text-white focus:border-indigo-500 outline-none">
                     {categorias[formData.tipo].map(cat => <option key={cat} value={cat}>{cat}</option>)}
                   </select>
+                  {previewCategoria && (
+                    <p className={`mt-1.5 text-xs ${
+                      previewCategoria.estado === 'estourado' ? 'text-rose-400' :
+                      previewCategoria.estado === 'alerta' ? 'text-amber-400' : 'text-slate-500'
+                    }`}>
+                      Com este lançamento: {previewCategoria.pct.toFixed(0)}% de {formatarMoeda(previewCategoria.limite)}
+                      {previewCategoria.estado === 'estourado' && ' · ultrapassa o limite'}
+                    </p>
+                  )}
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-slate-400 mb-1">Conta/Carteira</label>

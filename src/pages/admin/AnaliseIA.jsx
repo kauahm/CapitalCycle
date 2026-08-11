@@ -1,14 +1,16 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import {
   Sparkles, Send, Bot, User,
   TrendingUp, AlertTriangle, Lightbulb,
   Key, Eye, EyeOff, Settings
 } from 'lucide-react';
-import { doc, getDoc, updateDoc } from 'firebase/firestore';
+import { collection, doc, getDoc, updateDoc, onSnapshot, query, where } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import UpgradeModal from '../../components/ui/UpgradeModal';
 import { canConsultarIA, getLimits, mesAtualKey } from '../../components/ui/plans';
 import { useAuth } from '../../hooks/useAuth';
+import { useAportesPorMeta } from '../../hooks/useAportesPorMeta';
+import { gerarResumoFinanceiro, formatarResumoParaPrompt } from '../../utils/resumoFinanceiro';
 
 // ─────────────────────────────────────────────────────────
 // Configure no arquivo .env na raiz do projeto:
@@ -25,11 +27,17 @@ Use bullet points e valores numéricos quando relevante.
 Nunca invente dados que o usuário não mencionou.
 Ao sugerir investimentos, sempre mencione os riscos envolvidos.`;
 
-// Monta o histórico no formato Gemini (system prompt injetado como 1º par)
-function buildPayload(history) {
+// Monta o histórico no formato Gemini (system prompt injetado como 1º par).
+// `resumoTexto` (gerado via utils/resumoFinanceiro.js) é prependado antes do
+// SYSTEM_PROMPT para o modelo responder com base nos dados reais do usuário.
+function buildPayload(history, resumoTexto) {
+  const contextoUsuario = resumoTexto
+    ? `[Dados financeiros reais do usuário — use estes valores, nunca invente outros]\n${resumoTexto}\n\n`
+    : '';
+
   return {
     contents: [
-      { role: 'user',  parts: [{ text: `[Instruções do sistema]\n${SYSTEM_PROMPT}` }] },
+      { role: 'user',  parts: [{ text: `${contextoUsuario}[Instruções do sistema]\n${SYSTEM_PROMPT}` }] },
       { role: 'model', parts: [{ text: 'Entendido. Sou o Capital Advisor, pronto para ajudar.' }] },
       ...history
         .filter(m => m.id !== 1)
@@ -66,6 +74,52 @@ export default function AnaliseIA() {
   const mesKey = mesAtualKey();
   const [usoMes, setUsoMes] = useState(0);
   const [upgradeOpen, setUpgradeOpen] = useState(false);
+
+  // ── Dados reais do usuário (mesmo shape do DashboardFinanceiro) para
+  // dar contexto ao chat — ver utils/resumoFinanceiro.js ──
+  const [contas, setContas] = useState([]);
+  const [transacoes, setTransacoes] = useState([]);
+  const [ciclos, setCiclos] = useState([]);
+  const [limitesCategorias, setLimitesCategorias] = useState({});
+
+  useEffect(() => {
+    if (!currentUser) return;
+
+    const qContas = query(collection(db, 'accounts'), where('uid', '==', currentUser.uid));
+    const unsubContas = onSnapshot(qContas, (snapshot) => {
+      setContas(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
+    });
+
+    const qTransacoes = query(collection(db, 'transactions'), where('uid', '==', currentUser.uid));
+    const unsubTransacoes = onSnapshot(qTransacoes, (snapshot) => {
+      setTransacoes(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
+    });
+
+    const qCiclos = query(collection(db, 'ciclos'), where('uid', '==', currentUser.uid));
+    const unsubCiclos = onSnapshot(qCiclos, (snapshot) => {
+      setCiclos(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
+    });
+
+    const unsubOrcamento = onSnapshot(doc(db, 'orcamentosPorCategoria', currentUser.uid), (snap) => {
+      setLimitesCategorias(snap.exists() ? (snap.data().limites || {}) : {});
+    });
+
+    return () => {
+      unsubContas();
+      unsubTransacoes();
+      unsubCiclos();
+      unsubOrcamento();
+    };
+  }, [currentUser]);
+
+  const metaIds = ciclos.filter(c => c.tipo === 'Meta').map(c => c.id);
+  const aportesMap = useAportesPorMeta(metaIds);
+
+  const resumoFinanceiro = useMemo(
+    () => gerarResumoFinanceiro({ contas, transacoes, ciclos, aportesMap, limitesCategorias }),
+    [contas, transacoes, ciclos, aportesMap, limitesCategorias]
+  );
+  const resumoTexto = useMemo(() => formatarResumoParaPrompt(resumoFinanceiro), [resumoFinanceiro]);
 
   const messagesEndRef = useRef(null);
   useEffect(() => {
@@ -130,7 +184,7 @@ export default function AnaliseIA() {
       const res = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(buildPayload(updated))
+        body: JSON.stringify(buildPayload(updated, resumoTexto))
       });
 
       // Tenta extrair mensagem de erro da API
