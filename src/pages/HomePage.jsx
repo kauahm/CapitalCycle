@@ -1,240 +1,335 @@
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+
+import heroVideo from '../assets/video/hero-cartao.mp4';
+import heroVideoLoop from '../assets/video/hero-cartao-loop.mp4';
+import heroVideoPoster from '../assets/video/hero-cartao-poster.png';
 
 /* =========================================================
-   HERO SECTION — Capital Cycle
-   Layout claro (cinza), headline gigante, nav em pílula,
-   bloco de métrica à direita, social rail e scroll hint.
+   HOME — Capital Cycle
+   Hero (vídeo do cartão) faz uma transição estilo "Apple"
+   (scroll pinado, fade + slide) até a seção de Recursos.
    ========================================================= */
 
-const HERO_CSS = `
+const PAGE_CSS = `
   .cch {
-    --cch-ink: #14140f;
-    --cch-muted: #57564f;
-    --cch-soft: #6f6e66;
-    --cch-orange: #ee6a12;
-    --cch-orange-dark: #d95908;
+    --cch-ink: #131316;
+    --cch-body: #3c3c40;
+    --cch-muted: #6d6d72;
+    --cch-purple: #8b7cf6;
+    --cch-purple-btn: #7c62f2;
+    --cch-purple-btn-dark: #6b4ff0;
+    --cch-purple-rec: #5358ee;
 
     position: relative;
     min-height: 100vh;
     width: 100%;
     overflow: hidden;
     isolation: isolate;
-    background-color: #cfcfcd;
-    font-family: 'Helvetica Neue', Helvetica, 'Inter', Arial, sans-serif;
+    background-color: #d8d8d8;
+    font-family: 'Inter', 'Helvetica Neue', Helvetica, Arial, sans-serif;
     color: var(--cch-ink);
     -webkit-font-smoothing: antialiased;
   }
   .cch *, .cch *::before, .cch *::after { box-sizing: border-box; }
 
-  /* ---------- Fundo ---------- */
-  .cch-bg {
+  /* ---------- Fundo (vídeo) ---------- */
+  .cch-video-bg {
     position: absolute; inset: 0; z-index: 0; pointer-events: none;
-    background:
-      radial-gradient(60% 48% at 47% 42%, rgba(255,255,255,0.30) 0%, rgba(255,255,255,0) 72%),
-      radial-gradient(125% 105% at 50% 44%, #d2d2cf 0%, #c8c8c5 42%, #bcbcb9 74%, #adadaa 100%);
+    width: 100%; height: 100%;
+    object-fit: cover; object-position: center 45%;
+    background: #d8d8d8;
+    opacity: 1;
+    transition: opacity 0.2s linear;
   }
-  .cch-bg::after {
+  .cch-video-bg.cch-video-bg--loop {
+    opacity: 0;
+  }
+  .cch-video-bg.cch-video-bg--loop.is-active {
+    opacity: 1;
+  }
+  .cch-video-bg.cch-video-bg--hidden {
+    opacity: 0;
+  }
+  .cch-scrim {
+    position: absolute; inset: 0; z-index: 1; pointer-events: none;
+    background: linear-gradient(
+      92deg,
+      rgba(216,216,214,0.86) 0%,
+      rgba(216,216,214,0.62) 20%,
+      rgba(216,216,214,0.2) 40%,
+      rgba(216,216,214,0.12) 60%,
+      rgba(216,216,214,0.58) 80%,
+      rgba(216,216,214,0.8) 100%
+    );
+  }
+  .cch-scrim::after {
     content: ''; position: absolute; inset: -20%;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)'/%3E%3C/svg%3E");
-    opacity: 0.22; mix-blend-mode: overlay;
-  }
-  .cch-hill {
-    position: absolute; left: 50%; bottom: -2px; transform: translateX(-50%);
-    width: min(1400px, 96vw); height: 230px; z-index: 0; pointer-events: none;
-    opacity: 0.5;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)'/%3E%3C/svg%3E");
+    opacity: 0.08; mix-blend-mode: overlay;
   }
 
   /* ---------- Navbar ---------- */
   .cch-nav {
     position: relative; z-index: 20;
     display: flex; align-items: center; justify-content: space-between; gap: 1.5rem;
-    padding: 1.9rem 2.5rem;
-    max-width: 1720px; margin: 0 auto;
+    padding: 1.9rem 3.2rem 0;
+    max-width: 1980px; margin: 0 auto;
   }
-  .cch-brand {
-    display: inline-flex; align-items: center; gap: 0.7rem;
-    text-decoration: none; color: var(--cch-ink);
-    font-size: 1.35rem; font-weight: 500; letter-spacing: -0.015em;
-    white-space: nowrap;
+
+  .cch-logo-slot {
+    flex: none;
+    /* Espaço reservado para a logo da marca */
+    min-width: 3rem; min-height: 2.5rem;
   }
-  .cch-brand svg { display: block; }
+
+  .cch-nav-right {
+    display: flex; align-items: center; gap: 0.9rem;
+    margin-left: auto;
+  }
 
   .cch-menu {
-    display: flex; align-items: center; gap: 0.25rem;
-    padding: 0.4rem;
-    border-radius: 999px;
-    background: rgba(255,255,255,0.16);
-    border: 1px solid rgba(255,255,255,0.28);
-    -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
-    box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+    display: flex; align-items: center; gap: 0.3rem;
+    padding: 0.45rem;
+    border-radius: 14px;
+    background: rgba(0,0,0,0.13);
+    -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
   }
   .cch-menu a, .cch-menu button {
     display: inline-flex; align-items: center; gap: 0.4rem;
-    padding: 0.78rem 1.55rem;
+    padding: 0.55rem 1.5rem;
     border: 0; background: transparent; cursor: pointer;
-    font-family: inherit; font-size: 1.02rem; font-weight: 400;
-    color: rgba(255,255,255,0.92); text-decoration: none;
-    border-radius: 999px; white-space: nowrap;
+    font-family: inherit; font-size: 0.93rem; font-weight: 700;
+    color: rgba(255,255,255,0.78); text-decoration: none;
+    border-radius: 9px; white-space: nowrap;
     transition: background 0.2s ease, color 0.2s ease;
   }
-  .cch-menu a:hover, .cch-menu button:hover { background: rgba(255,255,255,0.18); color: #fff; }
-  .cch-menu .is-active { background: rgba(255,255,255,0.26); color: #fff; }
-  .cch-menu .cch-chevron { opacity: 0.85; }
-  .cch-menu-divider { width: 1px; height: 26px; margin: 0 0.35rem; background: rgba(255,255,255,0.3); }
+  .cch-menu a:hover, .cch-menu button:hover { background: rgba(255,255,255,0.16); color: #fff; }
+  .cch-menu .is-active { background: #38383b; color: #fff; }
+  .cch-menu .is-active:hover { background: #38383b; }
+  .cch-caret {
+    width: 0; height: 0; margin-top: 2px;
+    border-left: 4px solid transparent; border-right: 4px solid transparent;
+    border-top: 4.5px solid currentColor;
+  }
 
   .cch-login {
     display: inline-flex; align-items: center; justify-content: center;
-    padding: 1.25rem 2.1rem;
-    background: #0b0b09; color: #fff;
-    font-family: inherit; font-size: 1rem; font-weight: 400;
-    border: 0; border-radius: 14px; cursor: pointer; text-decoration: none;
+    padding: 0.82rem 1.9rem;
+    background: #0b0b0d; color: #fff;
+    font-family: inherit; font-size: 0.93rem; font-weight: 700;
+    border: 0; border-radius: 11px; cursor: pointer; text-decoration: none;
     white-space: nowrap;
     transition: transform 0.2s ease, background 0.2s ease;
   }
   .cch-login:hover { background: #000; transform: translateY(-1px); }
 
-  /* ---------- Conteúdo ---------- */
+  /* ---------- Conteúdo (Hero) ---------- */
   .cch-inner {
     position: relative; z-index: 10;
-    max-width: 1720px; margin: 0 auto;
-    padding: 4.5rem 4rem 8rem 4.875rem;
-    display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+    max-width: 1980px; margin: 0 auto;
+    padding: 3.2rem 3.2rem 2.5rem;
+    display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+    align-items: center;
     gap: 3rem;
-    min-height: calc(100vh - 112px);
+    min-height: calc(100vh - 6.5rem);
   }
 
   .cch-left { display: flex; flex-direction: column; }
-  .cch-index {
-    font-size: 0.9rem; font-weight: 500; letter-spacing: 0.18em;
-    color: var(--cch-muted); margin-bottom: 1.6rem;
-  }
   .cch-title {
     margin: 0;
-    font-size: clamp(3.5rem, 9vw, 10.5rem);
-    line-height: 0.88;
-    font-weight: 700;
-    letter-spacing: -0.045em;
+    font-size: clamp(2.8rem, 5.4vw, 7.4rem);
+    line-height: 1.04;
+    font-weight: 900;
+    letter-spacing: -0.03em;
     text-transform: uppercase;
-    color: #17171a;
+    color: #131316;
   }
   .cch-title span { display: block; }
+  .cch-title .cch-accent { color: var(--cch-purple); }
+
   .cch-lead {
-    margin: 2.6rem 0 0;
-    max-width: 34rem;
-    font-size: 1.12rem; line-height: 1.5; font-weight: 400;
-    color: #3d3c37;
+    margin: 2rem 0 0;
+    max-width: 28.6rem;
+    font-size: 1.1rem; line-height: 1.52; font-weight: 400;
+    color: var(--cch-body);
   }
-  .cch-ctas { display: flex; flex-wrap: wrap; gap: 1.5rem; margin-top: 2.6rem; }
+  .cch-ctas { display: flex; flex-wrap: wrap; gap: 1.1rem; margin-top: 2.1rem; }
   .cch-btn {
     display: inline-flex; align-items: center; justify-content: center;
-    padding: 1.15rem 2.35rem; border: 0; border-radius: 12px;
-    font-family: inherit; font-size: 1.05rem; font-weight: 400;
+    padding: 1.05rem 2.6rem; border: 0; border-radius: 12px;
+    font-family: inherit; font-size: 0.98rem; font-weight: 700;
     cursor: pointer; text-decoration: none; white-space: nowrap;
     transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
   }
   .cch-btn-primary {
-    background: linear-gradient(180deg, var(--cch-orange) 0%, var(--cch-orange-dark) 100%);
+    background: linear-gradient(180deg, var(--cch-purple-btn) 0%, var(--cch-purple-btn-dark) 100%);
     color: #fff;
-    box-shadow: 0 12px 28px rgba(217,89,8,0.28);
+    box-shadow: 0 12px 28px rgba(108,79,240,0.26);
   }
-  .cch-btn-primary:hover { transform: translateY(-2px); box-shadow: 0 16px 34px rgba(217,89,8,0.36); }
+  .cch-btn-primary:hover { transform: translateY(-2px); box-shadow: 0 16px 34px rgba(108,79,240,0.34); }
   .cch-btn-ghost {
-    background: rgba(255,255,255,0.17); color: #fff;
-    border: 1px solid rgba(255,255,255,0.22);
+    background: rgba(0,0,0,0.13); color: #fff;
     -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
   }
-  .cch-btn-ghost:hover { background: rgba(255,255,255,0.26); transform: translateY(-2px); }
+  .cch-btn-ghost:hover { background: rgba(0,0,0,0.2); transform: translateY(-2px); }
 
-  /* ---------- Coluna direita ---------- */
+  /* ---------- Coluna direita (Hero) ---------- */
   .cch-right {
     display: flex; flex-direction: column; align-items: flex-end;
-    text-align: right; padding-top: 0.5rem;
+    text-align: right;
   }
-  .cch-stat { display: flex; align-items: baseline; gap: 0.75rem; }
-  .cch-stat svg { align-self: center; flex: none; }
-  .cch-stat-value {
-    font-size: clamp(2.6rem, 4.2vw, 4.1rem);
-    font-weight: 700; letter-spacing: -0.035em; line-height: 1; color: #17171a;
-  }
+  .cch-stat + .cch-stat { margin-top: 2.4rem; }
   .cch-stat-label {
-    font-size: clamp(1rem, 1.35vw, 1.35rem);
-    font-weight: 400; letter-spacing: 0.01em; color: #4a4a44;
-    text-transform: uppercase;
+    display: flex; align-items: center; justify-content: flex-end; gap: 0.5rem;
+    font-size: 0.85rem; font-weight: 700; letter-spacing: 0.1em;
+    text-transform: uppercase; color: #2c2c30;
   }
-  .cch-stat-text {
-    margin: 1.1rem 0 0; max-width: 30rem;
-    font-size: 1.05rem; line-height: 1.45; color: #3d3c37;
+  .cch-dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--cch-purple); flex: none;
   }
-  .cch-tagline {
-    margin: auto 0 0; max-width: 24rem;
-    font-size: 1.05rem; line-height: 1.45; color: #4a4a44;
+  .cch-stat-value {
+    display: block; margin-top: 0.6rem;
+    font-size: clamp(1.9rem, 2.7vw, 3rem);
+    font-weight: 800; letter-spacing: -0.03em; line-height: 1; color: #131316;
   }
-
-  /* ---------- Social rail ---------- */
-  .cch-social {
-    position: absolute; right: 4rem; top: 50%; transform: translateY(-50%);
-    z-index: 15;
-    display: flex; flex-direction: column; align-items: center; gap: 0.3rem;
-    padding: 0.5rem;
-    border-radius: 18px;
-    background: rgba(255,255,255,0.16);
-    border: 1px solid rgba(255,255,255,0.24);
-    -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
-  }
-  .cch-social a {
-    display: inline-flex; align-items: center; justify-content: center;
-    width: 48px; height: 48px; border-radius: 13px;
-    color: #fff;
-    transition: background 0.2s ease, transform 0.2s ease;
-  }
-  .cch-social a:hover { background: rgba(255,255,255,0.3); transform: translateY(-1px); }
-  .cch-social a.is-active { background: rgba(255,255,255,0.26); }
 
   /* ---------- Scroll hint ---------- */
   .cch-scroll {
-    position: absolute; left: 50%; bottom: 1.6rem; transform: translateX(-50%);
+    position: absolute; left: 50%; bottom: 1rem; transform: translateX(-50%);
     z-index: 15;
-    display: flex; flex-direction: column; align-items: center; gap: 0.7rem;
-    color: #4a4a44; text-align: center;
-    font-size: 1rem; line-height: 1.35;
+    display: flex; flex-direction: column; align-items: center; gap: 0.6rem;
+    color: #4d4d52; text-align: center;
+    font-size: 0.9rem; line-height: 1.3;
   }
-  .cch-scroll span { display: block; }
-  .cch-scroll-text { display: block; }
   .cch-mouse { animation: cch-float 2.4s ease-in-out infinite; }
   @keyframes cch-float {
     0%, 100% { transform: translateY(0); }
     50% { transform: translateY(5px); }
   }
 
+  /* ---------- Recursos (2ª seção) ---------- */
+  .cch-recursos-layer {
+    background: none;
+  }
+  .cch-layer-bg {
+    position: absolute; inset: 0; z-index: 0; pointer-events: none;
+    background-color: #f4f5f7;
+  }
+  .cch-rec-inner {
+    position: relative; z-index: 10;
+    max-width: 1980px; margin: 0 auto;
+    min-height: calc(100vh - 6.5rem);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    text-align: center;
+    padding: 3.2rem;
+  }
+  .cch-rec-eyebrow {
+    display: inline-flex; align-items: center; gap: 0.5rem;
+    font-size: 0.85rem; font-weight: 700; letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--cch-purple-rec);
+  }
+  .cch-dot--rec { background: var(--cch-purple-rec); }
+  .cch-rec-title {
+    margin: 1.4rem 0 0;
+    max-width: 46rem;
+    font-size: clamp(2.8rem, 5.4vw, 7.4rem);
+    line-height: 1.04;
+    font-weight: 900;
+    letter-spacing: -0.03em;
+    text-transform: uppercase;
+    color: var(--cch-ink);
+  }
+  .cch-rec-title span { display: block; }
+  .cch-rec-title .cch-accent-rec { color: var(--cch-purple-rec); }
+  .cch-rec-lead {
+    margin: 2rem 0 0;
+    max-width: 34rem;
+    font-size: 1.1rem; line-height: 1.52; font-weight: 400;
+    color: var(--cch-body);
+  }
+  .cch-rec-cta {
+    display: inline-flex; align-items: center; gap: 0.6rem;
+    margin-top: 2.3rem;
+    padding: 1.05rem 1.9rem 1.05rem 2.3rem;
+    background: #0f1216; color: #fff;
+    font-family: inherit; font-size: 0.98rem; font-weight: 700;
+    border-radius: 999px; text-decoration: none; white-space: nowrap;
+    transition: transform 0.2s ease, background 0.2s ease;
+  }
+  .cch-rec-cta:hover { background: #000; transform: translateY(-2px); }
+  .cch-rec-arrow { width: 18px; height: 18px; flex: none; }
+
+  /* ---------- Transição "Apple" (scroll pinado) ---------- */
+  .cch-story {
+    position: relative;
+    height: 180vh;
+  }
+  .cch-pin {
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow: hidden;
+  }
+  .cch-nav-wrap {
+    position: absolute; top: 0; left: 0; right: 0; z-index: 30;
+  }
+  .cch-layers-viewport {
+    position: absolute; inset: 0; z-index: 0;
+  }
+  .cch-layer {
+    position: absolute; inset: 0;
+    pointer-events: none;
+  }
+  .cch-hero-layer { z-index: 1; }
+  .cch-recursos-layer { z-index: 2; }
+
+  .cch-story.cch-story--static { height: auto; }
+  .cch-story--static .cch-pin {
+    position: static; height: auto;
+  }
+  .cch-story--static .cch-nav-wrap { position: relative; }
+  .cch-story--static .cch-layers-viewport { position: static; }
+  .cch-story--static .cch-layer {
+    position: relative; inset: auto;
+    min-height: 100vh;
+    pointer-events: auto;
+  }
+
   /* ---------- Responsivo ---------- */
-  @media (max-width: 1180px) {
-    .cch-menu a, .cch-menu button { padding: 0.65rem 0.85rem; font-size: 0.9rem; }
-    .cch-social { right: 0.75rem; }
-    .cch-inner { padding-right: 5.5rem; }
+  @media (max-width: 1280px) {
+    .cch-nav { padding: 1.6rem 1.75rem 0; }
+    .cch-inner { padding: 2.5rem 1.75rem 2rem; }
+    .cch-menu a, .cch-menu button { padding: 0.55rem 1rem; font-size: 0.88rem; }
   }
   @media (max-width: 980px) {
     .cch-menu { display: none; }
     .cch-inner {
-      grid-template-columns: 1fr; gap: 3.5rem;
-      padding: 2.5rem 1.25rem 2.5rem;
+      grid-template-columns: 1fr; gap: 2.5rem;
+      padding: 2.5rem 1.5rem 2.5rem;
+      min-height: 0;
     }
     .cch-right { align-items: flex-start; text-align: left; }
-    .cch-tagline { margin-top: 2rem; }
-    .cch-social {
-      position: relative; top: auto; right: auto; transform: none;
-      flex-direction: row; margin: 0 1.25rem; width: max-content;
-    }
+    .cch-stat-label { justify-content: flex-start; }
     .cch-scroll {
       position: relative; left: auto; bottom: auto; transform: none;
-      margin: 3rem auto 2.5rem; width: max-content;
+      margin: 1rem auto 2rem; width: max-content;
     }
+    /* Em coluna única o vídeo fica só como textura ambiente,
+       sem "janela" central, para não brigar com o texto. */
+    .cch-video-bg { opacity: 0.4; filter: blur(1px); }
+    .cch-scrim { background: rgba(216,216,214,0.85); }
+    .cch-scrim::after { opacity: 0.14; }
+    .cch-rec-inner { min-height: 0; padding: 3rem 1.5rem; }
   }
   @media (max-width: 560px) {
-    .cch-nav { padding: 1rem 1.25rem; }
-    .cch-brand { font-size: 1.1rem; }
-    .cch-login { padding: 0.85rem 1.2rem; font-size: 0.9rem; }
-    .cch-ctas { gap: 0.75rem; }
-    .cch-btn { flex: 1 1 auto; padding: 1rem 1.2rem; font-size: 0.95rem; }
+    .cch-nav { padding: 1.1rem 1.25rem 0; }
+    .cch-login { padding: 0.7rem 1.3rem; font-size: 0.88rem; }
+    .cch-lead { margin-top: 1.6rem; }
+    .cch-ctas { gap: 0.75rem; margin-top: 1.6rem; }
+    .cch-btn { flex: 1 1 auto; padding: 0.95rem 1.2rem; font-size: 0.92rem; }
+    .cch-stat + .cch-stat { margin-top: 2rem; }
+    .cch-rec-cta { padding: 0.9rem 1.6rem 0.9rem 2rem; }
   }
   @media (prefers-reduced-motion: reduce) {
     .cch-mouse { animation: none; }
@@ -244,194 +339,279 @@ const HERO_CSS = `
 
 /* ---------- Ícones ---------- */
 
-function LogoMark() {
-  const s = 6.2;
-  const cells = [
-    [1, 0, '#f08a2e'],
-    [2, 0, '#ee6a12'],
-    [0, 1, '#f4a05a'],
-    [1, 1, '#ee6a12'],
-    [2, 1, '#d95908'],
-    [1, 2, '#ee6a12'],
-    [2, 2, '#f08a2e'],
-    [3, 2, '#f4a05a'],
-    [0, 3, '#f08a2e'],
-    [2, 3, '#ee6a12'],
-    [3, 3, '#d95908'],
-  ];
-  return (
-    <svg width="30" height="30" viewBox="0 0 26 26" aria-hidden="true" focusable="false">
-      {cells.map(([x, y, fill]) => (
-        <rect key={`${x}-${y}`} x={x * s} y={y * s} width={s - 0.9} height={s - 0.9} rx="0.8" fill={fill} />
-      ))}
-    </svg>
-  );
-}
-
-function ChevronDown() {
-  return (
-    <svg className="cch-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none"
-      stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="m6 9 6 6 6-6" />
-    </svg>
-  );
-}
-
-function GlobeIcon() {
-  return (
-    <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-      strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <circle cx="12" cy="12" r="9.2" />
-      <path d="M3 12h18" />
-      <path d="M12 2.8c2.4 2.6 3.6 5.7 3.6 9.2S14.4 18.6 12 21.2C9.6 18.6 8.4 15.5 8.4 12S9.6 5.4 12 2.8Z" />
-    </svg>
-  );
-}
-
-function GrowthArrow() {
-  return (
-    <svg width="46" height="56" viewBox="0 0 46 56" aria-hidden="true" focusable="false">
-      <g stroke="#17171a" strokeWidth="10.5" fill="none" strokeLinecap="butt" strokeLinejoin="miter">
-        <path d="M23 55V11" />
-        <path d="M7.5 25.5 23 9l15.5 16.5" />
-      </g>
-    </svg>
-  );
-}
-
-function InstagramIcon() {
-  return (
-    <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-      strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <rect x="2.5" y="2.5" width="19" height="19" rx="5.5" />
-      <circle cx="12" cy="12" r="4.2" />
-      <circle cx="17.4" cy="6.6" r="1.1" fill="currentColor" stroke="none" />
-    </svg>
-  );
-}
-
-function FacebookIcon() {
-  return (
-    <svg width="21" height="21" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-      <path d="M14.6 22v-8.5h2.9l.5-3.4h-3.4V7.9c0-1 .3-1.7 1.7-1.7h1.8V3.2c-.3 0-1.4-.1-2.6-.1-2.6 0-4.4 1.6-4.4 4.5v2.5H8.1v3.4h2.9V22z" />
-    </svg>
-  );
-}
-
-function XIcon() {
-  return (
-    <svg width="19" height="19" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-      <path d="M17.7 2.5h3.3l-7.2 8.2L22.3 21.5h-6.6l-5.2-6.8-6 6.8H1.2l7.7-8.8L1.7 2.5h6.8l4.7 6.2zm-1.2 17h1.8L7.6 4.4H5.6z" />
-    </svg>
-  );
-}
-
 function MouseIcon() {
   return (
-    <svg className="cch-mouse" width="20" height="26" viewBox="0 0 20 26" fill="none"
-      stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
-      <rect x="1.5" y="1.5" width="17" height="23" rx="8.5" />
-      <path d="M10 6.5v4" strokeLinecap="round" />
+    <svg className="cch-mouse" width="28" height="43" viewBox="0 0 38 58" fill="none"
+      stroke="currentColor" strokeWidth="2" aria-hidden="true">
+      <rect x="1.5" y="1.5" width="35" height="55" rx="17.5" />
+      <path d="M19 13v10" strokeLinecap="round" />
     </svg>
   );
+}
+
+function ArrowRightIcon() {
+  return (
+    <svg className="cch-rec-arrow" viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M5 12h14" />
+      <path d="M13 6l6 6-6 6" />
+    </svg>
+  );
+}
+
+/* ---------- Navegação (reutilizada no Hero e nos Recursos) ---------- */
+
+function MainNav({ active = 'inicio' }) {
+  return (
+    <header className="cch-nav">
+      <div className="cch-logo-slot" aria-hidden="true" />
+
+      <div className="cch-nav-right">
+        <nav className="cch-menu" aria-label="Navegação principal">
+          <a href="#inicio" className={active === 'inicio' ? 'is-active' : undefined}>Início</a>
+          <a href="#recursos" className={active === 'recursos' ? 'is-active' : undefined}>Recursos</a>
+          <button type="button">Serviços <span className="cch-caret" aria-hidden="true" /></button>
+          <a href="#capital-advisor">Capital Advisor</a>
+          <a href="#planos">Planos</a>
+        </nav>
+
+        <a className="cch-login" href="/login">Entrar</a>
+      </div>
+    </header>
+  );
+}
+
+/* ---------- Scroll pinado (progresso 0 → 1) ---------- */
+
+const clamp01 = (value) => Math.min(1, Math.max(0, value));
+
+function useScrollStory(ref, enabled) {
+  const [progress, setProgress] = useState(0);
+
+  useEffect(() => {
+    if (!enabled) return;
+    const el = ref.current;
+    if (!el) return;
+
+    let rafId = null;
+    let target = 0;
+    let current = 0;
+
+    const computeTarget = () => {
+      const rect = el.getBoundingClientRect();
+      const runway = el.offsetHeight - window.innerHeight;
+      target = runway > 0 ? clamp01(-rect.top / runway) : 0;
+    };
+
+    const tick = () => {
+      current += (target - current) * 0.22;
+      if (Math.abs(target - current) < 0.0006) current = target;
+      setProgress(current);
+      rafId = requestAnimationFrame(tick);
+    };
+
+    const onScroll = () => computeTarget();
+
+    computeTarget();
+    current = target;
+    rafId = requestAnimationFrame(tick);
+    window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', onScroll);
+    return () => {
+      window.removeEventListener('scroll', onScroll);
+      window.removeEventListener('resize', onScroll);
+      if (rafId) cancelAnimationFrame(rafId);
+    };
+  }, [ref, enabled]);
+
+  return enabled ? progress : 1;
+}
+
+function usePinnedStoryEnabled() {
+  const [enabled, setEnabled] = useState(true);
+
+  useEffect(() => {
+    const media = window.matchMedia('(min-width: 981px) and (prefers-reduced-motion: no-preference)');
+    const sync = () => setEnabled(media.matches);
+    sync();
+    media.addEventListener('change', sync);
+    return () => media.removeEventListener('change', sync);
+  }, []);
+
+  return enabled;
 }
 
 /* ---------- Componente ---------- */
 
-export default function HeroSection() {
+export default function HomePage() {
+  const videoRef = useRef(null);
+  const loopVideoRef = useRef(null);
+  const storyRef = useRef(null);
+
+  const pinnedEnabled = usePinnedStoryEnabled();
+  const progress = useScrollStory(storyRef, pinnedEnabled);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    const loopVideo = loopVideoRef.current;
+    if (!video || !loopVideo) return;
+
+    const media = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+    const handleEnded = () => {
+      const mid = loopVideo.duration ? loopVideo.duration / 2 : 0;
+      loopVideo.currentTime = mid;
+      loopVideo.play().catch(() => {});
+      video.classList.add('cch-video-bg--hidden');
+      loopVideo.classList.add('is-active');
+    };
+
+    const syncPlayback = () => {
+      if (media.matches) {
+        video.pause();
+        loopVideo.pause();
+      } else if (loopVideo.classList.contains('is-active')) {
+        loopVideo.play().catch(() => {});
+      } else {
+        video.play().catch(() => {});
+      }
+    };
+
+    syncPlayback();
+    video.addEventListener('ended', handleEnded);
+    media.addEventListener('change', syncPlayback);
+    return () => {
+      video.removeEventListener('ended', handleEnded);
+      media.removeEventListener('change', syncPlayback);
+    };
+  }, []);
+
+  /* Etapas escalonadas: 1) o texto/nav do Hero some, 2) o fundo troca
+     de cinza para branco, 3) o conteúdo dos Recursos aparece por cima
+     já num fundo quase branco — evita o efeito "cubo" de misturar tudo
+     de uma vez. */
+  const heroContentP = clamp01(progress / 0.45);
+  const bgCrossP = clamp01((progress - 0.15) / 0.45);
+  const recContentP = clamp01((progress - 0.5) / 0.5);
+
+  const heroContentStyle = pinnedEnabled ? {
+    opacity: 1 - heroContentP,
+    transform: `translateY(${-heroContentP * 46}px)`,
+    pointerEvents: heroContentP > 0.9 ? 'none' : 'auto',
+  } : undefined;
+
+  const recBgStyle = pinnedEnabled ? { opacity: bgCrossP } : undefined;
+
+  const recContentStyle = pinnedEnabled ? {
+    opacity: recContentP,
+    transform: `translateY(${(1 - recContentP) * 36}px)`,
+    pointerEvents: recContentP < 0.1 ? 'none' : 'auto',
+  } : undefined;
+
+  const activeNav = progress >= 0.5 ? 'recursos' : 'inicio';
+
   return (
-    <section className="cch">
-      <style>{HERO_CSS}</style>
+    <div ref={storyRef} className={`cch-story ${pinnedEnabled ? '' : 'cch-story--static'}`}>
+      <style>{PAGE_CSS}</style>
 
-      <div className="cch-bg" aria-hidden="true" />
+      <div className="cch-pin">
+        <div className="cch-nav-wrap">
+          <MainNav active={activeNav} />
+        </div>
 
-      <svg className="cch-hill" viewBox="0 0 1200 200" preserveAspectRatio="none" aria-hidden="true">
-        <defs>
-          <filter id="cch-blur" x="-30%" y="-60%" width="160%" height="260%">
-            <feGaussianBlur stdDeviation="16" />
-          </filter>
-        </defs>
-        <path
-          filter="url(#cch-blur)"
-          fill="rgba(255,255,255,0.62)"
-          d="M-80 220V196c120 0 210-6 300-22 92-16 150-56 236-56 78 0 126 34 190 52 70 20 140 26 240 26 120 0 200 4 394 0v24z"
-        />
-      </svg>
+        <div className="cch-layers-viewport">
+        <div className="cch cch-layer cch-hero-layer">
+          <video
+            ref={videoRef}
+            className="cch-video-bg"
+            src={heroVideo}
+            poster={heroVideoPoster}
+            autoPlay
+            muted
+            playsInline
+            preload="auto"
+            aria-hidden="true"
+          />
+          <video
+            ref={loopVideoRef}
+            className="cch-video-bg cch-video-bg--loop"
+            src={heroVideoLoop}
+            muted
+            loop
+            playsInline
+            preload="auto"
+            aria-hidden="true"
+          />
+          <div className="cch-scrim" aria-hidden="true" />
 
-      <header className="cch-nav">
-        <a className="cch-brand" href="#inicio">
-          <LogoMark />
-          Capital Cycle
-        </a>
+          <div className="cch-inner" id="inicio" style={heroContentStyle}>
+            <div className="cch-left">
+              <h1 className="cch-title">
+                <span>Sua</span>
+                <span>Jornada</span>
+                <span className="cch-accent">Financeira</span>
+              </h1>
 
-        <nav className="cch-menu" aria-label="Navegação principal">
-          <a href="#inicio" className="is-active">Início</a>
-          <a href="#sobre">Sobre</a>
-          <button type="button">Serviços <ChevronDown /></button>
-          <a href="#precos">Preços</a>
-          <a href="#solucoes">Soluções</a>
-          <span className="cch-menu-divider" aria-hidden="true" />
-          <button type="button"><GlobeIcon /> Português <ChevronDown /></button>
-        </nav>
+              <p className="cch-lead">
+                Da primeira transação ao ciclo de investimento completo — controle
+                total do seu capital com inteligência artificial integrada.
+              </p>
 
-        <a className="cch-login" href="/login">Entrar / Cadastrar</a>
-      </header>
+              <div className="cch-ctas">
+                <a className="cch-btn cch-btn-primary" href="/cadastro">Começar agora</a>
+                <a className="cch-btn cch-btn-ghost" href="/login">Já tenho conta</a>
+              </div>
+            </div>
 
-      <div className="cch-inner" id="inicio">
-        <div className="cch-left">
-          <div className="cch-index">[ 1 / 8 ]</div>
+            <div className="cch-right">
+              <div className="cch-stat">
+                <span className="cch-stat-label">
+                  <span className="cch-dot" aria-hidden="true" />
+                  Fluxo positivo
+                </span>
+                <span className="cch-stat-value">R$ 18k</span>
+              </div>
 
-          <h1 className="cch-title">
-            <span>Capital</span>
-            <span>Cycle</span>
-          </h1>
+              <div className="cch-stat">
+                <span className="cch-stat-label">Ciclos ativos</span>
+                <span className="cch-stat-value">14+</span>
+              </div>
+            </div>
+          </div>
 
-          <p className="cch-lead">
-            Criamos identidades de marca, campanhas e sites que impulsionam
-            engajamento, conversões e crescimento sustentável.
-          </p>
-
-          <div className="cch-ctas">
-            <a className="cch-btn cch-btn-primary" href="/cadastro">Começar agora</a>
-            <a className="cch-btn cch-btn-ghost" href="#contato">Fale conosco</a>
+          <div className="cch-scroll" style={heroContentStyle}>
+            <MouseIcon />
+            <span>Role para baixo</span>
           </div>
         </div>
 
-        <div className="cch-right">
-          <div className="cch-stat">
-            <GrowthArrow />
-            <span className="cch-stat-value">132%</span>
-            <span className="cch-stat-label">de crescimento</span>
+        <div className="cch cch-layer cch-recursos-layer">
+          <div className="cch-layer-bg" style={recBgStyle} aria-hidden="true" />
+
+          <div className="cch-rec-inner" id="recursos" style={recContentStyle}>
+            <span className="cch-rec-eyebrow">
+              <span className="cch-dot cch-dot--rec" aria-hidden="true" />
+              Recursos
+            </span>
+
+            <h2 className="cch-rec-title">
+              <span>Gestão</span>
+              <span className="cch-accent-rec">Que evolui com você</span>
+            </h2>
+
+            <p className="cch-rec-lead">
+              Ferramentas profissionais para controle total do seu dinheiro — do
+              lançamento individual à inteligência financeira por IA.
+            </p>
+
+            <a className="cch-rec-cta" href="#planos">
+              Ver planos
+              <ArrowRightIcon />
+            </a>
           </div>
-
-          <p className="cch-stat-text">
-            Nossos clientes veem crescimento mensurável de marca por meio de
-            estratégias visuais e pensamento digital.
-          </p>
-
-          <p className="cch-tagline">
-            Do primeiro passo de uma ideia ao reconhecimento mundial — somos
-            parceiros de marcas ambiciosas.
-          </p>
+        </div>
         </div>
       </div>
-
-      <div className="cch-social">
-        <a href="https://instagram.com" target="_blank" rel="noreferrer noopener"
-          aria-label="Instagram" className="is-active"><InstagramIcon /></a>
-        <a href="https://facebook.com" target="_blank" rel="noreferrer noopener"
-          aria-label="Facebook"><FacebookIcon /></a>
-        <a href="https://x.com" target="_blank" rel="noreferrer noopener"
-          aria-label="X"><XIcon /></a>
-      </div>
-
-      <div className="cch-scroll">
-        <MouseIcon />
-        <div className="cch-scroll-text">
-          <span>Role para baixo</span>
-          <span>para explorar mais</span>
-        </div>
-      </div>
-    </section>
+    </div>
   );
 }
