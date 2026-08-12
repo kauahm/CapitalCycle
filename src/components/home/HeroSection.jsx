@@ -44,24 +44,35 @@ const HERO_CSS = `
   .cch-nav {
     position: relative; z-index: 20;
     display: flex; align-items: center; justify-content: space-between; gap: 1.5rem;
-    padding: 2.9rem 3.8rem 0;
+    padding: 1.9rem 3.2rem 0;
     max-width: 1980px; margin: 0 auto;
   }
 
+  .cch-logo-slot {
+    flex: none;
+    /* Espaço reservado para a logo da marca */
+    min-width: 3rem; min-height: 2.5rem;
+  }
+
+  .cch-nav-right {
+    display: flex; align-items: center; gap: 0.9rem;
+    margin-left: auto;
+  }
+
   .cch-menu {
-    display: flex; align-items: center; gap: 0.35rem;
-    padding: 0.6rem;
-    border-radius: 17px;
+    display: flex; align-items: center; gap: 0.3rem;
+    padding: 0.45rem;
+    border-radius: 14px;
     background: rgba(0,0,0,0.13);
     -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
   }
   .cch-menu a, .cch-menu button {
-    display: inline-flex; align-items: center; gap: 0.45rem;
-    padding: 0.7rem 2.1rem;
+    display: inline-flex; align-items: center; gap: 0.4rem;
+    padding: 0.55rem 1.5rem;
     border: 0; background: transparent; cursor: pointer;
-    font-family: inherit; font-size: 1.09rem; font-weight: 700;
+    font-family: inherit; font-size: 0.93rem; font-weight: 700;
     color: rgba(255,255,255,0.78); text-decoration: none;
-    border-radius: 11px; white-space: nowrap;
+    border-radius: 9px; white-space: nowrap;
     transition: background 0.2s ease, color 0.2s ease;
   }
   .cch-menu a:hover, .cch-menu button:hover { background: rgba(255,255,255,0.16); color: #fff; }
@@ -69,16 +80,16 @@ const HERO_CSS = `
   .cch-menu .is-active:hover { background: #38383b; }
   .cch-caret {
     width: 0; height: 0; margin-top: 2px;
-    border-left: 4.5px solid transparent; border-right: 4.5px solid transparent;
-    border-top: 5px solid currentColor;
+    border-left: 4px solid transparent; border-right: 4px solid transparent;
+    border-top: 4.5px solid currentColor;
   }
 
   .cch-login {
     display: inline-flex; align-items: center; justify-content: center;
-    padding: 1.16rem 3.15rem;
+    padding: 0.82rem 1.9rem;
     background: #0b0b0d; color: #fff;
-    font-family: inherit; font-size: 1.09rem; font-weight: 700;
-    border: 0; border-radius: 13px; cursor: pointer; text-decoration: none;
+    font-family: inherit; font-size: 0.93rem; font-weight: 700;
+    border: 0; border-radius: 11px; cursor: pointer; text-decoration: none;
     white-space: nowrap;
     transition: transform 0.2s ease, background 0.2s ease;
   }
@@ -88,16 +99,18 @@ const HERO_CSS = `
   .cch-inner {
     position: relative; z-index: 10;
     max-width: 1980px; margin: 0 auto;
-    padding: 8.5rem 3.8rem 7rem;
+    padding: 3.2rem 3.2rem 2.5rem;
     display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+    align-items: center;
     gap: 3rem;
+    min-height: calc(100vh - 6.5rem);
   }
 
   .cch-left { display: flex; flex-direction: column; }
   .cch-title {
     margin: 0;
-    font-size: clamp(3.2rem, 6.5vw, 9rem);
-    line-height: 1.02;
+    font-size: clamp(2.8rem, 5.4vw, 7.4rem);
+    line-height: 1.04;
     font-weight: 900;
     letter-spacing: -0.03em;
     text-transform: uppercase;
@@ -107,16 +120,16 @@ const HERO_CSS = `
   .cch-title .cch-accent { color: var(--cch-purple); }
 
   .cch-lead {
-    margin: 2.9rem 0 0;
+    margin: 2rem 0 0;
     max-width: 28.6rem;
-    font-size: 1.19rem; line-height: 1.55; font-weight: 400;
+    font-size: 1.1rem; line-height: 1.52; font-weight: 400;
     color: var(--cch-body);
   }
-  .cch-ctas { display: flex; flex-wrap: wrap; gap: 1.3rem; margin-top: 2.5rem; }
+  .cch-ctas { display: flex; flex-wrap: wrap; gap: 1.1rem; margin-top: 2.1rem; }
   .cch-btn {
     display: inline-flex; align-items: center; justify-content: center;
-    padding: 1.4rem 3.8rem; border: 0; border-radius: 13px;
-    font-family: inherit; font-size: 1.09rem; font-weight: 700;
+    padding: 1.05rem 2.6rem; border: 0; border-radius: 12px;
+    font-family: inherit; font-size: 0.98rem; font-weight: 700;
     cursor: pointer; text-decoration: none; white-space: nowrap;
     transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
   }
@@ -137,33 +150,33 @@ const HERO_CSS = `
     display: flex; flex-direction: column; align-items: flex-end;
     text-align: right;
   }
-  .cch-stat + .cch-stat { margin-top: 3.6rem; }
+  .cch-stat + .cch-stat { margin-top: 2.4rem; }
   .cch-stat-label {
-    display: flex; align-items: center; justify-content: flex-end; gap: 0.55rem;
-    font-size: 0.95rem; font-weight: 700; letter-spacing: 0.11em;
+    display: flex; align-items: center; justify-content: flex-end; gap: 0.5rem;
+    font-size: 0.85rem; font-weight: 700; letter-spacing: 0.1em;
     text-transform: uppercase; color: #2c2c30;
   }
   .cch-dot {
-    width: 8px; height: 8px; border-radius: 50%;
+    width: 7px; height: 7px; border-radius: 50%;
     background: var(--cch-purple); flex: none;
   }
   .cch-stat-value {
-    display: block; margin-top: 0.85rem;
-    font-size: clamp(2.4rem, 3.6vw, 3.9rem);
+    display: block; margin-top: 0.6rem;
+    font-size: clamp(1.9rem, 2.7vw, 3rem);
     font-weight: 800; letter-spacing: -0.03em; line-height: 1; color: #131316;
   }
   .cch-tagline {
-    margin: 4.2rem 0 0; max-width: 21rem;
-    font-size: 1.06rem; line-height: 1.55; color: var(--cch-muted);
+    margin: 2.6rem 0 0; max-width: 21rem;
+    font-size: 0.95rem; line-height: 1.5; color: var(--cch-muted);
   }
 
   /* ---------- Scroll hint ---------- */
   .cch-scroll {
-    position: absolute; left: 50%; bottom: 1.2rem; transform: translateX(-50%);
+    position: absolute; left: 50%; bottom: 1rem; transform: translateX(-50%);
     z-index: 15;
-    display: flex; flex-direction: column; align-items: center; gap: 0.9rem;
+    display: flex; flex-direction: column; align-items: center; gap: 0.6rem;
     color: #4d4d52; text-align: center;
-    font-size: 1.06rem; line-height: 1.3;
+    font-size: 0.9rem; line-height: 1.3;
   }
   .cch-mouse { animation: cch-float 2.4s ease-in-out infinite; }
   @keyframes cch-float {
@@ -173,32 +186,32 @@ const HERO_CSS = `
 
   /* ---------- Responsivo ---------- */
   @media (max-width: 1280px) {
-    .cch-nav { padding: 2rem 2rem 0; }
-    .cch-inner { padding: 6rem 2rem 7rem; }
-    .cch-menu a, .cch-menu button { padding: 0.75rem 1.1rem; font-size: 0.95rem; }
+    .cch-nav { padding: 1.6rem 1.75rem 0; }
+    .cch-inner { padding: 2.5rem 1.75rem 2rem; }
+    .cch-menu a, .cch-menu button { padding: 0.55rem 1rem; font-size: 0.88rem; }
   }
   @media (max-width: 980px) {
     .cch-menu { display: none; }
-    .cch-nav { justify-content: flex-end; }
     .cch-inner {
-      grid-template-columns: 1fr; gap: 3.5rem;
-      padding: 3.5rem 1.5rem 3rem;
+      grid-template-columns: 1fr; gap: 2.5rem;
+      padding: 2.5rem 1.5rem 2.5rem;
+      min-height: 0;
     }
     .cch-right { align-items: flex-start; text-align: left; }
     .cch-stat-label { justify-content: flex-start; }
     .cch-scroll {
       position: relative; left: auto; bottom: auto; transform: none;
-      margin: 1rem auto 2.5rem; width: max-content;
+      margin: 1rem auto 2rem; width: max-content;
     }
   }
   @media (max-width: 560px) {
-    .cch-nav { padding: 1.25rem 1.25rem 0; }
-    .cch-login { padding: 0.95rem 1.4rem; font-size: 0.95rem; }
-    .cch-lead { margin-top: 2.2rem; }
-    .cch-ctas { gap: 0.75rem; margin-top: 2rem; }
-    .cch-btn { flex: 1 1 auto; padding: 1.1rem 1.3rem; font-size: 0.98rem; }
-    .cch-stat + .cch-stat { margin-top: 2.4rem; }
-    .cch-tagline { margin-top: 2.6rem; }
+    .cch-nav { padding: 1.1rem 1.25rem 0; }
+    .cch-login { padding: 0.7rem 1.3rem; font-size: 0.88rem; }
+    .cch-lead { margin-top: 1.6rem; }
+    .cch-ctas { gap: 0.75rem; margin-top: 1.6rem; }
+    .cch-btn { flex: 1 1 auto; padding: 0.95rem 1.2rem; font-size: 0.92rem; }
+    .cch-stat + .cch-stat { margin-top: 2rem; }
+    .cch-tagline { margin-top: 2rem; }
   }
   @media (prefers-reduced-motion: reduce) {
     .cch-mouse { animation: none; }
@@ -210,7 +223,7 @@ const HERO_CSS = `
 
 function MouseIcon() {
   return (
-    <svg className="cch-mouse" width="38" height="58" viewBox="0 0 38 58" fill="none"
+    <svg className="cch-mouse" width="28" height="43" viewBox="0 0 38 58" fill="none"
       stroke="currentColor" strokeWidth="2" aria-hidden="true">
       <rect x="1.5" y="1.5" width="35" height="55" rx="17.5" />
       <path d="M19 13v10" strokeLinecap="round" />
@@ -228,15 +241,19 @@ export default function HeroSection() {
       <div className="cch-bg" aria-hidden="true" />
 
       <header className="cch-nav">
-        <nav className="cch-menu" aria-label="Navegação principal">
-          <a href="#inicio" className="is-active">Início</a>
-          <a href="#sobre">Sobre</a>
-          <button type="button">Serviços <span className="cch-caret" aria-hidden="true" /></button>
-          <a href="#capital-advisor">Capital Advisor</a>
-          <a href="#planos">Planos</a>
-        </nav>
+        <div className="cch-logo-slot" aria-hidden="true" />
 
-        <a className="cch-login" href="/login">Entrar / Cadastrar</a>
+        <div className="cch-nav-right">
+          <nav className="cch-menu" aria-label="Navegação principal">
+            <a href="#inicio" className="is-active">Início</a>
+            <a href="#sobre">Sobre</a>
+            <button type="button">Serviços <span className="cch-caret" aria-hidden="true" /></button>
+            <a href="#capital-advisor">Capital Advisor</a>
+            <a href="#planos">Planos</a>
+          </nav>
+
+          <a className="cch-login" href="/login">Entrar / Cadastrar</a>
+        </div>
       </header>
 
       <div className="cch-inner" id="inicio">
