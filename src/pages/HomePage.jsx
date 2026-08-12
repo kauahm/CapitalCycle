@@ -102,7 +102,7 @@ const GLOBAL_CSS = `
   .cc-hero {
     min-height: 100vh; display: grid; grid-template-columns: 1fr 1fr;
     align-items: center; gap: 2rem;
-    padding: 9rem 3rem 5rem; max-width: 1400px; margin: 0 auto;
+    padding: 10.5rem 3rem 5rem; max-width: 1400px; margin: 0 auto;
   }
   .cc-hero-headline {
     font-size: clamp(4rem, 7vw, 7.5rem);
@@ -204,7 +204,7 @@ const GLOBAL_CSS = `
     content: ''; display: inline-block; width: 20px; height: 1px;
     background: rgba(255,255,255,0.25);
   }
-  .cc-gestao-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4rem; align-items: end; margin-bottom: 5rem; }
+  .cc-gestao-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4rem; align-items: end; margin-top: 2rem; margin-bottom: 5rem; }
   .cc-big-text {
     font-size: clamp(3rem, 5.5vw, 5.5rem); font-weight: 900;
     line-height: 0.93; letter-spacing: -0.04em; text-transform: uppercase;
