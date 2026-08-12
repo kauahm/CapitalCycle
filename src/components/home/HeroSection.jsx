@@ -1,9 +1,13 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
+
+import heroVideo from '../../assets/video/hero-cartao.mp4';
+import heroVideoPoster from '../../assets/video/hero-cartao-poster.jpg';
 
 /* =========================================================
    HERO SECTION — Capital Cycle
    Layout claro (cinza), headline em 3 linhas com destaque
    roxo, menu em pílula, KPIs à direita e scroll hint.
+   Fundo em vídeo (cartão 3D) atrás de toda a tipografia.
    ========================================================= */
 
 const HERO_CSS = `
@@ -27,17 +31,29 @@ const HERO_CSS = `
   }
   .cch *, .cch *::before, .cch *::after { box-sizing: border-box; }
 
-  /* ---------- Fundo ---------- */
-  .cch-bg {
+  /* ---------- Fundo (vídeo) ---------- */
+  .cch-video-bg {
     position: absolute; inset: 0; z-index: 0; pointer-events: none;
-    background:
-      radial-gradient(90% 70% at 22% 8%, rgba(255,255,255,0.55) 0%, rgba(255,255,255,0) 65%),
-      linear-gradient(155deg, #e4e4e4 0%, #dcdcdc 32%, #d2d2d2 66%, #c6c6c6 100%);
+    width: 100%; height: 100%;
+    object-fit: cover; object-position: center 45%;
+    background: #d8d8d8;
   }
-  .cch-bg::after {
+  .cch-scrim {
+    position: absolute; inset: 0; z-index: 1; pointer-events: none;
+    background: linear-gradient(
+      92deg,
+      rgba(216,216,214,0.86) 0%,
+      rgba(216,216,214,0.62) 26%,
+      rgba(216,216,214,0.2) 46%,
+      rgba(216,216,214,0.12) 64%,
+      rgba(216,216,214,0.58) 82%,
+      rgba(216,216,214,0.8) 100%
+    );
+  }
+  .cch-scrim::after {
     content: ''; position: absolute; inset: -20%;
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)'/%3E%3C/svg%3E");
-    opacity: 0.10; mix-blend-mode: overlay;
+    opacity: 0.08; mix-blend-mode: overlay;
   }
 
   /* ---------- Navbar ---------- */
@@ -203,6 +219,11 @@ const HERO_CSS = `
       position: relative; left: auto; bottom: auto; transform: none;
       margin: 1rem auto 2rem; width: max-content;
     }
+    /* Em coluna única o vídeo fica só como textura ambiente,
+       sem "janela" central, para não brigar com o texto. */
+    .cch-video-bg { opacity: 0.4; filter: blur(1px); }
+    .cch-scrim { background: rgba(216,216,214,0.85); }
+    .cch-scrim::after { opacity: 0.14; }
   }
   @media (max-width: 560px) {
     .cch-nav { padding: 1.1rem 1.25rem 0; }
@@ -234,11 +255,43 @@ function MouseIcon() {
 /* ---------- Componente ---------- */
 
 export default function HeroSection() {
+  const videoRef = useRef(null);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    const media = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const syncPlayback = () => {
+      if (media.matches) {
+        video.pause();
+      } else {
+        video.play().catch(() => {});
+      }
+    };
+
+    syncPlayback();
+    media.addEventListener('change', syncPlayback);
+    return () => media.removeEventListener('change', syncPlayback);
+  }, []);
+
   return (
     <section className="cch">
       <style>{HERO_CSS}</style>
 
-      <div className="cch-bg" aria-hidden="true" />
+      <video
+        ref={videoRef}
+        className="cch-video-bg"
+        src={heroVideo}
+        poster={heroVideoPoster}
+        autoPlay
+        muted
+        loop
+        playsInline
+        preload="auto"
+        aria-hidden="true"
+      />
+      <div className="cch-scrim" aria-hidden="true" />
 
       <header className="cch-nav">
         <div className="cch-logo-slot" aria-hidden="true" />
