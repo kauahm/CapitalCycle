@@ -9,6 +9,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { CATEGORIAS_ENTRADA, CATEGORIAS_SAIDA } from '../../utils/categorias';
 import { calcularProgressoCategorias } from '../../utils/orcamentoCategoria';
 import { mesAtualPrefixo, hojeStr } from '../../utils/data';
+import { formatarMoeda } from '../../utils/formatters';
 
 export default function Transacoes() {
   const { currentUser, userProfile } = useAuth();
@@ -223,7 +224,6 @@ export default function Transacoes() {
     }
   };
 
-  const formatarMoeda = (valor) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor);
   const formatarData = (dataStr) => {
     const [ano, mes, dia] = dataStr.split('-');
     return `${dia}/${mes}/${ano}`;

@@ -10,6 +10,9 @@ firebase-debug.*.log*
 # Firebase cache
 .firebase/
 
+# Build output (contém chaves de API do build embutidas — nunca commitar)
+dist/
+
 # Firebase config
 
 # Uncomment this if you'd like others to create their own Firebase project.

@@ -10,6 +10,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { useAportesPorMeta } from '../../hooks/useAportesPorMeta';
 import { calcularProgressoMeta } from '../../utils/metas';
 import { hojeStr } from '../../utils/data';
+import { formatarMoeda } from '../../utils/formatters';
 
 export default function CiclosInvestimento() {
   const { currentUser, userProfile } = useAuth();
@@ -209,7 +210,6 @@ export default function CiclosInvestimento() {
     }
   };
 
-  const formatarMoeda = (valor) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor);
   const formatarData = (dataStr) => dataStr ? dataStr.split('-').reverse().join('/') : '';
   const formatarDataObj = (date) => date ? date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '';
 

@@ -47,7 +47,6 @@ export function useAportesPorMeta(metaIds) {
     });
 
     return () => unsubs.forEach((u) => u());
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key, currentUser]);
 
   return aportesMap;

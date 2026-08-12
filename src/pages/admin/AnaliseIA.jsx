@@ -62,9 +62,9 @@ export default function AnaliseIA() {
 
   // Campos de configuração — só ativam ao clicar "Salvar"
   const [apiKey, setApiKey]         = useState(ENV_KEY);
-  const [model, setModel]           = useState(ENV_MODEL || 'gemini-3.5-flash');
+  const [model, setModel]           = useState(ENV_MODEL || 'gemini-1.5-flash');
   const [keyDraft, setKeyDraft]     = useState('');
-  const [modelDraft, setModelDraft] = useState(ENV_MODEL || 'gemini-3.5-flash');
+  const [modelDraft, setModelDraft] = useState(ENV_MODEL || 'gemini-1.5-flash');
   const [showKey, setShowKey]       = useState(false);
 
   // Trava por plano: cota mensal de consultas de IA (plano Jovem)

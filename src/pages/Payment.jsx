@@ -73,8 +73,6 @@ const FakeQRCode = ({ payload, size = 200 }) => {
     return border(0, 0) || border(cells - 7, 0) || border(0, cells - 7);
   };
 
-  const cellSize = size / cells;
-
   return (
     <div
       className="bg-white p-3 rounded-2xl shadow-lg border border-slate-200"

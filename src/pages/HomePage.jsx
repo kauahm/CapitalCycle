@@ -1,633 +1,437 @@
-import React, { useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { ArrowRight, BarChart3, RefreshCcw, Sparkles, Target } from 'lucide-react';
+import React from 'react';
 
-import logoImg from '../assets/logo-topo.png';
+/* =========================================================
+   HERO SECTION — Capital Cycle
+   Layout claro (cinza), headline gigante, nav em pílula,
+   bloco de métrica à direita, social rail e scroll hint.
+   ========================================================= */
 
+const HERO_CSS = `
+  .cch {
+    --cch-ink: #14140f;
+    --cch-muted: #57564f;
+    --cch-soft: #6f6e66;
+    --cch-orange: #ee6a12;
+    --cch-orange-dark: #d95908;
 
-const GLOBAL_CSS = `
-  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,700;0,9..40,800;0,9..40,900&family=DM+Mono:wght@400;500&display=swap');
-
-  .cc-home * { box-sizing: border-box; margin: 0; padding: 0; }
-  .cc-home { font-family: 'DM Sans', sans-serif; background: #05070e; color: #fff; overflow-x: hidden; }
-
-  /* Nav */
-  .cc-nav {
-    position: fixed; top: 0; left: 0; right: 0; z-index: 50;
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 0 3rem; height: 68px;
-    background: rgba(5,7,14,0.8); backdrop-filter: blur(20px);
-    border-bottom: 1px solid rgba(255,255,255,0.06);
-  }
-  .cc-nav-logo {
-    font-size: 1rem; font-weight: 800; letter-spacing: -0.01em;
-    color: #fff; text-decoration: none; display: flex; align-items: center; gap: 10px;
-  }
-  .cc-nav-logo-sq {
-    width: 30px; height: 30px; background: #6366f1;
-    border-radius: 7px; display: flex; align-items: center; justify-content: center;
-    font-size: 0.9rem; line-height: 1;
-  }
-
-  .cc-nav-logo-img {
-    height: 62px; /* Ajuste o tamanho da sua logo aqui */
-    width: auto;
-    display: block;
-  }
-
-  .cc-nav-links { display: flex; gap: 2.5rem; }
-  .cc-nav-links a {
-    font-size: 0.82rem; font-weight: 500; color: rgba(255,255,255,0.45);
-    text-decoration: none; letter-spacing: 0.01em;
-    transition: color 0.2s;
-  }
-  .cc-nav-links a:hover { color: #fff; }
-
-  /* Container para os botões da direita */
-  .cc-nav-actions {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-  }
-
-  /* Botão Premium (Alto Contraste) */
-  .cc-btn-premium {
-    background: #ffffff;
-    color: #05070e; /* Texto escuro */
-    padding: 0.6rem 1.6rem;
-    border-radius: 8px;
-    font-weight: 700;
-    font-size: 0.85rem;
-    text-decoration: none;
-    transition: all 0.3s ease;
-    display: inline-flex; align-items: center; gap: 6px;
-    box-shadow: 0 4px 14px rgba(255,255,255,0.1);
-  }
-  .cc-btn-premium:hover {
-    background: #f0f0f0;
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(255,255,255,0.2);
-  }
-
-  /* Botão Ghost Premium */
-  .cc-btn-ghost {
-    background: transparent;
-    color: #ffffff;
-    padding: 0.6rem 1.6rem;
-    border-radius: 8px;
-    font-weight: 500;
-    font-size: 0.85rem;
-    text-decoration: none;
-    border: 1px solid rgba(255,255,255,0.2);
-    transition: all 0.3s ease;
-    display: inline-flex; align-items: center; gap: 6px;
-  }
-  .cc-btn-ghost:hover {
-    border-color: #ffffff;
-    background: rgba(255,255,255,0.05);
-  }
-  /* Botão Primário (CTA principal) */
-  .cc-btn-primary {
-    background: #6366f1; color: #fff;
-    padding: 0.6rem 1.6rem; border-radius: 8px;
-    font-weight: 700; font-size: 0.85rem; text-decoration: none;
-    transition: all 0.3s ease;
-    display: inline-flex; align-items: center; gap: 6px;
-  }
-  .cc-btn-primary:hover {
-    background: #4f46e5;
-    transform: translateY(-2px);
-  }
-  /* Hero */
-  .cc-hero {
-    min-height: 100vh; display: grid; grid-template-columns: 1fr 1fr;
-    align-items: center; gap: 2rem;
-    padding: 9rem 3rem 5rem; max-width: 1400px; margin: 0 auto;
-  }
-  .cc-hero-headline {
-    font-size: clamp(4rem, 7vw, 7.5rem);
-    font-weight: 900; line-height: 0.92;
-    letter-spacing: -0.04em; text-transform: uppercase;
-  }
-  .cc-hero-headline span { color: #6366f1; }
-
-  .cc-hero-sub {
-    font-size: 0.9rem; color: rgba(255,255,255,0.38); line-height: 1.7;
-    max-width: 380px; margin: 1.75rem 0 2.25rem;
-    font-weight: 400;
-  }
-  .cc-hero-ctas { display: flex; gap: 0.75rem; align-items: center; margin-bottom: 2.5rem; }
-
-  /* 3D Cards Visual */
-  .cc-cards-scene {
-    position: relative; height: 480px;
-    display: flex; align-items: center; justify-content: center;
-  }
-  .cc-card {
-    position: absolute; width: 300px; height: 180px;
-    border-radius: 20px; padding: 1.5rem;
-    display: flex; flex-direction: column; justify-content: space-between;
-    transition: transform 0.6s cubic-bezier(0.34,1.56,0.64,1);
-  }
-  .cc-card:hover { transform: var(--hover-transform) !important; }
-  .cc-card-back {
-    background: linear-gradient(135deg, #1c1f3a 0%, #2d2f6e 100%);
-    border: 1px solid rgba(99,102,241,0.25);
-    transform: rotate(-12deg) translateX(-40px) translateY(20px) perspective(800px) rotateY(12deg);
-    --hover-transform: rotate(-8deg) translateX(-30px) translateY(10px) perspective(800px) rotateY(6deg);
-    z-index: 1;
-  }
-  .cc-card-front {
-    background: linear-gradient(135deg, #6366f1 0%, #4338ca 60%, #3730a3 100%);
-    border: 1px solid rgba(255,255,255,0.15);
-    transform: rotate(-4deg) translateX(30px) translateY(-10px) perspective(800px) rotateY(-6deg);
-    --hover-transform: rotate(-1deg) translateX(20px) translateY(-15px) perspective(800px) rotateY(-3deg);
-    z-index: 2;
-    box-shadow: 0 40px 80px rgba(99,102,241,0.35), 0 10px 30px rgba(0,0,0,0.5);
-  }
-  .cc-card-shadow {
-    position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%);
-    width: 260px; height: 30px; z-index: 0;
-    background: radial-gradient(ellipse, rgba(99,102,241,0.3) 0%, transparent 70%);
-    filter: blur(8px);
-  }
-  .cc-card-chip {
-    width: 34px; height: 26px; border-radius: 5px;
-    background: linear-gradient(135deg, rgba(255,255,255,0.3), rgba(255,255,255,0.1));
-    border: 1px solid rgba(255,255,255,0.25);
-  }
-  .cc-card-chip-dark {
-    background: linear-gradient(135deg, rgba(99,102,241,0.4), rgba(99,102,241,0.15));
-    border: 1px solid rgba(99,102,241,0.3);
-  }
-  .cc-card-num {
-    font-family: 'DM Mono', monospace;
-    font-size: 0.75rem; letter-spacing: 0.18em; color: rgba(255,255,255,0.7);
-  }
-  .cc-card-label { font-size: 0.6rem; color: rgba(255,255,255,0.4); text-transform: uppercase; letter-spacing: 0.1em; }
-  .cc-card-value { font-size: 1.1rem; font-weight: 700; color: #fff; }
-  .cc-card-logo {
-    width: 36px; height: 22px; display: flex; align-items: center; gap: -4px;
-  }
-  .cc-card-logo span {
-    width: 22px; height: 22px; border-radius: 50%; display: block;
-  }
-  .cc-card-logo-a { background: rgba(255,255,255,0.5); }
-  .cc-card-logo-b { background: rgba(255,255,255,0.25); margin-left: -8px; }
-
-  /* Marquee divider */
-  .cc-marquee-wrap {
-    overflow: hidden; border-top: 1px solid rgba(255,255,255,0.06);
-    border-bottom: 1px solid rgba(255,255,255,0.06);
-    padding: 1.25rem 0; white-space: nowrap;
-  }
-  .cc-marquee-track {
-    display: inline-flex; gap: 0;
-    animation: marqueeScroll 24s linear infinite;
-  }
-  .cc-marquee-item {
-    display: inline-flex; align-items: center; gap: 1.25rem;
-    padding: 0 2.5rem; font-size: 0.72rem; font-weight: 700;
-    letter-spacing: 0.12em; text-transform: uppercase; color: rgba(255,255,255,0.2);
-  }
-  .cc-marquee-item span { color: #6366f1; font-size: 1.1rem; }
-  @keyframes marqueeScroll { from { transform: translateX(0); } to { transform: translateX(-50%); } }
-
-  /* Section: GESTÃO */
-  .cc-section-big { max-width: 1400px; margin: 0 auto; padding: 7rem 3rem; }
-  .cc-section-eyebrow {
-    font-size: 0.7rem; font-weight: 700; letter-spacing: 0.14em;
-    text-transform: uppercase; color: rgba(255,255,255,0.25); margin-bottom: 1.5rem;
-    display: flex; align-items: center; gap: 10px;
-  }
-  .cc-section-eyebrow::before {
-    content: ''; display: inline-block; width: 20px; height: 1px;
-    background: rgba(255,255,255,0.25);
-  }
-  .cc-gestao-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4rem; align-items: end; margin-bottom: 5rem; }
-  .cc-big-text {
-    font-size: clamp(3rem, 5.5vw, 5.5rem); font-weight: 900;
-    line-height: 0.93; letter-spacing: -0.04em; text-transform: uppercase;
-  }
-  .cc-gestao-right { padding-bottom: 0.5rem; }
-  .cc-gestao-desc {
-    font-size: 0.9rem; color: rgba(255,255,255,0.38); line-height: 1.75;
-    margin-bottom: 2rem; max-width: 380px;
-  }
-
-  /* Feature cards */
-  .cc-feat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.07); border-radius: 16px; overflow: hidden; }
-  .cc-feat-card {
-    background: #05070e; padding: 2rem 1.5rem;
-    transition: background 0.25s;
-    cursor: default;
-  }
-  .cc-feat-card:hover { background: #0c101e; }
-  .cc-feat-icon {
-    width: 44px; height: 44px; border-radius: 12px;
-    background: rgba(99,102,241,0.12); border: 1px solid rgba(99,102,241,0.2);
-    display: flex; align-items: center; justify-content: center;
-    color: #6366f1; margin-bottom: 1.25rem;
-  }
-  .cc-feat-title { font-size: 0.9rem; font-weight: 700; margin-bottom: 0.6rem; line-height: 1.3; }
-  .cc-feat-desc { font-size: 0.78rem; color: rgba(255,255,255,0.3); line-height: 1.6; }
-
-  /* Pricing */
-  .cc-pricing-wrap {
-    padding: 7rem 3rem;
-    max-width: 1400px;
-    margin: 0 auto;
-    display: flex; /* Adicionado para facilitar o alinhamento */
-    flex-direction: column;
-    align-items: center; /* Centraliza tudo dentro do wrap */
-  }.cc-pricing-header {
-    text-align: center;
-    margin-bottom: 4rem;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-  }
-  .cc-plans-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 1px;
-    background: rgba(255,255,255,0.07);
-    border: 1px solid rgba(255,255,255,0.07);
-    border-radius: 20px;
-    overflow: hidden;
-    max-width: 820px;
-    margin: 0 auto; /* Isso garante que a grid fique no centro */
+    position: relative;
+    min-height: 100vh;
     width: 100%;
+    overflow: hidden;
+    isolation: isolate;
+    background-color: #cfcfcd;
+    font-family: 'Helvetica Neue', Helvetica, 'Inter', Arial, sans-serif;
+    color: var(--cch-ink);
+    -webkit-font-smoothing: antialiased;
   }
-  .cc-plan { background: #05070e; padding: 3rem; transition: background 0.25s; }
-  .cc-plan:hover { background: #080b16; }
-  .cc-plan.featured { background: #0f1128; }
-  .cc-plan-tag {
-    font-size: 0.62rem; font-weight: 800; letter-spacing: 0.14em;
-    text-transform: uppercase; color: rgba(255,255,255,0.25);
-    margin-bottom: 2rem; display: flex; align-items: center; gap: 8px;
-  }
-  .cc-plan-tag-badge {
-    background: rgba(99,102,241,0.15); color: #a5b4fc;
-    border: 1px solid rgba(99,102,241,0.25); border-radius: 100px;
-    padding: 0.15rem 0.6rem; font-size: 0.6rem;
-  }
-  .cc-plan-price { margin-bottom: 0.5rem; display: flex; align-items: baseline; gap: 4px; }
-  .cc-plan-currency { font-size: 1.25rem; font-weight: 700; color: rgba(255,255,255,0.4); margin-top: 8px; }
-  .cc-plan-val {
-    font-family: 'DM Mono', monospace; font-size: 5rem; font-weight: 500;
-    letter-spacing: -0.05em; line-height: 1; color: #fff;
-  }
-  .cc-plan-period { font-size: 0.8rem; color: rgba(255,255,255,0.25); align-self: flex-end; margin-bottom: 8px; }
-  .cc-plan-desc { font-size: 0.8rem; color: rgba(255,255,255,0.28); line-height: 1.6; margin-bottom: 2.5rem; }
-  .cc-plan-cta {
-    display: block; width: 100%; text-align: center;
-    padding: 0.85rem 1.5rem; border-radius: 10px;
-    font-weight: 700; font-size: 0.85rem; text-decoration: none;
-    margin-bottom: 2.5rem; transition: opacity 0.2s, transform 0.2s;
-  }
-  .cc-plan-cta:hover { opacity: 0.85; transform: translateY(-2px); }
-  .cc-cta-filled { background: #6366f1; color: #fff; }
-  .cc-cta-outline { background: transparent; color: rgba(255,255,255,0.7); border: 1px solid rgba(255,255,255,0.15); }
-  .cc-plan-divider { border: none; border-top: 1px solid rgba(255,255,255,0.06); margin: 0 0 2rem; }
-  .cc-plan-feats { list-style: none; display: flex; flex-direction: column; gap: 0.8rem; }
-  .cc-plan-feats li { display: flex; align-items: flex-start; gap: 10px; font-size: 0.82rem; color: rgba(255,255,255,0.38); }
-  .cc-feat-check { color: #22d3a0; flex-shrink: 0; font-size: 0.8rem; margin-top: 1px; }
+  .cch *, .cch *::before, .cch *::after { box-sizing: border-box; }
 
-  /* Footer */
-  .cc-footer {
-    border-top: 1px solid rgba(255,255,255,0.06);
-    padding: 2.5rem 3rem; display: flex; justify-content: space-between; align-items: center;
-    max-width: 1400px; margin: 0 auto;
+  /* ---------- Fundo ---------- */
+  .cch-bg {
+    position: absolute; inset: 0; z-index: 0; pointer-events: none;
+    background:
+      radial-gradient(60% 48% at 47% 42%, rgba(255,255,255,0.30) 0%, rgba(255,255,255,0) 72%),
+      radial-gradient(125% 105% at 50% 44%, #d2d2cf 0%, #c8c8c5 42%, #bcbcb9 74%, #adadaa 100%);
   }
-  .cc-footer-logo { font-size: 0.85rem; font-weight: 800; display: flex; align-items: center; gap: 8px; color: rgba(255,255,255,0.3); text-decoration: none; }
-  .cc-footer-links { display: flex; gap: 2rem; }
-  .cc-footer-links a { font-size: 0.75rem; color: rgba(255,255,255,0.2); text-decoration: none; transition: color 0.2s; }
-  .cc-footer-links a:hover { color: rgba(255,255,255,0.5); }
-  .cc-copy { font-size: 0.75rem; color: rgba(255,255,255,0.15); }
-
-  /* Fade in */
-  .cc-fadein { opacity: 0; transform: translateY(28px); transition: opacity 0.8s ease, transform 0.8s ease; }
-  .cc-fadein.visible { opacity: 1; transform: translateY(0); }
-
-  @media (max-width: 1024px) {
-    .cc-hero { grid-template-columns: 1fr; padding: 8rem 1.5rem 4rem; min-height: auto; gap: 4rem; }
-    .cc-cards-scene { height: 320px; }
-    .cc-card { width: 240px; height: 145px; }
-    .cc-gestao-grid { grid-template-columns: 1fr; gap: 2rem; margin-bottom: 3rem; }
-    .cc-feat-grid { grid-template-columns: 1fr 1fr; }
-    .cc-plans-grid { grid-template-columns: 1fr; max-width: 420px; }
-    .cc-nav-links { display: none; }
-    .cc-footer { flex-direction: column; gap: 1.5rem; text-align: center; }
-    .cc-footer-links { flex-wrap: wrap; justify-content: center; }
+  .cch-bg::after {
+    content: ''; position: absolute; inset: -20%;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)'/%3E%3C/svg%3E");
+    opacity: 0.22; mix-blend-mode: overlay;
   }
-  @media (max-width: 640px) {
-    .cc-feat-grid { grid-template-columns: 1fr; }
-    .cc-hero-headline { font-size: 3.5rem; }
-    .cc-big-text { font-size: 3rem; }
-    .cc-section-big, .cc-pricing-wrap { padding: 5rem 1.5rem; }
+  .cch-hill {
+    position: absolute; left: 50%; bottom: -2px; transform: translateX(-50%);
+    width: min(1400px, 96vw); height: 230px; z-index: 0; pointer-events: none;
+    opacity: 0.5;
+  }
+
+  /* ---------- Navbar ---------- */
+  .cch-nav {
+    position: relative; z-index: 20;
+    display: flex; align-items: center; justify-content: space-between; gap: 1.5rem;
+    padding: 1.9rem 2.5rem;
+    max-width: 1720px; margin: 0 auto;
+  }
+  .cch-brand {
+    display: inline-flex; align-items: center; gap: 0.7rem;
+    text-decoration: none; color: var(--cch-ink);
+    font-size: 1.35rem; font-weight: 500; letter-spacing: -0.015em;
+    white-space: nowrap;
+  }
+  .cch-brand svg { display: block; }
+
+  .cch-menu {
+    display: flex; align-items: center; gap: 0.25rem;
+    padding: 0.4rem;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.16);
+    border: 1px solid rgba(255,255,255,0.28);
+    -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+  }
+  .cch-menu a, .cch-menu button {
+    display: inline-flex; align-items: center; gap: 0.4rem;
+    padding: 0.78rem 1.55rem;
+    border: 0; background: transparent; cursor: pointer;
+    font-family: inherit; font-size: 1.02rem; font-weight: 400;
+    color: rgba(255,255,255,0.92); text-decoration: none;
+    border-radius: 999px; white-space: nowrap;
+    transition: background 0.2s ease, color 0.2s ease;
+  }
+  .cch-menu a:hover, .cch-menu button:hover { background: rgba(255,255,255,0.18); color: #fff; }
+  .cch-menu .is-active { background: rgba(255,255,255,0.26); color: #fff; }
+  .cch-menu .cch-chevron { opacity: 0.85; }
+  .cch-menu-divider { width: 1px; height: 26px; margin: 0 0.35rem; background: rgba(255,255,255,0.3); }
+
+  .cch-login {
+    display: inline-flex; align-items: center; justify-content: center;
+    padding: 1.25rem 2.1rem;
+    background: #0b0b09; color: #fff;
+    font-family: inherit; font-size: 1rem; font-weight: 400;
+    border: 0; border-radius: 14px; cursor: pointer; text-decoration: none;
+    white-space: nowrap;
+    transition: transform 0.2s ease, background 0.2s ease;
+  }
+  .cch-login:hover { background: #000; transform: translateY(-1px); }
+
+  /* ---------- Conteúdo ---------- */
+  .cch-inner {
+    position: relative; z-index: 10;
+    max-width: 1720px; margin: 0 auto;
+    padding: 4.5rem 4rem 8rem 4.875rem;
+    display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+    gap: 3rem;
+    min-height: calc(100vh - 112px);
+  }
+
+  .cch-left { display: flex; flex-direction: column; }
+  .cch-index {
+    font-size: 0.9rem; font-weight: 500; letter-spacing: 0.18em;
+    color: var(--cch-muted); margin-bottom: 1.6rem;
+  }
+  .cch-title {
+    margin: 0;
+    font-size: clamp(3.5rem, 9vw, 10.5rem);
+    line-height: 0.88;
+    font-weight: 700;
+    letter-spacing: -0.045em;
+    text-transform: uppercase;
+    color: #17171a;
+  }
+  .cch-title span { display: block; }
+  .cch-lead {
+    margin: 2.6rem 0 0;
+    max-width: 34rem;
+    font-size: 1.12rem; line-height: 1.5; font-weight: 400;
+    color: #3d3c37;
+  }
+  .cch-ctas { display: flex; flex-wrap: wrap; gap: 1.5rem; margin-top: 2.6rem; }
+  .cch-btn {
+    display: inline-flex; align-items: center; justify-content: center;
+    padding: 1.15rem 2.35rem; border: 0; border-radius: 12px;
+    font-family: inherit; font-size: 1.05rem; font-weight: 400;
+    cursor: pointer; text-decoration: none; white-space: nowrap;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+  }
+  .cch-btn-primary {
+    background: linear-gradient(180deg, var(--cch-orange) 0%, var(--cch-orange-dark) 100%);
+    color: #fff;
+    box-shadow: 0 12px 28px rgba(217,89,8,0.28);
+  }
+  .cch-btn-primary:hover { transform: translateY(-2px); box-shadow: 0 16px 34px rgba(217,89,8,0.36); }
+  .cch-btn-ghost {
+    background: rgba(255,255,255,0.17); color: #fff;
+    border: 1px solid rgba(255,255,255,0.22);
+    -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+  }
+  .cch-btn-ghost:hover { background: rgba(255,255,255,0.26); transform: translateY(-2px); }
+
+  /* ---------- Coluna direita ---------- */
+  .cch-right {
+    display: flex; flex-direction: column; align-items: flex-end;
+    text-align: right; padding-top: 0.5rem;
+  }
+  .cch-stat { display: flex; align-items: baseline; gap: 0.75rem; }
+  .cch-stat svg { align-self: center; flex: none; }
+  .cch-stat-value {
+    font-size: clamp(2.6rem, 4.2vw, 4.1rem);
+    font-weight: 700; letter-spacing: -0.035em; line-height: 1; color: #17171a;
+  }
+  .cch-stat-label {
+    font-size: clamp(1rem, 1.35vw, 1.35rem);
+    font-weight: 400; letter-spacing: 0.01em; color: #4a4a44;
+    text-transform: uppercase;
+  }
+  .cch-stat-text {
+    margin: 1.1rem 0 0; max-width: 30rem;
+    font-size: 1.05rem; line-height: 1.45; color: #3d3c37;
+  }
+  .cch-tagline {
+    margin: auto 0 0; max-width: 24rem;
+    font-size: 1.05rem; line-height: 1.45; color: #4a4a44;
+  }
+
+  /* ---------- Social rail ---------- */
+  .cch-social {
+    position: absolute; right: 4rem; top: 50%; transform: translateY(-50%);
+    z-index: 15;
+    display: flex; flex-direction: column; align-items: center; gap: 0.3rem;
+    padding: 0.5rem;
+    border-radius: 18px;
+    background: rgba(255,255,255,0.16);
+    border: 1px solid rgba(255,255,255,0.24);
+    -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
+  }
+  .cch-social a {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 48px; height: 48px; border-radius: 13px;
+    color: #fff;
+    transition: background 0.2s ease, transform 0.2s ease;
+  }
+  .cch-social a:hover { background: rgba(255,255,255,0.3); transform: translateY(-1px); }
+  .cch-social a.is-active { background: rgba(255,255,255,0.26); }
+
+  /* ---------- Scroll hint ---------- */
+  .cch-scroll {
+    position: absolute; left: 50%; bottom: 1.6rem; transform: translateX(-50%);
+    z-index: 15;
+    display: flex; flex-direction: column; align-items: center; gap: 0.7rem;
+    color: #4a4a44; text-align: center;
+    font-size: 1rem; line-height: 1.35;
+  }
+  .cch-scroll span { display: block; }
+  .cch-scroll-text { display: block; }
+  .cch-mouse { animation: cch-float 2.4s ease-in-out infinite; }
+  @keyframes cch-float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(5px); }
+  }
+
+  /* ---------- Responsivo ---------- */
+  @media (max-width: 1180px) {
+    .cch-menu a, .cch-menu button { padding: 0.65rem 0.85rem; font-size: 0.9rem; }
+    .cch-social { right: 0.75rem; }
+    .cch-inner { padding-right: 5.5rem; }
+  }
+  @media (max-width: 980px) {
+    .cch-menu { display: none; }
+    .cch-inner {
+      grid-template-columns: 1fr; gap: 3.5rem;
+      padding: 2.5rem 1.25rem 2.5rem;
+    }
+    .cch-right { align-items: flex-start; text-align: left; }
+    .cch-tagline { margin-top: 2rem; }
+    .cch-social {
+      position: relative; top: auto; right: auto; transform: none;
+      flex-direction: row; margin: 0 1.25rem; width: max-content;
+    }
+    .cch-scroll {
+      position: relative; left: auto; bottom: auto; transform: none;
+      margin: 3rem auto 2.5rem; width: max-content;
+    }
+  }
+  @media (max-width: 560px) {
+    .cch-nav { padding: 1rem 1.25rem; }
+    .cch-brand { font-size: 1.1rem; }
+    .cch-login { padding: 0.85rem 1.2rem; font-size: 0.9rem; }
+    .cch-ctas { gap: 0.75rem; }
+    .cch-btn { flex: 1 1 auto; padding: 1rem 1.2rem; font-size: 0.95rem; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .cch-mouse { animation: none; }
+    .cch *, .cch *::before, .cch *::after { transition: none !important; }
   }
 `;
 
-/* ─────────────────────────────────────────────
-   COMPONENTES INTERNOS
-───────────────────────────────────────────── */
+/* ---------- Ícones ---------- */
 
-function FloatingCards() {
+function LogoMark() {
+  const s = 6.2;
+  const cells = [
+    [1, 0, '#f08a2e'],
+    [2, 0, '#ee6a12'],
+    [0, 1, '#f4a05a'],
+    [1, 1, '#ee6a12'],
+    [2, 1, '#d95908'],
+    [1, 2, '#ee6a12'],
+    [2, 2, '#f08a2e'],
+    [3, 2, '#f4a05a'],
+    [0, 3, '#f08a2e'],
+    [2, 3, '#ee6a12'],
+    [3, 3, '#d95908'],
+  ];
   return (
-    <div className="cc-cards-scene">
-      {/* Card de trás */}
-      <div className="cc-card cc-card-back">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-          <div className="cc-card-chip cc-card-chip-dark" />
-          <div style={{ textAlign: 'right' }}>
-            <div className="cc-card-label">Ciclo Ativo</div>
-            <div className="cc-card-value" style={{ fontSize: '0.85rem' }}>Agosto 2026</div>
-          </div>
-        </div>
-        <div>
-          <div className="cc-card-num">•••• •••• •••• 2034</div>
-          <div className="cc-card-label" style={{ marginTop: '4px' }}>Capital Cycle</div>
-        </div>
-      </div>
-
-      {/* Card da frente */}
-      <div className="cc-card cc-card-front">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-          <div className="cc-card-chip" />
-          <div className="cc-card-logo">
-            <span className="cc-card-logo-a" />
-            <span className="cc-card-logo-b" />
-          </div>
-        </div>
-        <div>
-          <div className="cc-card-label">Saldo Consolidado</div>
-          <div className="cc-card-value">R$ 18.240,00</div>
-          <div style={{ display: 'flex', gap: '1.5rem', marginTop: '0.35rem' }}>
-            <div>
-              <div className="cc-card-label">Entradas/mês</div>
-              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: '0.75rem', color: '#22d3a0', fontWeight: 600 }}>+R$ 6.800</div>
-            </div>
-            <div>
-              <div className="cc-card-label">Saídas/mês</div>
-              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: '0.75rem', color: '#f87171', fontWeight: 600 }}>-R$ 2.340</div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Sombra de elevação */}
-      <div className="cc-card-shadow" />
-    </div>
+    <svg width="30" height="30" viewBox="0 0 26 26" aria-hidden="true" focusable="false">
+      {cells.map(([x, y, fill]) => (
+        <rect key={`${x}-${y}`} x={x * s} y={y * s} width={s - 0.9} height={s - 0.9} rx="0.8" fill={fill} />
+      ))}
+    </svg>
   );
 }
 
-const FEATURES = [
-  {
-    icon: <BarChart3 size={20} />,
-    title: 'Dashboard Financeiro',
-    desc: 'Saldo consolidado de todas as contas com indicadores de fluxo em tempo real.'
-  },
-  {
-    icon: <RefreshCcw size={20} />,
-    title: 'Transações Inteligentes',
-    desc: 'Registre entradas e saídas com categorias, filtros avançados e histórico completo.'
-  },
-  {
-    icon: <Target size={20} />,
-    title: 'Ciclos de Investimento',
-    desc: 'Metas de orçamento por período com progresso calculado automaticamente.'
-  },
-  {
-    icon: <Sparkles size={20} />,
-    title: 'Capital Advisor',
-    desc: 'Análise dos seus dados financeiros em linguagem natural, direto no aplicativo.'
-  },
-];
-
-const PLANS = [
-  {
-    id: 'jovem',
-    name: 'Jovem',
-    price: '19,90',
-    desc: 'Para quem está começando a organizar as finanças com controle prático.',
-    cta: 'Começar com o Jovem',
-    ctaClass: 'cc-cta-outline',
-    featured: false,
-    feats: [
-      'Dashboard financeiro completo',
-      'Transações ilimitadas',
-      'Até 3 contas bancárias',
-      'Ciclos de investimento (2 ativos)',
-      'Capital Advisor — 50 consultas/mês',
-      'Sincronização em tempo real',
-    ]
-  },
-  {
-    id: 'adulto',
-    name: 'Adulto',
-    price: '47,90',
-    desc: 'Controle avançado com IA ilimitada, múltiplas contas e relatórios completos.',
-    cta: 'Começar com o Adulto',
-    ctaClass: 'cc-cta-filled',
-    featured: true,
-    badge: 'Mais popular',
-    feats: [
-      'Tudo do plano Jovem',
-      'Contas bancárias ilimitadas',
-      'Ciclos de investimento ilimitados',
-      'Capital Advisor — consultas ilimitadas',
-      'Relatórios exportáveis PDF/CSV',
-      'Análise comparativa de períodos',
-      'Suporte prioritário',
-    ]
-  },
-];
-
-const MARQUEE_ITEMS = [
-  'Dashboard em tempo real', 'Capital Advisor', 'Ciclos de investimento',
-  'Contas bancárias', 'Análise de fluxo', 'Transações inteligentes',
-  'Relatórios automáticos', 'Segurança de dados',
-];
-
-/* ─────────────────────────────────────────────
-   COMPONENTE PRINCIPAL
-───────────────────────────────────────────── */
-export default function HomePage() {
-  // Injeta CSS global
-  useEffect(() => {
-    const styleEl = document.createElement('style');
-    styleEl.setAttribute('data-cc-home', '1');
-    styleEl.textContent = GLOBAL_CSS;
-    document.head.appendChild(styleEl);
-    return () => styleEl.remove();
-  }, []);
-
-  // Observer para fade-in ao scroll
-  useEffect(() => {
-    const els = document.querySelectorAll('.cc-fadein');
-    const obs = new IntersectionObserver(
-      (entries) => entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); }),
-      { threshold: 0.12 }
-    );
-    els.forEach(el => obs.observe(el));
-    return () => obs.disconnect();
-  }, []);
-
+function ChevronDown() {
   return (
-    <div className="cc-home">
+    <svg className="cch-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="m6 9 6 6 6-6" />
+    </svg>
+  );
+}
 
-      <nav className="cc-nav">
-        {/* Nova Logo em Imagem */}
-        <Link to="/" className="cc-nav-logo">
-          <img src={logoImg} alt="CapitalCycle Logo" className="cc-nav-logo-img" />
-        </Link>
+function GlobeIcon() {
+  return (
+    <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="9.2" />
+      <path d="M3 12h18" />
+      <path d="M12 2.8c2.4 2.6 3.6 5.7 3.6 9.2S14.4 18.6 12 21.2C9.6 18.6 8.4 15.5 8.4 12S9.6 5.4 12 2.8Z" />
+    </svg>
+  );
+}
 
-        <div className="cc-nav-links">
-          <a href="#recursos">Recursos</a>
-          <a href="#recursos">Capital Advisor</a>
-          <a href="#planos">Planos</a>
-        </div>
+function GrowthArrow() {
+  return (
+    <svg width="46" height="56" viewBox="0 0 46 56" aria-hidden="true" focusable="false">
+      <g stroke="#17171a" strokeWidth="10.5" fill="none" strokeLinecap="butt" strokeLinejoin="miter">
+        <path d="M23 55V11" />
+        <path d="M7.5 25.5 23 9l15.5 16.5" />
+      </g>
+    </svg>
+  );
+}
 
-        {/* Novos Botões (Login e Cadastro) */}
-        <div className="cc-nav-actions">
-          <Link to="/login" className="cc-btn-ghost">
-            Login
-          </Link>
-          <Link to="/cadastro" className="cc-btn-premium">
-            Cadastro <ArrowRight size={14} />
-          </Link>
-        </div>
-      </nav>
+function InstagramIcon() {
+  return (
+    <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <rect x="2.5" y="2.5" width="19" height="19" rx="5.5" />
+      <circle cx="12" cy="12" r="4.2" />
+      <circle cx="17.4" cy="6.6" r="1.1" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
 
-      {/* ── HERO ── */}
-      <div className="cc-hero">
-        {/* Esquerda */}
-        <div>
-          <h1 className="cc-hero-headline">
-            SUA<br />
-            JORNADA<br />
-            <span>FINANCEIRA</span>
+function FacebookIcon() {
+  return (
+    <svg width="21" height="21" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path d="M14.6 22v-8.5h2.9l.5-3.4h-3.4V7.9c0-1 .3-1.7 1.7-1.7h1.8V3.2c-.3 0-1.4-.1-2.6-.1-2.6 0-4.4 1.6-4.4 4.5v2.5H8.1v3.4h2.9V22z" />
+    </svg>
+  );
+}
+
+function XIcon() {
+  return (
+    <svg width="19" height="19" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path d="M17.7 2.5h3.3l-7.2 8.2L22.3 21.5h-6.6l-5.2-6.8-6 6.8H1.2l7.7-8.8L1.7 2.5h6.8l4.7 6.2zm-1.2 17h1.8L7.6 4.4H5.6z" />
+    </svg>
+  );
+}
+
+function MouseIcon() {
+  return (
+    <svg className="cch-mouse" width="20" height="26" viewBox="0 0 20 26" fill="none"
+      stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
+      <rect x="1.5" y="1.5" width="17" height="23" rx="8.5" />
+      <path d="M10 6.5v4" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+/* ---------- Componente ---------- */
+
+export default function HeroSection() {
+  return (
+    <section className="cch">
+      <style>{HERO_CSS}</style>
+
+      <div className="cch-bg" aria-hidden="true" />
+
+      <svg className="cch-hill" viewBox="0 0 1200 200" preserveAspectRatio="none" aria-hidden="true">
+        <defs>
+          <filter id="cch-blur" x="-30%" y="-60%" width="160%" height="260%">
+            <feGaussianBlur stdDeviation="16" />
+          </filter>
+        </defs>
+        <path
+          filter="url(#cch-blur)"
+          fill="rgba(255,255,255,0.62)"
+          d="M-80 220V196c120 0 210-6 300-22 92-16 150-56 236-56 78 0 126 34 190 52 70 20 140 26 240 26 120 0 200 4 394 0v24z"
+        />
+      </svg>
+
+      <header className="cch-nav">
+        <a className="cch-brand" href="#inicio">
+          <LogoMark />
+          Capital Cycle
+        </a>
+
+        <nav className="cch-menu" aria-label="Navegação principal">
+          <a href="#inicio" className="is-active">Início</a>
+          <a href="#sobre">Sobre</a>
+          <button type="button">Serviços <ChevronDown /></button>
+          <a href="#precos">Preços</a>
+          <a href="#solucoes">Soluções</a>
+          <span className="cch-menu-divider" aria-hidden="true" />
+          <button type="button"><GlobeIcon /> Português <ChevronDown /></button>
+        </nav>
+
+        <a className="cch-login" href="/login">Entrar / Cadastrar</a>
+      </header>
+
+      <div className="cch-inner" id="inicio">
+        <div className="cch-left">
+          <div className="cch-index">[ 1 / 8 ]</div>
+
+          <h1 className="cch-title">
+            <span>Capital</span>
+            <span>Cycle</span>
           </h1>
-          <p className="cc-hero-sub">
-            Da primeira transação ao ciclo de investimento completo — controle total do seu capital com inteligência artificial integrada.
+
+          <p className="cch-lead">
+            Criamos identidades de marca, campanhas e sites que impulsionam
+            engajamento, conversões e crescimento sustentável.
           </p>
-          <div className="cc-hero-ctas">
-            <a href="#planos" className="cc-btn-primary">
-              Começar agora
-            </a>
-            <Link to="/login" className="cc-btn-ghost">
-              Já tenho conta
-            </Link>
+
+          <div className="cch-ctas">
+            <a className="cch-btn cch-btn-primary" href="/cadastro">Começar agora</a>
+            <a className="cch-btn cch-btn-ghost" href="#contato">Fale conosco</a>
           </div>
         </div>
 
-        {/* Direita */}
-        <div style={{ position: 'relative' }}>
-          <FloatingCards />
-        </div>
-      </div>
-
-      {/* ── MARQUEE ── */}
-      <div className="cc-marquee-wrap">
-        <div className="cc-marquee-track">
-          {[...MARQUEE_ITEMS, ...MARQUEE_ITEMS].map((item, i) => (
-            <div key={i} className="cc-marquee-item">
-              <span>•</span> {item}
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* ── GESTÃO SECTION ── */}
-      <div id="recursos" className="cc-section-big">
-        <div className="cc-gestao-grid cc-fadein">
-          <div>
-            <div className="cc-section-eyebrow">Recursos</div>
-            <div className="cc-big-text">
-              GESTÃO<br />QUE EVOLUI<br />COM VOCÊ
-            </div>
+        <div className="cch-right">
+          <div className="cch-stat">
+            <GrowthArrow />
+            <span className="cch-stat-value">132%</span>
+            <span className="cch-stat-label">de crescimento</span>
           </div>
-          <div className="cc-gestao-right">
-            <p className="cc-gestao-desc">
-              Ferramentas profissionais para controle total do seu dinheiro — do lançamento individual à inteligência financeira por IA.
-            </p>
-            <a href="#planos" className="cc-btn-primary">
-              Ver planos <ArrowRight size={14} />
-            </a>
-          </div>
-        </div>
 
-        <div className="cc-feat-grid cc-fadein">
-          {FEATURES.map((f, i) => (
-            <div key={i} className="cc-feat-card">
-              <div className="cc-feat-icon">{f.icon}</div>
-              <div className="cc-feat-title">{f.title}</div>
-              <div className="cc-feat-desc">{f.desc}</div>
-            </div>
-          ))}
+          <p className="cch-stat-text">
+            Nossos clientes veem crescimento mensurável de marca por meio de
+            estratégias visuais e pensamento digital.
+          </p>
+
+          <p className="cch-tagline">
+            Do primeiro passo de uma ideia ao reconhecimento mundial — somos
+            parceiros de marcas ambiciosas.
+          </p>
         </div>
       </div>
 
-      {/* ── PRICING ── */}
-      <div id="planos" className="cc-pricing-wrap">
-        <div className="cc-fadein" style={{ marginBottom: '4rem' }}>
-          <div className="cc-section-eyebrow">Planos</div>
-          <div className="cc-big-text">
-            ESCOLHA<br />SEU PLANO
-          </div>
-        </div>
-
-        <div className="cc-plans-grid cc-fadein">
-          {PLANS.map((plan) => (
-            <div key={plan.name} className={`cc-plan${plan.featured ? ' featured' : ''}`}>
-              <div className="cc-plan-tag">
-                {plan.name}
-                {plan.badge && <span className="cc-plan-tag-badge">{plan.badge}</span>}
-              </div>
-              <div className="cc-plan-price">
-                <span className="cc-plan-currency">R$</span>
-                <span className="cc-plan-val">{plan.price}</span>
-                <span className="cc-plan-period">/mês</span>
-              </div>
-              <p className="cc-plan-desc">{plan.desc}</p>
-              <Link
-                to="/cadastro"
-                state={{ plan: plan.id }}
-                className={`cc-plan-cta ${plan.ctaClass}`}
-              >
-                {plan.cta}
-              </Link>
-              <hr className="cc-plan-divider" />
-              <ul className="cc-plan-feats">
-                {plan.feats.map((feat, i) => (
-                  <li key={i}>
-                    <span className="cc-feat-check">✓</span>
-                    {feat}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
-        </div>
-
-        <p style={{ marginTop: '2rem', fontSize: '0.75rem', color: 'rgba(255,255,255,0.15)' }}>
-          Pagamento seguro · Cancele quando quiser · Sem fidelidade
-        </p>
+      <div className="cch-social">
+        <a href="https://instagram.com" target="_blank" rel="noreferrer noopener"
+          aria-label="Instagram" className="is-active"><InstagramIcon /></a>
+        <a href="https://facebook.com" target="_blank" rel="noreferrer noopener"
+          aria-label="Facebook"><FacebookIcon /></a>
+        <a href="https://x.com" target="_blank" rel="noreferrer noopener"
+          aria-label="X"><XIcon /></a>
       </div>
 
-      {/* ── FOOTER ── */}
-      <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-        <footer className="cc-footer">
-
-          <span className="cc-copy">© 2026 CapitalCycle</span>
-          <div className="cc-footer-links">
-            <a href="#">Termos</a>
-            <a href="#">Privacidade</a>
-            <a href="#">Contato</a>
-          </div>
-        </footer>
+      <div className="cch-scroll">
+        <MouseIcon />
+        <div className="cch-scroll-text">
+          <span>Role para baixo</span>
+          <span>para explorar mais</span>
+        </div>
       </div>
-    </div>
+    </section>
   );
 }

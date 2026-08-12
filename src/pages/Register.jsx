@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { useAuth } from '../hooks/useAuth';
 import { Lock, Mail, Eye, EyeOff, User, Check, ArrowLeft, ArrowRight } from 'lucide-react';
 import Toast from '../components/ui/Toast';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
@@ -22,10 +21,9 @@ export default function Register() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  const [loading, setLoading] = useState(false);
+  const [loading] = useState(false);
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
 
-  const { register, loginWithGoogle } = useAuth();
   const navigate = useNavigate();
 
   // Troca de plano: veio do botão "Trocar plano" em Perfil.jsx, usuário já está logado
@@ -38,6 +36,8 @@ export default function Register() {
     } else if (location.state?.currentPlan) {
       setSelectedPlan(location.state.currentPlan);
     }
+    // Só na montagem: lê o state de navegação inicial (plano vindo da Home/Perfil).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Avança para o step 2 após escolher o plano — ou, em troca de plano, vai

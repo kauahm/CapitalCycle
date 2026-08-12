@@ -12,12 +12,13 @@ import { calcularProgressoCategorias } from '../../utils/orcamentoCategoria';
 import { calcularVariacaoPct } from '../../utils/comparativoMensal';
 import { hojeStr, mesAnteriorPrefixo } from '../../utils/data';
 import { gerarResumoFinanceiro, formatarResumoParaPrompt } from '../../utils/resumoFinanceiro';
+import { formatarMoeda } from '../../utils/formatters';
 import { canConsultarIA, getLimits, mesAtualKey } from '../../components/ui/plans';
 
 // Mesmo padrão de configuração de API já usado em AnaliseIA.jsx — este card
 // só consome a chave/modelo já configurados por lá (.env), sem duplicar UI.
 const ENV_KEY   = import.meta.env.VITE_GEMINI_API_KEY || '';
-const ENV_MODEL = import.meta.env.VITE_GEMINI_MODEL   || 'gemini-3.5-flash';
+const ENV_MODEL = import.meta.env.VITE_GEMINI_MODEL   || 'gemini-1.5-flash';
 
 export default function DashboardFinanceiro() {
   const { userProfile, currentUser } = useAuth();
@@ -167,46 +168,22 @@ export default function DashboardFinanceiro() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, currentUser]);
 
-  // Formatador de Moeda
-  const formatarMoeda = (valor) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor || 0);
-
   // ==========================================
   // CÁLCULOS DINÂMICOS COM OS DADOS REAIS
   // (mesma lógica de antes — apenas a apresentação visual mudou)
   // ==========================================
 
-  // 1. Saldos
-  const saldoDisponivel = contas
-    .filter(c => c.tipo !== 'Investimentos')
-    .reduce((acc, c) => acc + (parseFloat(c.saldo) || 0), 0);
+  // 1. Saldos, gastos por categoria e totais do mês — vêm de gerarResumoFinanceiro
+  // (utils/resumoFinanceiro.js), a mesma agregação já usada para o resumo de IA
+  // acima, para não duplicar a lógica de negócio em dois lugares.
+  const { saldoDisponivel, totalInvestido, totalGastoMes: totalSaidasMes, totalEntradasMes, gastosPorCategoria: gastosPorCategoriaArr } = resumoFinanceiroObj;
 
-  const totalInvestido = contas
-    .filter(c => c.tipo === 'Investimentos')
-    .reduce((acc, c) => acc + (parseFloat(c.saldo) || 0), 0);
-
-  // 2. Gastos do Mês Atual por Categoria
   const dataAtual = new Date();
   const mesAtualPrefixo = `${dataAtual.getFullYear()}-${String(dataAtual.getMonth() + 1).padStart(2, '0')}`;
 
-  const gastosPorCategoria = transacoes
-    .filter(t => t.tipo === 'saida' && t.data && t.data.startsWith(mesAtualPrefixo))
-    .reduce((acc, t) => {
-      acc[t.categoria] = (acc[t.categoria] || 0) + (parseFloat(t.valor) || 0);
-      return acc;
-    }, {});
+  // Os 3 maiores gastos do mês (gastosPorCategoriaArr já vem ordenado do maior para o menor)
+  const maioresGastos = gastosPorCategoriaArr.slice(0, 3);
 
-  // Transformar o objeto em um array ordenado pelos maiores gastos
-  const maioresGastos = Object.entries(gastosPorCategoria)
-    .map(([categoria, valor]) => ({ categoria, valor }))
-    .sort((a, b) => b.valor - a.valor)
-    .slice(0, 3); // Pegar os 3 maiores
-
-  // Calcular o total de entradas e saídas do mês para a porcentagem (Exemplo de Fluxo)
-  const totalEntradasMes = transacoes
-    .filter(t => t.tipo === 'entrada' && t.data && t.data.startsWith(mesAtualPrefixo))
-    .reduce((acc, t) => acc + (parseFloat(t.valor) || 0), 0);
-
-  const totalSaidasMes = Object.values(gastosPorCategoria).reduce((a, b) => a + b, 0);
   const fluxoPositivo = totalEntradasMes >= totalSaidasMes;
   const diferencaMes = totalEntradasMes - totalSaidasMes;
 
@@ -664,13 +641,12 @@ export default function DashboardFinanceiro() {
 
 function LimitCard({ label, atual, limite, color }) {
   const porcentagem = (atual / limite) * 100;
-  const format = (v) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
 
   return (
     <div className="space-y-3">
       <div className="flex justify-between items-baseline">
         <span className="text-slate-400 text-sm">{label}</span>
-        <span className="font-semibold text-white tabular-nums">{format(atual)}</span>
+        <span className="font-semibold text-white tabular-nums">{formatarMoeda(atual)}</span>
       </div>
       <div className="w-full bg-[#1e293b] h-1.5 rounded-full overflow-hidden">
         <div className={`h-full ${color} transition-all duration-700`} style={{ width: `${porcentagem > 100 ? 100 : porcentagem}%` }} />

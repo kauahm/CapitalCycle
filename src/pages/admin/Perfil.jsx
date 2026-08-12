@@ -7,6 +7,7 @@ import { updatePassword, reauthenticateWithCredential, EmailAuthProvider } from 
 import { useAuth } from '../../hooks/useAuth';
 import { getPlan } from '../../components/ui/plans';
 import Toast from '../../components/ui/Toast';
+import { formatarMoeda } from '../../utils/formatters';
 
 // Mapa de erros do Firebase Authentication para mensagens amigáveis
 function passwordErrorMessage(code) {
@@ -221,7 +222,7 @@ export default function Perfil() {
             <div>
               {userProfile?.renda_mensal ? (
                 <p className="text-2xl font-extrabold text-white tabular-nums">
-                  {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(userProfile.renda_mensal)}
+                  {formatarMoeda(userProfile.renda_mensal)}
                 </p>
               ) : (
                 <p className="text-sm text-slate-400">

@@ -145,7 +145,7 @@ export default function Mercado() {
 
   // Câmbio
   const [forex, setForex]             = useState(null);
-  const [loadingForex, setLoadingForex] = useState(false);
+  const [, setLoadingForex]           = useState(false);
 
   // Atualizado em
   const [lastUpdate, setLastUpdate]   = useState(null);

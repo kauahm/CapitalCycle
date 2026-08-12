@@ -4,6 +4,16 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     // Perfil do usuário — cada um só lê/escreve o próprio documento
+    //
+    // LIMITAÇÃO CONHECIDA (escopo de TCC, sem backend próprio): esta regra
+    // permite que o dono do documento escreva QUALQUER campo, incluindo
+    // `plan` e `iaUso`. O fluxo de pagamento em Payment.jsx é uma simulação
+    // 100% client-side (não há gateway real nem Cloud Function validando a
+    // cobrança), então nada aqui impede que um usuário defina o próprio
+    // `plan` como "adulto" ou zere `iaUso` diretamente pelo SDK/console do
+    // Firestore, pulando o "pagamento". Uma correção real exigiria mover a
+    // escrita desses campos para uma Cloud Function autenticada que valide
+    // o pagamento no servidor (plano Firebase Blaze) — fora do escopo atual.
     match /usuarios/{userId} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }

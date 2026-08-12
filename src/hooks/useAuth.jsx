@@ -66,6 +66,15 @@ export function AuthProvider({ children }) {
   // Troca o plano de um usuário já autenticado (upgrade/downgrade), registrando
   // o comprovante de pagamento associado — usado pela tela de Pagamento quando
   // o fluxo é de troca de plano, e não de cadastro novo.
+  //
+  // LIMITAÇÃO CONHECIDA (escopo de TCC): Payment.jsx simula o pagamento
+  // inteiramente no cliente (PIX/cartão fake, sem gateway real). Esta função
+  // grava `plan` direto no Firestore a partir do navegador, e a regra de
+  // segurança (firestore.rules) permite essa escrita para o próprio dono do
+  // documento — ou seja, o "pagamento" não é validado no servidor e pode ser
+  // burlado por quem chamar esta função (ou escrever direto no Firestore)
+  // sem de fato ter pago. Corrigir de verdade exigiria uma Cloud Function
+  // autenticada como única responsável por alterar `plan`/`iaUso`.
   const changePlanWithPayment = async ({ plan, payment }) => {
     if (!currentUser) throw new Error('Usuário não autenticado.');
 
@@ -190,6 +199,7 @@ export function AuthProvider({ children }) {
   );
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === null) throw new Error('useAuth deve ser usado dentro de um AuthProvider');
