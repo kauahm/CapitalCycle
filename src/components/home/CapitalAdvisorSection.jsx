@@ -28,8 +28,8 @@ export default function CapitalAdvisorSection() {
   // concluir mais rápido/cedo no scroll; aumentar ([0, 0.6]) estica o
   // efeito por mais tempo. HERO_RANGE controla o fade+subida do texto,
   // BAR_RANGE controla a expansão da barra flutuante.
-  const HERO_RANGE = [0, 0.45];
-  const BAR_RANGE = [0, 0.6];
+  const HERO_RANGE = [0.25, 0.9];
+  const BAR_RANGE = [0.6, 1];
 
   const heroOpacity = useTransform(progress, HERO_RANGE, [1, 0]);
   const heroY = useTransform(progress, HERO_RANGE, [0, -56]);
@@ -47,7 +47,7 @@ export default function CapitalAdvisorSection() {
   );
 
   return (
-    <section ref={sectionRef} className="relative h-[180vh] bg-[#f4f5f7]">
+    <section ref={sectionRef} className="relative h-[280vh] bg-[#f4f5f7]">
       <div className="sticky top-0 flex h-screen flex-col overflow-hidden">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_15%,rgba(255,255,255,0.95),rgba(244,245,247,1)_62%)]" />
 
