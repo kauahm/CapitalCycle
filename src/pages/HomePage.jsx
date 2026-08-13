@@ -127,7 +127,7 @@ const PAGE_CSS = `
   .cch-inner {
     position: relative; z-index: 10;
     max-width: 1980px; margin: 0 auto;
-    padding: 3.2rem 3.2rem 2.5rem;
+    padding: 7rem 3.2rem 2.5rem;
     display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
     align-items: center;
     gap: 3rem;
@@ -222,7 +222,7 @@ const PAGE_CSS = `
     min-height: calc(100vh - 6.5rem);
     display: flex; flex-direction: column; align-items: center; justify-content: center;
     text-align: center;
-    padding: 3.2rem;
+    padding: 7rem 3.2rem 3.2rem;
   }
   .cch-rec-eyebrow {
     display: inline-flex; align-items: center; gap: 0.5rem;
@@ -299,14 +299,14 @@ const PAGE_CSS = `
   /* ---------- Responsivo ---------- */
   @media (max-width: 1280px) {
     .cch-nav { padding: 1.6rem 1.75rem 0; }
-    .cch-inner { padding: 2.5rem 1.75rem 2rem; }
+    .cch-inner { padding: 5.5rem 1.75rem 2rem; }
     .cch-menu a, .cch-menu button { padding: 0.55rem 1rem; font-size: 0.88rem; }
   }
   @media (max-width: 980px) {
     .cch-menu { display: none; }
     .cch-inner {
       grid-template-columns: 1fr; gap: 2.5rem;
-      padding: 2.5rem 1.5rem 2.5rem;
+      padding: 4.5rem 1.5rem 2.5rem;
       min-height: 0;
     }
     .cch-right { align-items: flex-start; text-align: left; }
@@ -320,7 +320,7 @@ const PAGE_CSS = `
     .cch-video-bg { opacity: 0.4; filter: blur(1px); }
     .cch-scrim { background: rgba(216,216,214,0.85); }
     .cch-scrim::after { opacity: 0.14; }
-    .cch-rec-inner { min-height: 0; padding: 3rem 1.5rem; }
+    .cch-rec-inner { min-height: 0; padding: 5rem 1.5rem 3rem; }
   }
   @media (max-width: 560px) {
     .cch-nav { padding: 1.1rem 1.25rem 0; }
