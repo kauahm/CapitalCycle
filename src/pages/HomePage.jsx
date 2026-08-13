@@ -1,8 +1,8 @@
 import React, { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, BarChart3, RefreshCcw, Sparkles, Target } from 'lucide-react';
-
 import logoImg from '../assets/logo-topo.png';
+import CapitalAdvisorSection from '../components/home/CapitalAdvisorSection';
 
 
 const GLOBAL_CSS = `
@@ -568,6 +568,8 @@ export default function HomePage() {
           ))}
         </div>
       </div>
+
+      <CapitalAdvisorSection />
 
       {/* ── PRICING ── */}
       <div id="planos" className="cc-pricing-wrap">
