@@ -4,6 +4,7 @@ import { ArrowLeftRight, BarChart3, Clock, ShieldCheck } from 'lucide-react';
 import heroVideo from '../assets/video/hero-cartao.mp4';
 import heroVideoLoop from '../assets/video/hero-cartao-loop.mp4';
 import heroVideoPoster from '../assets/video/hero-cartao-poster.png';
+import CapitalAdvisorSection from '../components/home/CapitalAdvisorSection';
 
 /* =========================================================
    HOME — Capital Cycle
@@ -763,6 +764,8 @@ export default function HomePage() {
           ))}
         </div>
       </section>
+
+      <CapitalAdvisorSection />
     </>
   );
 }
