@@ -341,17 +341,17 @@ const PAGE_CSS = `
   .cch-feats {
     position: relative;
     background: #f4f5f7;
-    padding: 6.5rem 3.2rem 8rem;
+    padding: 5rem 3.2rem 6rem;
   }
   .cch-feats-inner {
-    max-width: 74rem; margin: 0 auto;
+    max-width: 54rem; margin: 0 auto;
     display: grid; grid-template-columns: 1fr 1fr;
-    gap: 1.75rem;
+    gap: 1.15rem;
   }
   .cch-feat-card {
     background: #fff;
-    border-radius: 1.75rem;
-    padding: 2.75rem;
+    border-radius: 1.4rem;
+    padding: 1.9rem;
     box-shadow: 0 24px 48px rgba(19,19,22,0.05);
     opacity: 0;
     transform: translateY(40px);
@@ -367,19 +367,20 @@ const PAGE_CSS = `
   }
   .cch-feat-icon {
     display: inline-flex; align-items: center; justify-content: center;
-    width: 3.5rem; height: 3.5rem;
-    border-radius: 1rem;
+    width: 2.75rem; height: 2.75rem;
+    border-radius: 0.8rem;
     background: rgba(83,88,238,0.12);
     color: #5358ee;
-    margin-bottom: 1.9rem;
+    margin-bottom: 1.25rem;
   }
+  .cch-feat-icon svg { width: 1.15rem; height: 1.15rem; }
   .cch-feat-card--dark .cch-feat-icon {
     background: #5358ee;
     color: #fff;
   }
   .cch-feat-title {
-    margin: 0 0 0.9rem;
-    font-size: 1.5rem;
+    margin: 0 0 0.55rem;
+    font-size: 1.15rem;
     font-weight: 800;
     letter-spacing: -0.01em;
     color: #131316;
@@ -387,19 +388,19 @@ const PAGE_CSS = `
   .cch-feat-card--dark .cch-feat-title { color: #fff; }
   .cch-feat-desc {
     margin: 0;
-    max-width: 30rem;
-    font-size: 1.02rem;
-    line-height: 1.56;
+    max-width: 24rem;
+    font-size: 0.88rem;
+    line-height: 1.5;
     color: #6d6d72;
   }
   .cch-feat-card--dark .cch-feat-desc { color: rgba(255,255,255,0.6); }
 
   @media (max-width: 1280px) {
-    .cch-feats { padding: 5.5rem 1.75rem 6rem; }
+    .cch-feats { padding: 4.5rem 1.75rem 5rem; }
   }
   @media (max-width: 900px) {
-    .cch-feats-inner { grid-template-columns: 1fr; gap: 1.25rem; }
-    .cch-feat-card { padding: 2.25rem; }
+    .cch-feats-inner { grid-template-columns: 1fr; gap: 1rem; }
+    .cch-feat-card { padding: 1.75rem; }
   }
   @media (prefers-reduced-motion: reduce) {
     .cch-feat-card {
@@ -754,7 +755,7 @@ export default function HomePage() {
               style={{ transitionDelay: `${i * 110}ms` }}
             >
               <span className="cch-feat-icon" aria-hidden="true">
-                <Icon size={26} strokeWidth={2.2} />
+                <Icon size={19} strokeWidth={2.2} />
               </span>
               <h3 className="cch-feat-title">{title}</h3>
               <p className="cch-feat-desc">{desc}</p>
