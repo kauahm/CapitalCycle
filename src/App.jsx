@@ -4,7 +4,6 @@ import { AuthProvider, useAuth } from './hooks/useAuth';
 import DashboardLayout from './components/layout/DashboardLayout';
 import Login from './pages/Login';
 import HomePage from './pages/HomePage'; // ← NOVO
-import HeroSection from './components/home/HeroSection';
 import Register from './pages/Register';
 import Payment from './pages/Payment';
 
@@ -52,9 +51,6 @@ export default function App() {
         <Routes>
           {/* Página inicial pública */}
           <Route path="/" element={<HomePage />} />
-
-          {/* Preview da nova hero section */}
-          <Route path="/hero" element={<HeroSection />} />
 
           {/* Login */}
           <Route path="/login" element={<Login />} />
