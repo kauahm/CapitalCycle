@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { ArrowLeftRight, BarChart3, Clock, ShieldCheck } from 'lucide-react';
 
 import heroVideo from '../assets/video/hero-cartao.mp4';
 import heroVideoLoop from '../assets/video/hero-cartao-loop.mp4';
@@ -335,6 +336,78 @@ const PAGE_CSS = `
     .cch-mouse { animation: none; }
     .cch *, .cch *::before, .cch *::after { transition: none !important; }
   }
+
+  /* ---------- Recursos em destaque (cards) ---------- */
+  .cch-feats {
+    position: relative;
+    background: #f4f5f7;
+    padding: 6.5rem 3.2rem 8rem;
+  }
+  .cch-feats-inner {
+    max-width: 74rem; margin: 0 auto;
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 1.75rem;
+  }
+  .cch-feat-card {
+    background: #fff;
+    border-radius: 1.75rem;
+    padding: 2.75rem;
+    box-shadow: 0 24px 48px rgba(19,19,22,0.05);
+    opacity: 0;
+    transform: translateY(40px);
+    transition: opacity 0.8s cubic-bezier(0.16,1,0.3,1), transform 0.8s cubic-bezier(0.16,1,0.3,1);
+    will-change: opacity, transform;
+  }
+  .cch-feat-card.is-in {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  .cch-feat-card--dark {
+    background: #0f1216;
+  }
+  .cch-feat-icon {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 3.5rem; height: 3.5rem;
+    border-radius: 1rem;
+    background: rgba(83,88,238,0.12);
+    color: #5358ee;
+    margin-bottom: 1.9rem;
+  }
+  .cch-feat-card--dark .cch-feat-icon {
+    background: #5358ee;
+    color: #fff;
+  }
+  .cch-feat-title {
+    margin: 0 0 0.9rem;
+    font-size: 1.5rem;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+    color: #131316;
+  }
+  .cch-feat-card--dark .cch-feat-title { color: #fff; }
+  .cch-feat-desc {
+    margin: 0;
+    max-width: 30rem;
+    font-size: 1.02rem;
+    line-height: 1.56;
+    color: #6d6d72;
+  }
+  .cch-feat-card--dark .cch-feat-desc { color: rgba(255,255,255,0.6); }
+
+  @media (max-width: 1280px) {
+    .cch-feats { padding: 5.5rem 1.75rem 6rem; }
+  }
+  @media (max-width: 900px) {
+    .cch-feats-inner { grid-template-columns: 1fr; gap: 1.25rem; }
+    .cch-feat-card { padding: 2.25rem; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .cch-feat-card {
+      transition: none !important;
+      opacity: 1 !important;
+      transform: none !important;
+    }
+  }
 `;
 
 /* ---------- Ícones ---------- */
@@ -358,6 +431,32 @@ function ArrowRightIcon() {
     </svg>
   );
 }
+
+/* ---------- Cards de recursos em destaque ---------- */
+
+const FEATURE_CARDS = [
+  {
+    title: 'Dashboard Financeiro',
+    desc: 'Saldo consolidado de todas as contas com indicadores de fluxo em tempo real.',
+    Icon: BarChart3,
+  },
+  {
+    title: 'Transações Inteligentes',
+    desc: 'Registre entradas e saídas com categorias, filtros avançados e histórico completo.',
+    Icon: ArrowLeftRight,
+  },
+  {
+    title: 'Ciclos de Investimento',
+    desc: 'Metas de orçamento por período com progresso calculado automaticamente.',
+    Icon: Clock,
+  },
+  {
+    title: 'Capital Advisor',
+    desc: 'Análise dos seus dados financeiros em linguagem natural, direto no aplicativo.',
+    Icon: ShieldCheck,
+    dark: true,
+  },
+];
 
 /* ---------- Navegação (reutilizada no Hero e nos Recursos) ---------- */
 
@@ -441,6 +540,36 @@ function usePinnedStoryEnabled() {
   return enabled;
 }
 
+/* ---------- Revela ao entrar na viewport (uma única vez) ---------- */
+
+function useRevealOnScroll(threshold = 0.18) {
+  const ref = useRef(null);
+  const [inView, setInView] = useState(false);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    if (typeof IntersectionObserver === 'undefined') {
+      setInView(true);
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) {
+          setInView(true);
+          observer.disconnect();
+        }
+      },
+      { threshold, rootMargin: '0px 0px -10% 0px' }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [threshold]);
+
+  return [ref, inView];
+}
+
 /* ---------- Componente ---------- */
 
 export default function HomePage() {
@@ -450,6 +579,7 @@ export default function HomePage() {
 
   const pinnedEnabled = usePinnedStoryEnabled();
   const progress = useScrollStory(storyRef, pinnedEnabled);
+  const [featsRef, featsInView] = useRevealOnScroll();
 
   useEffect(() => {
     const video = videoRef.current;
@@ -511,9 +641,10 @@ export default function HomePage() {
   const activeNav = progress >= 0.5 ? 'recursos' : 'inicio';
 
   return (
-    <div ref={storyRef} className={`cch-story ${pinnedEnabled ? '' : 'cch-story--static'}`}>
+    <>
       <style>{PAGE_CSS}</style>
 
+      <div ref={storyRef} className={`cch-story ${pinnedEnabled ? '' : 'cch-story--static'}`}>
       <div className="cch-pin">
         <div className="cch-nav-wrap">
           <MainNav active={activeNav} />
@@ -612,6 +743,25 @@ export default function HomePage() {
         </div>
         </div>
       </div>
-    </div>
+      </div>
+
+      <section className="cch-feats" ref={featsRef} aria-label="Recursos em destaque">
+        <div className="cch-feats-inner">
+          {FEATURE_CARDS.map(({ title, desc, Icon, dark }, i) => (
+            <article
+              key={title}
+              className={`cch-feat-card${dark ? ' cch-feat-card--dark' : ''}${featsInView ? ' is-in' : ''}`}
+              style={{ transitionDelay: `${i * 110}ms` }}
+            >
+              <span className="cch-feat-icon" aria-hidden="true">
+                <Icon size={26} strokeWidth={2.2} />
+              </span>
+              <h3 className="cch-feat-title">{title}</h3>
+              <p className="cch-feat-desc">{desc}</p>
+            </article>
+          ))}
+        </div>
+      </section>
+    </>
   );
 }
