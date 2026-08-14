@@ -2,16 +2,16 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
   ArrowLeft, Check, Copy, CreditCard, QrCode,
-  ShieldCheck, Lock, Clock, X, User, Mail
+  ShieldCheck, Lock, Clock, X, User
 } from 'lucide-react';
 import Toast from '../components/ui/Toast';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
 import { useAuth } from '../hooks/useAuth';
 
-// ─── Planos espelhados do Register ──────────────────────────────────────────
+// ─── Planos espelhados do Register (cobrança anual) ─────────────────────────
 const PLANS = {
-  jovem:  { id: 'jovem',  name: 'Jovem',  price: 19.90, priceStr: '19,90' },
-  adulto: { id: 'adulto', name: 'Adulto', price: 47.90, priceStr: '47,90' },
+  jovem:  { id: 'jovem',  name: 'Jovem',  price: 44.90, priceStr: '44,90' },
+  adulto: { id: 'adulto', name: 'Adulto', price: 64.90, priceStr: '64,90' },
 };
 
 // Tempo de expiração do QR Code PIX (em segundos) — só simulação
@@ -106,6 +106,39 @@ const formatExpiry = (v) => {
   return `${d.slice(0, 2)}/${d.slice(2)}`;
 };
 
+// ─── Card de método de pagamento (etapa de seleção) ───────────────────────────
+function MetodoCard({ selecionado, onSelecionar, Icone, corIcone, titulo, subtitulo, badge, corBadge, descricao }) {
+  return (
+    <button
+      type="button"
+      onClick={onSelecionar}
+      aria-pressed={selecionado}
+      className={`w-full rounded-2xl border p-4 text-left transition-colors focus:outline-none ${
+        selecionado
+          ? 'border-primary ring-1 ring-primary'
+          : 'border-slate-200 hover:border-slate-300'
+      }`}
+    >
+      <div className="flex items-center gap-3">
+        <span className={`flex h-11 w-11 flex-none items-center justify-center rounded-xl ${corIcone}`}>
+          <Icone size={19} />
+        </span>
+
+        <div className="min-w-0 flex-1">
+          <p className="text-[0.95rem] font-bold text-slate-950">{titulo}</p>
+          <p className="text-[0.8rem] text-slate-500">{subtitulo}</p>
+        </div>
+
+        <span className={`flex-none rounded-full px-2.5 py-1 text-[0.62rem] font-bold uppercase tracking-wide ${corBadge}`}>
+          {badge}
+        </span>
+      </div>
+
+      <p className="mt-3 text-[0.8rem] leading-relaxed text-slate-500">{descricao}</p>
+    </button>
+  );
+}
+
 // ─── Componente Principal ─────────────────────────────────────────────────────
 export default function Payment() {
   const navigate = useNavigate();
@@ -124,7 +157,6 @@ export default function Payment() {
   }, [registrationData, navigate]);
 
   const plan = registrationData?.plan ? PLANS[registrationData.plan] : null;
-  const isPlanoJovem = plan?.id === 'jovem';
 
   // ── Estado do fluxo ──
   const [method, setMethod] = useState('pix'); // 'pix' | 'cartao'
@@ -189,7 +221,9 @@ export default function Payment() {
     setPixPayload(buildPixPayload({ txid, amount: plan.price }));
   };
 
-  // ── Selecionou método de pagamento ──
+  // ── Avança para a tela do método escolhido ──
+  // A escolha agora é só visual (o card marca o método); quem avança é o
+  // botão "Finalizar pagamento".
   const handleSelectMethod = (m) => {
     setMethod(m);
     if (m === 'pix') {
@@ -200,6 +234,8 @@ export default function Payment() {
       setStep('card-form');
     }
   };
+
+  const handleContinuar = () => handleSelectMethod(method);
 
   // ── Copia código PIX ──
   const handleCopyPix = async () => {
@@ -321,94 +357,76 @@ export default function Payment() {
   if (!plan) return null;
 
   return (
-    <div className="min-h-screen flex flex-col lg:grid lg:grid-cols-2 bg-white">
+    <div className="min-h-screen flex flex-col bg-white lg:grid lg:grid-cols-[54fr_46fr]">
 
       {/* ── Coluna Esquerda: Conteúdo principal ── */}
-      <div className="flex flex-col justify-between py-12 px-8 sm:px-12 lg:px-16 xl:px-24">
+      <div className="flex flex-col justify-between px-8 py-8 sm:px-12 lg:px-14">
 
         {/* Cabeçalho: voltar */}
-        <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center justify-between">
           <button
             onClick={() => navigate('/cadastro', { state: location.state })}
-            className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-900 transition-colors font-medium"
+            className="flex items-center gap-1.5 text-[0.8rem] text-slate-500 transition-colors hover:text-slate-900"
           >
             <ArrowLeft size={14} />
             Voltar
           </button>
 
           {/* Indicador: pagamento seguro */}
-          <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-widest text-slate-400 font-bold">
-            <Lock size={11} /> Pagamento seguro
+          <div className="flex items-center gap-2 text-[0.7rem] font-bold uppercase tracking-[0.15em] text-slate-700">
+            <Lock size={12} className="text-amber-500" /> Pagamento seguro
           </div>
         </div>
 
         {/* ── STEP: Seleção de método ── */}
         {step === 'select' && (
-          <div className="flex-1 flex flex-col justify-center max-w-sm mx-auto w-full">
-            <div className="mb-10">
-              <h2 className="text-4xl font-extrabold text-slate-900 tracking-tight">
-                Quase lá!
-              </h2>
-              <p className="mt-2 text-sm text-slate-500 font-medium">
-                Escolha como deseja pagar o plano{' '}
-                <span className="font-bold text-slate-900">{plan.name}</span>.
-              </p>
+          <div className="flex w-full max-w-[32rem] flex-1 flex-col justify-center py-8">
+            <h1 className="text-[2.4rem] font-extrabold leading-none tracking-tight text-slate-950">
+              Quase lá!
+            </h1>
+            <p className="mt-3 text-[0.9rem] text-slate-500">
+              Escolha como deseja pagar o plano{' '}
+              <span className="font-bold text-slate-950">{plan.name}</span>.
+            </p>
+
+            <div className="mt-7 flex flex-col gap-4">
+              <MetodoCard
+                selecionado={method === 'pix'}
+                onSelecionar={() => setMethod('pix')}
+                Icone={QrCode}
+                corIcone="bg-emerald-100 text-emerald-600"
+                titulo="PIX"
+                subtitulo="Aprovação instantânea"
+                badge="Recomendado"
+                corBadge="bg-emerald-100 text-emerald-700"
+                descricao="Pague com qualquer banco via QR Code. A confirmação é em segundos."
+              />
+
+              <MetodoCard
+                selecionado={method === 'cartao'}
+                onSelecionar={() => setMethod('cartao')}
+                Icone={CreditCard}
+                corIcone="bg-indigo-50 text-indigo-600"
+                titulo="Cartão de Crédito"
+                subtitulo="Visa, Master, Elo, Amex"
+                badge="12x sem juros"
+                corBadge="bg-indigo-50 text-indigo-600"
+                descricao="Pagamento processado com criptografia. Dados protegidos."
+              />
             </div>
 
-            <div className="flex flex-col gap-4">
-              {/* PIX */}
-              <button
-                onClick={() => handleSelectMethod('pix')}
-                className="w-full text-left rounded-xl border-2 border-slate-200 bg-white text-slate-900 p-5 hover:border-slate-900 transition-all group focus:outline-none"
-              >
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex items-center gap-3">
-                    <div className="w-11 h-11 rounded-xl bg-emerald-50 flex items-center justify-center group-hover:bg-emerald-100 transition-colors">
-                      <QrCode className="text-emerald-600" size={22} />
-                    </div>
-                    <div>
-                      <p className="text-sm font-bold text-slate-900">PIX</p>
-                      <p className="text-xs text-slate-500">Aprovação instantânea</p>
-                    </div>
-                  </div>
-                  <span className="text-[10px] font-bold bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full uppercase tracking-wide">
-                    Recomendado
-                  </span>
-                </div>
-                <p className="text-xs text-slate-500 leading-relaxed">
-                  Pague com qualquer banco via QR Code. A confirmação é em segundos.
-                </p>
-              </button>
+            <button
+              type="button"
+              onClick={handleContinuar}
+              className="mt-8 flex h-[3.1rem] w-full items-center justify-center rounded-2xl bg-[#0a0d12] text-[0.95rem] font-bold text-white transition-colors hover:bg-black"
+            >
+              Finalizar pagamento
+            </button>
 
-              {/* Cartão */}
-              <button
-                onClick={() => handleSelectMethod('cartao')}
-                className="w-full text-left rounded-xl border-2 border-slate-200 bg-white text-slate-900 p-5 hover:border-slate-900 transition-all group focus:outline-none"
-              >
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex items-center gap-3">
-                    <div className="w-11 h-11 rounded-xl bg-indigo-50 flex items-center justify-center group-hover:bg-indigo-100 transition-colors">
-                      <CreditCard className="text-indigo-600" size={22} />
-                    </div>
-                    <div>
-                      <p className="text-sm font-bold text-slate-900">Cartão de Crédito</p>
-                      <p className="text-xs text-slate-500">Visa, Master, Elo, Amex</p>
-                    </div>
-                  </div>
-                  <span className="text-[10px] font-bold bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full uppercase tracking-wide">
-                    {isPlanoJovem ? '12x sem juros' : '12x sem juros'}
-                  </span>
-                </div>
-                <p className="text-xs text-slate-500 leading-relaxed">
-                  Pagamento processado com criptografia. Dados protegidos.
-                </p>
-              </button>
-            </div>
-
-            <div className="flex items-center gap-2 mt-8 text-xs text-slate-400 font-medium justify-center">
-              <ShieldCheck size={13} />
+            <p className="mt-5 flex items-center gap-2 text-[0.78rem] text-slate-400">
+              <ShieldCheck size={14} />
               Ambiente criptografado · Dados protegidos
-            </div>
+            </p>
           </div>
         )}
 
@@ -691,90 +709,89 @@ export default function Payment() {
         )}
 
         {/* Rodapé */}
-        <div className="text-center text-xs text-slate-400 font-medium pt-8">
+        <div className="pt-6 text-[0.75rem] text-slate-400">
           CapitalCycle © 2026 - TCC Solutions
         </div>
       </div>
 
       {/* ── Coluna Direita: Resumo do plano ── */}
-      <div className="hidden lg:flex items-center justify-center bg-slate-900">
-        <div className="text-center flex flex-col items-center px-12 max-w-sm w-full">
-          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 mb-6">
+      <div className="hidden bg-[#05070e] px-10 lg:flex lg:flex-col lg:items-center lg:justify-center">
+        <div className="w-full max-w-[24rem]">
+          <p className="text-center text-[0.72rem] font-semibold uppercase tracking-[0.25em] text-slate-400">
             Resumo da assinatura
           </p>
 
-          <div className={`rounded-2xl p-6 text-left border w-full ${
-            plan.id === 'adulto'
-              ? 'bg-indigo-600/20 border-indigo-500/40'
-              : 'bg-slate-800/60 border-slate-700/50'
-          }`}>
-            <div className="flex justify-between items-start mb-4">
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-slate-400 mb-1">
-                  Plano {plan.name}
-                </p>
-                <div className="flex items-baseline gap-1">
-                  <span className="text-sm text-slate-500">R$</span>
-                  <span className="text-4xl font-extrabold text-white">{plan.priceStr}</span>
-                  <span className="text-sm text-slate-500">/mês</span>
-                </div>
+          <div className="mt-7 rounded-2xl border-2 border-primary bg-[#0d1117] p-6">
+            <div className="flex items-start justify-between gap-4">
+              <span className="text-[0.75rem] font-bold uppercase tracking-[0.15em] text-slate-200">
+                Plano {plan.name}
+              </span>
+              <span
+                className="flex h-6 w-6 flex-none items-center justify-center rounded-full bg-primary text-white"
+                aria-hidden="true"
+              >
+                <Check size={13} strokeWidth={3} />
+              </span>
+            </div>
+
+            <div className="mt-4 flex items-baseline gap-1.5">
+              <span className="text-lg font-bold text-white">R$</span>
+              <span className="text-[2rem] font-extrabold tracking-tight text-white">{plan.priceStr}</span>
+              <span className="text-[0.9rem] text-slate-400">/ano</span>
+            </div>
+
+            <div className="mt-5 border-t border-slate-700/60 pt-4">
+              <p className="text-[0.68rem] font-bold uppercase tracking-[0.15em] text-slate-500">
+                Cobrança
+              </p>
+
+              <div className="mt-3 flex justify-between text-[0.85rem]">
+                <span className="text-slate-300">Plano {plan.name} (anual)</span>
+                <span className="font-semibold text-white">{fmtBRL(plan.price)}</span>
               </div>
-              <div className="w-8 h-8 rounded-full bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center">
-                <Check size={14} className="text-emerald-400" />
+
+              <div className="mt-2 flex justify-between text-[0.85rem]">
+                <span className="text-slate-300">Taxa de adesão</span>
+                <span className="font-semibold text-emerald-400">Grátis</span>
               </div>
             </div>
 
-            <div className="border-t border-slate-700/50 pt-4 space-y-2">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
-                Cobrança
-              </p>
-              <div className="flex justify-between text-xs">
-                <span className="text-slate-400">Plano {plan.name}</span>
-                <span className="text-slate-200 font-semibold">{fmtBRL(plan.price)}</span>
-              </div>
-              <div className="flex justify-between text-xs">
-                <span className="text-slate-400">Taxa de adesão</span>
-                <span className="text-emerald-400 font-semibold">Grátis</span>
-              </div>
-              <div className="flex justify-between text-xs pt-2 border-t border-slate-700/50 mt-2">
-                <span className="text-slate-300 font-bold">Total hoje</span>
-                <span className="text-white font-extrabold text-base">{fmtBRL(plan.price)}</span>
-              </div>
+            <div className="mt-4 flex items-center justify-between border-t border-slate-700/60 pt-4">
+              <span className="text-[0.95rem] font-bold text-white">Total hoje</span>
+              <span className="text-[1.05rem] font-extrabold text-white">{fmtBRL(plan.price)}</span>
             </div>
           </div>
 
           {/* Conta do usuário (avatar) */}
           {registrationData && !registrationData.isGoogle && registrationData.name && (
-            <div className="mt-6 w-full bg-slate-800/40 border border-slate-700/40 rounded-xl p-4 text-left">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-3">
+            <div className="mt-5 rounded-2xl bg-[#0d1117] p-5">
+              <p className="text-[0.68rem] font-bold uppercase tracking-[0.15em] text-slate-500">
                 Conta a ser criada
               </p>
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-full bg-indigo-500/20 flex items-center justify-center">
-                  <User size={15} className="text-indigo-400" />
+              <div className="mt-3 flex items-center gap-3">
+                <div className="flex h-10 w-10 flex-none items-center justify-center rounded-full bg-primary/20">
+                  <User size={17} className="text-indigo-400" />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm font-semibold text-white truncate">{registrationData.name}</p>
-                  <p className="text-xs text-slate-400 flex items-center gap-1 truncate">
-                    <Mail size={10} /> {registrationData.email}
-                  </p>
+                  <p className="truncate text-[0.95rem] font-bold text-white">{registrationData.name}</p>
+                  <p className="truncate text-[0.8rem] text-slate-400">{registrationData.email}</p>
                 </div>
               </div>
             </div>
           )}
 
           {registrationData?.isGoogle && (
-            <div className="mt-6 w-full bg-slate-800/40 border border-slate-700/40 rounded-xl p-4 text-left">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-3">
+            <div className="mt-5 rounded-2xl bg-[#0d1117] p-5">
+              <p className="text-[0.68rem] font-bold uppercase tracking-[0.15em] text-slate-500">
                 Conta Google
               </p>
-              <p className="text-xs text-slate-300">
+              <p className="mt-3 text-[0.85rem] text-slate-300">
                 Após confirmar o pagamento, sua conta Google será vinculada automaticamente.
               </p>
             </div>
           )}
 
-          <p className="text-[10px] text-slate-600 mt-4">
+          <p className="mt-6 text-center text-[0.75rem] text-slate-500">
             Pagamento seguro · Cancele quando quiser · Sem fidelidade
           </p>
         </div>
