@@ -4,13 +4,21 @@
 //  páginas do painel (travas de funcionalidade por plano).
 //
 //  limites com valor `null` significam "sem limite" (plano Adulto).
+//
+//  Cobrança: os dois planos são ANUAIS (não existe mais plano mensal).
+//  `price` é a string exibida na interface e `priceNum` o valor usado nos
+//  cálculos de pagamento; `period` é o sufixo mostrado ao lado do preço.
 // ─────────────────────────────────────────────────────────────────────────────
+
+export const BILLING_PERIOD = '/ano';
 
 export const PLAN_LIST = [
   {
     id: 'jovem',
     name: 'Jovem',
-    price: '19,90',
+    price: '44,90',
+    priceNum: 44.90,
+    period: BILLING_PERIOD,
     desc: 'Para quem está começando a organizar as finanças com controle prático.',
     featured: false,
     badge: null,
@@ -33,7 +41,9 @@ export const PLAN_LIST = [
   {
     id: 'adulto',
     name: 'Adulto',
-    price: '47,90',
+    price: '64,90',
+    priceNum: 64.90,
+    period: BILLING_PERIOD,
     desc: 'Controle total, IA ilimitada e mercado em tempo real para quem leva as finanças a sério.',
     featured: true,
     badge: 'Mais popular',

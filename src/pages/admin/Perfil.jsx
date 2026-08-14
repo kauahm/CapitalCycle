@@ -259,7 +259,7 @@ export default function Perfil() {
             </div>
             <div className="text-right">
               <p className="text-xs text-slate-500">R$ {plan.price}</p>
-              <p className="text-xs text-slate-500">/mês</p>
+              <p className="text-xs text-slate-500">/ano</p>
             </div>
           </div>
 
