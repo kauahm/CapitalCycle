@@ -3,7 +3,144 @@
 @tailwind utilities;
 
 /* ==========================================
-   PERSONALIZAÇÃO DA BARRA DE ROLAGEM 
+   AUTOPREENCHIMENTO (Chrome/Safari)
+   O navegador pinta o campo de azul claro quando preenche
+   sozinho, e isso ignora background-color. O truque é adiar
+   a transição da cor de fundo por um tempo absurdo: o campo
+   nunca chega a receber a cor, ficando de fato transparente.
+   ========================================== */
+
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active {
+  -webkit-text-fill-color: #0f172a;
+  caret-color: #0f172a;
+  transition: background-color 600000s 0s, color 600000s 0s;
+}
+
+/* ==========================================
+   ATMOSFERA DE FUNDO (landing page)
+   Gradiente radial indigo (#6366f1) bem dessaturado pela
+   própria transparência, com deriva lenta. Usado por
+   <AmbientGlow /> nas seções de fundo chapado.
+   Anima apenas transform — nada de blur/box-shadow/width.
+   ========================================== */
+
+.cc-ambient {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.cc-ambient__blob {
+  position: absolute;
+  width: 72vw;
+  max-width: 920px;
+  aspect-ratio: 1 / 1;
+  border-radius: 50%;
+  will-change: transform;
+  /* Mesma curva do scroll sticky dos Recursos */
+  animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+  animation-iteration-count: infinite;
+  animation-direction: alternate;
+}
+
+.cc-ambient__blob--a {
+  top: -20%;
+  left: -12%;
+  background: radial-gradient(circle, rgba(99, 102, 241, 0.06) 0%, rgba(99, 102, 241, 0) 70%);
+  animation-name: cc-drift-a;
+  animation-duration: 26s;
+}
+
+.cc-ambient__blob--b {
+  bottom: -24%;
+  right: -14%;
+  background: radial-gradient(circle, rgba(99, 102, 241, 0.05) 0%, rgba(99, 102, 241, 0) 70%);
+  animation-name: cc-drift-b;
+  animation-duration: 34s;
+  /* Delay negativo dessincroniza as duas manchas desde o 1º frame */
+  animation-delay: -9s;
+}
+
+@keyframes cc-drift-a {
+  from { transform: translate3d(0, 0, 0); }
+  to   { transform: translate3d(6%, 4%, 0); }
+}
+
+@keyframes cc-drift-b {
+  from { transform: translate3d(0, 0, 0); }
+  to   { transform: translate3d(-5%, -6%, 0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cc-ambient__blob { animation: none; }
+}
+
+/* ==========================================
+   ELEMENTOS FINANCEIROS FLUTUANTES (landing)
+   Marca d'água viva: valores em indigo suave a 10% de
+   opacidade, atrás de todo o conteúdo. Cada figura entra,
+   segura ~4s, sai e reaparece deslocada — as três em
+   durações/atrasos diferentes para nunca virar "chuva".
+   Anima apenas opacity e transform.
+   ========================================== */
+
+.cc-figs {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.cc-fig {
+  position: absolute;
+  opacity: 0;
+  color: #4b4f9c;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  will-change: transform, opacity;
+  animation-name: cc-figure;
+  animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+  animation-iteration-count: infinite;
+}
+
+/* Ciclo de 24s = 3 aparições de 8s (2s entrando, ~4s parada,
+   2s saindo). A troca de posição acontece sempre com a figura
+   invisível, então nunca se vê o "pulo". */
+@keyframes cc-figure {
+  0%   { opacity: 0;    transform: translate3d(0, 14px, 0); }
+  8%   { opacity: 0.1;  transform: translate3d(0, 0, 0); }
+  25%  { opacity: 0.1;  transform: translate3d(0, -6px, 0); }
+  33%  { opacity: 0;    transform: translate3d(0, -14px, 0); }
+
+  34%  { opacity: 0;    transform: translate3d(-64px, 68px, 0); }
+  42%  { opacity: 0.1;  transform: translate3d(-64px, 54px, 0); }
+  58%  { opacity: 0.1;  transform: translate3d(-64px, 48px, 0); }
+  66%  { opacity: 0;    transform: translate3d(-64px, 40px, 0); }
+
+  67%  { opacity: 0;    transform: translate3d(52px, -32px, 0); }
+  75%  { opacity: 0.1;  transform: translate3d(52px, -46px, 0); }
+  92%  { opacity: 0.1;  transform: translate3d(52px, -52px, 0); }
+  100% { opacity: 0;    transform: translate3d(52px, -60px, 0); }
+}
+
+.cc-fig:nth-child(1) { animation-duration: 24s; animation-delay: -2s; }
+.cc-fig:nth-child(2) { animation-duration: 27s; animation-delay: -11s; }
+.cc-fig:nth-child(3) { animation-duration: 21s; animation-delay: -17s; }
+
+@media (prefers-reduced-motion: reduce) {
+  .cc-fig { animation: none; opacity: 0; }
+}
+
+/* ==========================================
+   PERSONALIZAÇÃO DA BARRA DE ROLAGEM
    ========================================== */
 
 /* 1. Largura da barra no site inteiro */

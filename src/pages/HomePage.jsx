@@ -1,10 +1,15 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { Link, useLocation } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import { ArrowLeftRight, BarChart3, Clock, ShieldCheck } from 'lucide-react';
 
 import heroVideo from '../assets/video/hero-cartao.mp4';
 import heroVideoLoop from '../assets/video/hero-cartao-loop.mp4';
 import heroVideoPoster from '../assets/video/hero-cartao-poster.png';
 import CapitalAdvisorSection from '../components/home/CapitalAdvisorSection';
+import PlanosSection from '../components/home/PlanosSection';
+import AmbientGlow from '../components/home/AmbientGlow';
+import FloatingFigures from '../components/home/FloatingFigures';
 
 /* =========================================================
    HOME — Capital Cycle
@@ -96,7 +101,7 @@ const PAGE_CSS = `
     background: rgba(0,0,0,0.13);
     -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
   }
-  .cch-menu a, .cch-menu button {
+  .cch-menu a {
     display: inline-flex; align-items: center; gap: 0.4rem;
     padding: 0.55rem 1.5rem;
     border: 0; background: transparent; cursor: pointer;
@@ -105,14 +110,9 @@ const PAGE_CSS = `
     border-radius: 9px; white-space: nowrap;
     transition: background 0.2s ease, color 0.2s ease;
   }
-  .cch-menu a:hover, .cch-menu button:hover { background: rgba(255,255,255,0.16); color: #fff; }
+  .cch-menu a:hover { background: rgba(255,255,255,0.16); color: #fff; }
   .cch-menu .is-active { background: #38383b; color: #fff; }
   .cch-menu .is-active:hover { background: #38383b; }
-  .cch-caret {
-    width: 0; height: 0; margin-top: 2px;
-    border-left: 4px solid transparent; border-right: 4px solid transparent;
-    border-top: 4.5px solid currentColor;
-  }
 
   .cch-login {
     display: inline-flex; align-items: center; justify-content: center;
@@ -302,7 +302,7 @@ const PAGE_CSS = `
   @media (max-width: 1280px) {
     .cch-nav { padding: 1.6rem 1.75rem 0; }
     .cch-inner { padding: 5.5rem 1.75rem 2rem; }
-    .cch-menu a, .cch-menu button { padding: 0.55rem 1rem; font-size: 0.88rem; }
+    .cch-menu a { padding: 0.55rem 1rem; font-size: 0.88rem; }
   }
   @media (max-width: 980px) {
     .cch-menu { display: none; }
@@ -462,21 +462,38 @@ const FEATURE_CARDS = [
 
 /* ---------- Navegação (reutilizada no Hero e nos Recursos) ---------- */
 
-function MainNav({ active = 'inicio' }) {
+const NAV_LINKS = [
+  { id: 'inicio', label: 'Início' },
+  { id: 'recursos', label: 'Recursos' },
+  { id: 'capital-advisor', label: 'Capital Advisor' },
+  { id: 'planos', label: 'Planos' },
+];
+
+function MainNav({ active = 'inicio', onNavigate }) {
   return (
     <header className="cch-nav">
       <div className="cch-logo-slot" aria-hidden="true" />
 
       <div className="cch-nav-right">
         <nav className="cch-menu" aria-label="Navegação principal">
-          <a href="#inicio" className={active === 'inicio' ? 'is-active' : undefined}>Início</a>
-          <a href="#recursos" className={active === 'recursos' ? 'is-active' : undefined}>Recursos</a>
-          <button type="button">Serviços <span className="cch-caret" aria-hidden="true" /></button>
-          <a href="#capital-advisor">Capital Advisor</a>
-          <a href="#planos">Planos</a>
+          {NAV_LINKS.map(({ id, label }) => (
+            <a
+              key={id}
+              href={`#${id}`}
+              className={active === id ? 'is-active' : undefined}
+              onClick={(e) => {
+                e.preventDefault();
+                onNavigate(id);
+              }}
+            >
+              {label}
+            </a>
+          ))}
         </nav>
 
-        <a className="cch-login" href="/login">Entrar</a>
+        {/* `from: 'home'` liga a transição de encolhimento do Login.
+            Sem esse state (URL digitada direto) a página abre estática. */}
+        <Link className="cch-login" to="/login" state={{ from: 'home' }}>Entrar</Link>
       </div>
     </header>
   );
@@ -485,6 +502,9 @@ function MainNav({ active = 'inicio' }) {
 /* ---------- Scroll pinado (progresso 0 → 1) ---------- */
 
 const clamp01 = (value) => Math.min(1, Math.max(0, value));
+
+/* Mesma curva padronizada no resto do projeto */
+const EASE = [0.16, 1, 0.3, 1];
 
 function useScrollStory(ref, enabled) {
   const [progress, setProgress] = useState(0);
@@ -504,24 +524,43 @@ function useScrollStory(ref, enabled) {
       target = runway > 0 ? clamp01(-rect.top / runway) : 0;
     };
 
+    // O laço se encerra quando a interpolação alcança o alvo e só volta a
+    // rodar no próximo scroll. Antes ele girava para sempre, re-renderizando
+    // a página inteira a cada frame mesmo com tudo parado.
     const tick = () => {
-      current += (target - current) * 0.22;
-      if (Math.abs(target - current) < 0.0006) current = target;
+      const delta = target - current;
+
+      if (Math.abs(delta) < 0.0006) {
+        current = target;
+        setProgress(current);
+        rafId = null;
+        return;
+      }
+
+      current += delta * 0.22;
       setProgress(current);
       rafId = requestAnimationFrame(tick);
     };
 
-    const onScroll = () => computeTarget();
+    const start = () => {
+      if (rafId === null) rafId = requestAnimationFrame(tick);
+    };
+
+    const onScroll = () => {
+      computeTarget();
+      start();
+    };
 
     computeTarget();
     current = target;
-    rafId = requestAnimationFrame(tick);
+    setProgress(current);
+
     window.addEventListener('scroll', onScroll, { passive: true });
     window.addEventListener('resize', onScroll);
     return () => {
       window.removeEventListener('scroll', onScroll);
       window.removeEventListener('resize', onScroll);
-      if (rafId) cancelAnimationFrame(rafId);
+      if (rafId !== null) cancelAnimationFrame(rafId);
     };
   }, [ref, enabled]);
 
@@ -540,6 +579,36 @@ function usePinnedStoryEnabled() {
   }, []);
 
   return enabled;
+}
+
+/* ---------- Navegação por âncora com rolagem suave ----------
+   O Hero e os Recursos vivem dentro do mesmo bloco "pinado", então a
+   posição deles no documento não corresponde ao que aparece na tela: os
+   Recursos só ficam visíveis no fim do runway de scroll da história.
+   Por isso o destino é calculado, e não delegado ao salto nativo da âncora. */
+
+function useSmoothScrollTo(storyRef, pinnedEnabled) {
+  return useCallback((id) => {
+    const behavior = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+      ? 'auto'
+      : 'smooth';
+
+    const story = storyRef.current;
+    let top;
+
+    if (id === 'inicio') {
+      top = 0;
+    } else if (id === 'recursos' && pinnedEnabled && story) {
+      // Fim do runway = transição concluída, Recursos totalmente visível.
+      top = story.offsetTop + Math.max(0, story.offsetHeight - window.innerHeight);
+    } else {
+      const el = document.getElementById(id);
+      if (!el) return;
+      top = el.getBoundingClientRect().top + window.scrollY;
+    }
+
+    window.scrollTo({ top, behavior });
+  }, [storyRef, pinnedEnabled]);
 }
 
 /* ---------- Revela ao entrar na viewport (uma única vez) ---------- */
@@ -582,6 +651,30 @@ export default function HomePage() {
   const pinnedEnabled = usePinnedStoryEnabled();
   const progress = useScrollStory(storyRef, pinnedEnabled);
   const [featsRef, featsInView] = useRevealOnScroll();
+  const scrollToSection = useSmoothScrollTo(storyRef, pinnedEnabled);
+
+  // Chegando pela animação de voltar do Login, a tela já está coberta de
+  // preto: aqui ela é revelada com um fade, em vez de a Home aparecer
+  // num corte seco.
+  const location = useLocation();
+  const [revealing, setRevealing] = useState(() => location.state?.from === 'login');
+
+  // A Home precisa abrir no topo. A história pinada é dirigida pelo scroll,
+  // então voltar (ou recarregar) com a página restaurada no meio dela deixa
+  // a tela num estado intermediário — camadas sobrepostas e a transição
+  // parada no meio, parecendo travada.
+  useEffect(() => {
+    const anterior = window.history.scrollRestoration;
+    if ('scrollRestoration' in window.history) {
+      window.history.scrollRestoration = 'manual';
+    }
+    window.scrollTo(0, 0);
+    return () => {
+      if ('scrollRestoration' in window.history) {
+        window.history.scrollRestoration = anterior;
+      }
+    };
+  }, []);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -646,10 +739,21 @@ export default function HomePage() {
     <>
       <style>{PAGE_CSS}</style>
 
+      {revealing && (
+        <motion.div
+          className="pointer-events-none fixed inset-0 z-[60] bg-[#05070e]"
+          initial={{ opacity: 1 }}
+          animate={{ opacity: 0 }}
+          transition={{ duration: 0.5, ease: EASE }}
+          onAnimationComplete={() => setRevealing(false)}
+          aria-hidden="true"
+        />
+      )}
+
       <div ref={storyRef} className={`cch-story ${pinnedEnabled ? '' : 'cch-story--static'}`}>
       <div className="cch-pin">
         <div className="cch-nav-wrap">
-          <MainNav active={activeNav} />
+          <MainNav active={activeNav} onNavigate={scrollToSection} />
         </div>
 
         <div className="cch-layers-viewport">
@@ -692,7 +796,7 @@ export default function HomePage() {
 
               <div className="cch-ctas">
                 <a className="cch-btn cch-btn-primary" href="/cadastro">Começar agora</a>
-                <a className="cch-btn cch-btn-ghost" href="/login">Já tenho conta</a>
+                <Link className="cch-btn cch-btn-ghost" to="/login" state={{ from: 'home' }}>Já tenho conta</Link>
               </div>
             </div>
 
@@ -719,7 +823,13 @@ export default function HomePage() {
         </div>
 
         <div className="cch cch-layer cch-recursos-layer">
-          <div className="cch-layer-bg" style={recBgStyle} aria-hidden="true" />
+          {/* A atmosfera vive DENTRO do fundo dos Recursos para herdar o
+              mesmo crossfade — assim ela nunca aparece por cima do vídeo
+              do cartão enquanto a transição acontece. */}
+          <div className="cch-layer-bg" style={recBgStyle} aria-hidden="true">
+            <AmbientGlow />
+            <FloatingFigures variant="sides" />
+          </div>
 
           <div className="cch-rec-inner" id="recursos" style={recContentStyle}>
             <span className="cch-rec-eyebrow">
@@ -737,7 +847,14 @@ export default function HomePage() {
               lançamento individual à inteligência financeira por IA.
             </p>
 
-            <a className="cch-rec-cta" href="#planos">
+            <a
+              className="cch-rec-cta"
+              href="#planos"
+              onClick={(e) => {
+                e.preventDefault();
+                scrollToSection('planos');
+              }}
+            >
               Ver planos
               <ArrowRightIcon />
             </a>
@@ -766,6 +883,8 @@ export default function HomePage() {
       </section>
 
       <CapitalAdvisorSection />
+
+      <PlanosSection />
     </>
   );
 }
