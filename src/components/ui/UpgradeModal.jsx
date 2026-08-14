@@ -2,6 +2,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Crown, ArrowRight, X } from 'lucide-react';
 import { GATES, getPlan } from './plans';
+import { useAuth } from '../../hooks/useAuth';
 
 /**
  * Modal reutilizável de "paywall": avisa que a funcionalidade não está no
@@ -13,6 +14,7 @@ import { GATES, getPlan } from './plans';
  */
 export default function UpgradeModal({ feature, open, onClose }) {
   const navigate = useNavigate();
+  const { userProfile } = useAuth();
   const gate = GATES[feature];
 
   if (!open || !gate) return null;
@@ -40,7 +42,12 @@ export default function UpgradeModal({ feature, open, onClose }) {
           <p className="text-sm text-slate-400 leading-relaxed">{gate.message}</p>
 
           <button
-            onClick={() => navigate('/cadastro')}
+            // Quem vê este modal já está logado: precisa entrar no fluxo de
+            // TROCA de plano. Sem `changePlan`, o cadastro tentaria criar
+            // uma conta nova com um e-mail que já existe.
+            onClick={() => navigate('/cadastro', {
+              state: { changePlan: true, currentPlan: userProfile?.plan || 'jovem' },
+            })}
             className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold transition-colors"
           >
             Fazer upgrade para {required.name}
