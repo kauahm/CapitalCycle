@@ -67,3 +67,10 @@ node_modules/
 
 # dataconnect generated files
 .dataconnect
+
+# JCN FreightOS (backend Python)
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.env
