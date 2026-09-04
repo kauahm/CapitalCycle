@@ -24,7 +24,7 @@ const CycleScene = lazy(() => import('./CycleScene'));
    roubar clique ou scroll.
    ========================================================= */
 
-export default function HeroCycle({ progress = 0, className = '' }) {
+export default function HeroCycle({ progress = 0, scrollDriven = true, className = '' }) {
   const tier = useHeroCapability();
 
   const wrapRef = useRef(null);
@@ -106,6 +106,7 @@ export default function HeroCycle({ progress = 0, className = '' }) {
               progressRef={progressRef}
               pointerRef={pointerRef}
               tier={tier}
+              scrollDriven={scrollDriven}
               running={running}
               onReady={() => setReady(true)}
             />

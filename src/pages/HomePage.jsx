@@ -226,7 +226,10 @@ const PAGE_CSS = `
   .cch-hero-layer { z-index: 1; }
   .cch-recursos-layer { z-index: 2; }
 
-  .cch-story.cch-story--static { height: auto; }
+  /* Sem o pin, a navbar deixa de flutuar sobre a Hero e passa a ocupar
+     espaço próprio acima dela. Sem esta cor o topo da página fica com
+     uma faixa clara emendada no cinza da Hero. */
+  .cch-story.cch-story--static { height: auto; background: #d8d8d6; }
   .cch-story--static .cch-pin {
     position: static; height: auto;
   }
@@ -611,7 +614,10 @@ export default function HomePage() {
     pointerEvents: recContentP < 0.1 ? 'none' : 'auto',
   } : undefined;
 
-  const activeNav = progress >= 0.74 ? 'recursos' : 'inicio';
+  // Sem o pin, `progress` é fixo em 1 (a história não tem runway). Ler
+  // esse 1 como "já chegou nos Recursos" marcava o item errado no menu
+  // com a Hero inteira na tela.
+  const activeNav = pinnedEnabled && progress >= 0.74 ? 'recursos' : 'inicio';
 
   return (
     <>

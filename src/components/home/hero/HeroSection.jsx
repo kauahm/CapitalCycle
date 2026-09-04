@@ -96,7 +96,7 @@ export default function HeroSection({ progress = 0, pinnedEnabled = true }) {
     <div className="cch cch-layer cch-hero-layer">
       <style>{HERO_CSS}</style>
 
-      <HeroCycle progress={p} />
+      <HeroCycle progress={p} scrollDriven={pinnedEnabled} />
 
       <div className="cch-inner" id="inicio">
         <div className="cch-left" style={textStyle}>

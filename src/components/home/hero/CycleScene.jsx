@@ -36,7 +36,7 @@ const lerp = (a, b, t) => a + (b - a) * t;
    No desktop a headline ocupa a metade esquerda; o objeto 3D nunca
    pode disputar espaço com ela. No 'lite' o layout vira coluna única
    e o ciclo passa a ser fundo, centralizado e acima do texto. */
-const SHIFT = { full: 1.62, lite: 0 };
+const SHIFT = { wide: 1.75, narrow: 0 };
 
 /* Percurso da câmera. Quatro marcos, um por estado da narrativa:
    1 aterrissagem · 2 primeiro scroll · 3 história · 4 transição. */
@@ -47,9 +47,14 @@ const CAM_FULL = [
   { p: 1.00, pos: [0.00, 7.70, 11.20], look: [0, 0.55, 0] },
 ];
 
+/* No layout estreito o alvo da câmera fica bem abaixo do anel, o que joga o
+   objeto para o terço superior da tela. Ali ele fica atrás da headline
+   — texto preto e enorme, que aguenta uma textura por trás — em vez de
+   atravessar a lista de fases, onde rótulos pequenos e cinzas perdem
+   legibilidade na hora. */
 const CAM_LITE = [
-  { p: 0.00, pos: [0, 4.40, 8.10], look: [0, 0.05, 0] },
-  { p: 1.00, pos: [0, 5.20, 7.80], look: [0, 0.32, 0] },
+  { p: 0.00, pos: [0, 4.40, 8.10], look: [0, -1.90, 0] },
+  { p: 1.00, pos: [0, 5.20, 7.80], look: [0, -1.62, 0] },
 ];
 
 function sampleCamera(keys, p, outPos, outLook) {
@@ -72,7 +77,20 @@ function sampleCamera(keys, p, outPos, outLook) {
 
 const NODE_COUNT = { full: 16, lite: 7 };
 
-function CycleRig({ progressRef, pointerRef, tier }) {
+/* Dois eixos independentes, que já foram confundidos uma vez:
+
+   `scrollDriven` é o eixo de LAYOUT — vem do mesmo media query que
+   liga a história pinada (>= 981px e sem prefers-reduced-motion).
+   Decide de onde vem o playhead e como a cena é enquadrada.
+
+   `tier` é o eixo de DESEMPENHO — vem do WebGL e do aparelho. Decide
+   só fidelidade: número de nós, DPR, antialias, segmentos.
+
+   Quando o tier decidia o playhead, um desktop largo com poucos
+   núcleos caía em 'lite': a fita rodava a própria linha do tempo
+   enquanto a coluna de fases seguia o scroll, e as duas contavam
+   histórias diferentes na mesma tela. */
+function CycleRig({ progressRef, pointerRef, tier, scrollDriven }) {
   const { camera } = useThree();
 
   const groupRef = useRef();
@@ -83,10 +101,12 @@ function CycleRig({ progressRef, pointerRef, tier }) {
   const shadowRef = useRef();
 
   const intro = useRef(0);
+  const clock = useRef(0);
   const eased = useRef(0);
   const pointer = useRef({ x: 0, y: 0 });
 
   const lite = tier === 'lite';
+  const wide = scrollDriven;
 
   /* ---------- Recursos da cena ----------
      Curvas, geometrias, materiais e textura são criados uma vez.
@@ -94,8 +114,11 @@ function CycleRig({ progressRef, pointerRef, tier }) {
      React reconstruiria a fita (320 segmentos × 4 vértices) e vazaria
      buffers de GPU. */
   const scene = useMemo(() => {
-    const cycleCurve = new CycleCurve(1.92, 0.13);
-    const growthCurve = new GrowthCurve(0.60, 2.05, 0.72);
+    const cycleCurve = new CycleCurve(1.68, 0.13);
+    // Mais baixa no layout estreito: em tela alta, a espiral cheia
+    // estoura o topo do enquadramento e parece cortada por acidente.
+    // (Altura é enquadramento, não fidelidade — por isso `wide`.)
+    const growthCurve = new GrowthCurve(0.60, wide ? 2.05 : 1.35, 0.72);
 
     const ringGeo = makeRibbonGeometry(cycleCurve, {
       segments: lite ? 190 : 340,
@@ -136,7 +159,7 @@ function CycleRig({ progressRef, pointerRef, tier }) {
       growthAnchor,
       growthTip: growthCurve.getPoint(1),
     };
-  }, [lite]);
+  }, [lite, wide]);
 
   // Descarta buffers de GPU e a textura quando a Hero sai de cena.
   useEffect(() => () => {
@@ -172,23 +195,29 @@ function CycleRig({ progressRef, pointerRef, tier }) {
     []
   );
 
-  const camKeys = lite ? CAM_LITE : CAM_FULL;
-  const shift = lite ? SHIFT.lite : SHIFT.full;
+  const camKeys = wide ? CAM_FULL : CAM_LITE;
+  const shift = wide ? SHIFT.wide : SHIFT.narrow;
 
   useFrame((state, delta) => {
-    const time = state.clock.elapsedTime;
     // `delta` pode explodir quando a aba volta do background; sem o
     // teto, tudo salta um trecho inteiro da narrativa de uma vez.
     const dt = Math.min(delta, 1 / 20);
 
+    /* Tempo próprio, acumulado a partir do dt já limitado — e não
+       `clock.elapsedTime`, que é relógio de parede e continua correndo
+       enquanto o laço está parado. Com ele, voltar à Hero depois de
+       meio minuto lendo os Planos faria a rotação e o pulso saltarem
+       o intervalo inteiro de uma vez. */
+    clock.current += dt;
+    const time = clock.current;
+
     /* ---- O playhead ----
-       No desktop vem do scroll pinado. No 'lite' o scroll pinado não
-       existe (o layout é estático abaixo de 981px), então a cena roda
-       a própria linha do tempo: acende uma vez na entrada e fica no
-       estado de repouso. Não é um loop — reiniciar do zero em
-       intervalos fixos chamaria atenção para si mesmo. */
+       No desktop vem do scroll pinado. Sem ele (layout estático abaixo
+       de 981px) a cena roda a própria linha do tempo: acende uma vez na
+       entrada e fica no estado de repouso. Não é um loop — reiniciar do
+       zero em intervalos fixos chamaria atenção para si mesmo. */
     let target;
-    if (lite) {
+    if (!wide) {
       intro.current += dt;
       const e = clamp01(intro.current / 5.5);
       target = (1 - Math.pow(1 - e, 3)) * 0.72;
@@ -207,7 +236,7 @@ function CycleRig({ progressRef, pointerRef, tier }) {
     const pt = pointerRef.current;
     pointer.current.x += (pt.x - pointer.current.x) * Math.min(1, dt * 3.2);
     pointer.current.y += (pt.y - pointer.current.y) * Math.min(1, dt * 3.2);
-    const parallax = lite ? 0 : 0.42 * (1 - smooth(p, 0.55, 1));
+    const parallax = wide ? 0.42 * (1 - smooth(p, 0.55, 1)) : 0;
     scratch.pos.x += pointer.current.x * parallax;
     scratch.pos.y += pointer.current.y * parallax * 0.55;
 
@@ -224,8 +253,30 @@ function CycleRig({ progressRef, pointerRef, tier }) {
 
     const group = groupRef.current;
     if (group) {
-      group.position.x = shift;
-      group.position.y = lite ? 0.3 : 0;
+      /* ---- Ajuste ao formato da tela ----
+         O enquadramento foi desenhado para uma viewport deitada. Numa
+         tela em pé (celular, ou uma janela estreita no desktop) a
+         largura visível encolhe muito mais rápido que a altura, e o
+         anel simplesmente não cabe: sobra só um pedaço dele na borda.
+         Em vez de mover a câmera — o que achataria a perspectiva — o
+         grupo inteiro é reduzido até caber. */
+      const aspect = state.size.width / Math.max(1, state.size.height);
+      const fit = Math.min(1, aspect / (wide ? 1.45 : 0.95));
+      const scale = Math.max(wide ? 0.6 : 0.42, fit);
+      group.scale.setScalar(scale);
+
+      /* O deslocamento lateral é medido em unidades de mundo, mas a
+         composição é uma fração da LARGURA da tela. Numa ultrawide a
+         largura visível cresce sem que o deslocamento cresça junto, e o
+         anel volta para o meio — em cima da headline. Daí a correção
+         proporcional ao aspecto, com teto para não jogar o objeto para
+         fora em telas absurdamente largas. */
+      const spread = Math.min(1.5, Math.max(0.85, aspect / 1.6));
+      group.position.x = shift * scale * spread;
+      // Um pouco abaixo do centro: a rotação de repouso muda a silhueta
+      // projetada ao longo do tempo, e sem essa folga o topo do anel
+      // acaba encostando na navbar em algumas voltas.
+      group.position.y = wide ? -0.45 : 0.3;
       // Rotação lenta de repouso + um giro extra dirigido pelo scroll.
       // Sem o termo do tempo o objeto congela quando ninguém rola;
       // sem o termo do scroll ele giraria "sozinho", que é exatamente
@@ -283,6 +334,9 @@ function CycleRig({ progressRef, pointerRef, tier }) {
       nodes.instanceMatrix.needsUpdate = true;
       if (nodes.instanceColor) nodes.instanceColor.needsUpdate = true;
       nodes.material.opacity = fade;
+      // Opacidade zero ainda custa a draw call; durante a transição para
+      // os Recursos não há motivo para pagá-la.
+      nodes.visible = fade > 0.01;
     }
   });
 
@@ -326,7 +380,7 @@ function CycleRig({ progressRef, pointerRef, tier }) {
   );
 }
 
-export default function CycleScene({ progressRef, pointerRef, tier, running, onReady }) {
+export default function CycleScene({ progressRef, pointerRef, tier, scrollDriven, running, onReady }) {
   return (
     <Canvas
       // `flat` = NoToneMapping. O ACES padrão do R3F lava as cores num
@@ -348,7 +402,12 @@ export default function CycleScene({ progressRef, pointerRef, tier, running, onR
       // entrar com fade por cima do fallback em vez de aparecer seco.
       onCreated={() => onReady?.()}
     >
-      <CycleRig progressRef={progressRef} pointerRef={pointerRef} tier={tier} />
+      <CycleRig
+        progressRef={progressRef}
+        pointerRef={pointerRef}
+        tier={tier}
+        scrollDriven={scrollDriven}
+      />
     </Canvas>
   );
 }

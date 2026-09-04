@@ -36,14 +36,17 @@ const HERO_CSS = `
   }
   .cchero-stage.is-ready .cchero-fallback { opacity: 0; }
 
+  /* O SVG ocupa a mesma zona que o anel 3D ocupa no desktop: à direita
+     da headline, mas antes da coluna de fases. Encostado na borda ele
+     passava por cima dos rótulos. */
   .cchero-fallback {
     display: flex; align-items: center; justify-content: flex-end;
-    padding-right: 6vw;
+    padding-right: 17vw;
   }
   .cchero-fallback svg {
-    width: min(52vw, 640px);
+    width: min(44vw, 560px);
     height: auto;
-    max-height: 82%;
+    max-height: 78%;
     opacity: 0.92;
   }
 
@@ -159,11 +162,11 @@ const HERO_CSS = `
        fases continua, agora na lista abaixo do CTA. */
     .cchero-fallback {
       justify-content: center; align-items: flex-start;
-      padding: 3.5rem 0 0;
+      padding: 2rem 0 0;
     }
-    .cchero-fallback svg { width: 90vw; max-height: 46%; opacity: 0.5; }
+    .cchero-fallback svg { width: 88vw; max-height: 38%; opacity: 0.42; }
     .cchero-canvas { opacity: 0; }
-    .cchero-canvas.is-ready { opacity: 0.6; }
+    .cchero-canvas.is-ready { opacity: 0.5; }
     .cchero-scrim {
       background: linear-gradient(
         180deg,
