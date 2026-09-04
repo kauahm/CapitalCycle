@@ -1,5 +1,9 @@
 import React, { useState, useEffect, createContext, useContext } from 'react';
-import { signInWithEmailAndPassword, signOut, onAuthStateChanged, createUserWithEmailAndPassword, updateProfile, signInWithPopup } from 'firebase/auth';
+import {
+  signInWithEmailAndPassword, signOut, onAuthStateChanged, createUserWithEmailAndPassword,
+  updateProfile, signInWithPopup, sendPasswordResetEmail, setPersistence,
+  browserLocalPersistence, browserSessionPersistence,
+} from 'firebase/auth';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db, googleProvider } from '../services/firebase';
 
@@ -40,8 +44,31 @@ export function AuthProvider({ children }) {
     return unsubscribe;
   }, []);
 
-  const login = (email, password) => signInWithEmailAndPassword(auth, email, password);
+  // `remember` controla a persistência da sessão: marcado, a sessão
+  // sobrevive ao fechamento do navegador (padrão do Firebase);
+  // desmarcado, ela dura só enquanto a aba estiver aberta.
+  const login = async (email, password, remember = true) => {
+    await setPersistence(auth, remember ? browserLocalPersistence : browserSessionPersistence);
+    const credencial = await signInWithEmailAndPassword(auth, email, password);
+
+    // Conta desativada pelo painel de Usuários: o listener de sessão já
+    // derruba o acesso, mas sem avisar nada. Aqui a recusa é explícita,
+    // para a tela de login conseguir explicar o que aconteceu.
+    const perfilSnap = await getDoc(doc(db, 'usuarios', credencial.user.uid));
+    if (perfilSnap.exists() && perfilSnap.data().situacao === 'inativa') {
+      await signOut(auth);
+      const erro = new Error('Esta conta está desativada.');
+      erro.code = 'auth/account-disabled';
+      throw erro;
+    }
+
+    return credencial;
+  };
+
   const logout = () => signOut(auth);
+
+  // Envia o e-mail de redefinição de senha (link "Esqueceu a senha?").
+  const resetPassword = (email) => sendPasswordResetEmail(auth, email);
 
   // Login via Google — apenas para quem JÁ tem conta (perfil já existe em 'usuarios').
   // Se for a primeira vez desse uid, desfaz o login (signOut) e recusa: contas novas
@@ -98,6 +125,9 @@ export function AuthProvider({ children }) {
       perfil: 'investidor',
       email,
       plan,
+      // Sem este campo a conta nasce sem situação definida e o painel de
+      // Usuários a exibe como inativa.
+      situacao: 'ativa',
       createdAt: serverTimestamp(),
     };
     await setDoc(doc(db, 'usuarios', user.uid), profile);
@@ -132,12 +162,20 @@ export function AuthProvider({ children }) {
     let profile;
     if (docSnap.exists()) {
       profile = docSnap.data();
+      // A conta Google já existia: como o pagamento acabou de ser feito
+      // para um plano específico, o plano precisa ser atualizado — senão
+      // a pessoa paga por um plano e continua no antigo.
+      if (plan && profile.plan !== plan) {
+        await setDoc(docRef, { plan }, { merge: true });
+        profile = { ...profile, plan };
+      }
     } else {
       profile = {
         nome: user.displayName || 'Usuário',
         perfil: 'investidor',
         email: user.email,
         plan: plan || 'jovem',
+        situacao: 'ativa',
         createdAt: serverTimestamp(),
       };
       await setDoc(docRef, profile);
@@ -179,6 +217,7 @@ export function AuthProvider({ children }) {
     changePlanWithPayment: changePlanWithPayment,
     login: login,
     loginWithGoogle: loginWithGoogle,
+    resetPassword: resetPassword,
     logout: logout,
     loading: loading,
   };

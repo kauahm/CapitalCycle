@@ -1,635 +1,890 @@
-import React, { useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { ArrowRight, BarChart3, RefreshCcw, Sparkles, Target } from 'lucide-react';
-import logoImg from '../assets/logo-topo.png';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { Link, useLocation } from 'react-router-dom';
+import { motion } from 'framer-motion';
+import { ArrowLeftRight, BarChart3, Clock, ShieldCheck } from 'lucide-react';
+
+import heroVideo from '../assets/video/hero-cartao.mp4';
+import heroVideoLoop from '../assets/video/hero-cartao-loop.mp4';
+import heroVideoPoster from '../assets/video/hero-cartao-poster.png';
 import CapitalAdvisorSection from '../components/home/CapitalAdvisorSection';
+import PlanosSection from '../components/home/PlanosSection';
+import AmbientGlow from '../components/home/AmbientGlow';
+import FloatingFigures from '../components/home/FloatingFigures';
 
+/* =========================================================
+   HOME — Capital Cycle
+   Hero (vídeo do cartão) faz uma transição estilo "Apple"
+   (scroll pinado, fade + slide) até a seção de Recursos.
+   ========================================================= */
 
-const GLOBAL_CSS = `
-  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,700;0,9..40,800;0,9..40,900&family=DM+Mono:wght@400;500&display=swap');
+const PAGE_CSS = `
+  .cch {
+    --cch-ink: #131316;
+    --cch-body: #3c3c40;
+    --cch-muted: #6d6d72;
+    --cch-purple: #8b7cf6;
+    --cch-purple-btn: #7c62f2;
+    --cch-purple-btn-dark: #6b4ff0;
+    --cch-purple-rec: #5358ee;
 
-  .cc-home * { box-sizing: border-box; margin: 0; padding: 0; }
-  .cc-home { font-family: 'DM Sans', sans-serif; background: #05070e; color: #fff; overflow-x: hidden; }
-
-  /* Nav */
-  .cc-nav {
-    position: fixed; top: 0; left: 0; right: 0; z-index: 50;
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 0 3rem; height: 68px;
-    background: rgba(5,7,14,0.8); backdrop-filter: blur(20px);
-    border-bottom: 1px solid rgba(255,255,255,0.06);
-  }
-  .cc-nav-logo {
-    font-size: 1rem; font-weight: 800; letter-spacing: -0.01em;
-    color: #fff; text-decoration: none; display: flex; align-items: center; gap: 10px;
-  }
-  .cc-nav-logo-sq {
-    width: 30px; height: 30px; background: #6366f1;
-    border-radius: 7px; display: flex; align-items: center; justify-content: center;
-    font-size: 0.9rem; line-height: 1;
-  }
-
-  .cc-nav-logo-img {
-    height: 62px; /* Ajuste o tamanho da sua logo aqui */
-    width: auto;
-    display: block;
-  }
-
-  .cc-nav-links { display: flex; gap: 2.5rem; }
-  .cc-nav-links a {
-    font-size: 0.82rem; font-weight: 500; color: rgba(255,255,255,0.45);
-    text-decoration: none; letter-spacing: 0.01em;
-    transition: color 0.2s;
-  }
-  .cc-nav-links a:hover { color: #fff; }
-
-  /* Container para os botões da direita */
-  .cc-nav-actions {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-  }
-
-  /* Botão Premium (Alto Contraste) */
-  .cc-btn-premium {
-    background: #ffffff;
-    color: #05070e; /* Texto escuro */
-    padding: 0.6rem 1.6rem;
-    border-radius: 8px;
-    font-weight: 700;
-    font-size: 0.85rem;
-    text-decoration: none;
-    transition: all 0.3s ease;
-    display: inline-flex; align-items: center; gap: 6px;
-    box-shadow: 0 4px 14px rgba(255,255,255,0.1);
-  }
-  .cc-btn-premium:hover {
-    background: #f0f0f0;
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(255,255,255,0.2);
-  }
-
-  /* Botão Ghost Premium */
-  .cc-btn-ghost {
-    background: transparent;
-    color: #ffffff;
-    padding: 0.6rem 1.6rem;
-    border-radius: 8px;
-    font-weight: 500;
-    font-size: 0.85rem;
-    text-decoration: none;
-    border: 1px solid rgba(255,255,255,0.2);
-    transition: all 0.3s ease;
-    display: inline-flex; align-items: center; gap: 6px;
-  }
-  .cc-btn-ghost:hover {
-    border-color: #ffffff;
-    background: rgba(255,255,255,0.05);
-  }
-  /* Botão Primário (CTA principal) */
-  .cc-btn-primary {
-    background: #6366f1; color: #fff;
-    padding: 0.6rem 1.6rem; border-radius: 8px;
-    font-weight: 700; font-size: 0.85rem; text-decoration: none;
-    transition: all 0.3s ease;
-    display: inline-flex; align-items: center; gap: 6px;
-  }
-  .cc-btn-primary:hover {
-    background: #4f46e5;
-    transform: translateY(-2px);
-  }
-  /* Hero */
-  .cc-hero {
-    min-height: 100vh; display: grid; grid-template-columns: 1fr 1fr;
-    align-items: center; gap: 2rem;
-    padding: 9rem 3rem 5rem; max-width: 1400px; margin: 0 auto;
-  }
-  .cc-hero-headline {
-    font-size: clamp(4rem, 7vw, 7.5rem);
-    font-weight: 900; line-height: 0.92;
-    letter-spacing: -0.04em; text-transform: uppercase;
-  }
-  .cc-hero-headline span { color: #6366f1; }
-
-  .cc-hero-sub {
-    font-size: 0.9rem; color: rgba(255,255,255,0.38); line-height: 1.7;
-    max-width: 380px; margin: 1.75rem 0 2.25rem;
-    font-weight: 400;
-  }
-  .cc-hero-ctas { display: flex; gap: 0.75rem; align-items: center; margin-bottom: 2.5rem; }
-
-  /* 3D Cards Visual */
-  .cc-cards-scene {
-    position: relative; height: 480px;
-    display: flex; align-items: center; justify-content: center;
-  }
-  .cc-card {
-    position: absolute; width: 300px; height: 180px;
-    border-radius: 20px; padding: 1.5rem;
-    display: flex; flex-direction: column; justify-content: space-between;
-    transition: transform 0.6s cubic-bezier(0.34,1.56,0.64,1);
-  }
-  .cc-card:hover { transform: var(--hover-transform) !important; }
-  .cc-card-back {
-    background: linear-gradient(135deg, #1c1f3a 0%, #2d2f6e 100%);
-    border: 1px solid rgba(99,102,241,0.25);
-    transform: rotate(-12deg) translateX(-40px) translateY(20px) perspective(800px) rotateY(12deg);
-    --hover-transform: rotate(-8deg) translateX(-30px) translateY(10px) perspective(800px) rotateY(6deg);
-    z-index: 1;
-  }
-  .cc-card-front {
-    background: linear-gradient(135deg, #6366f1 0%, #4338ca 60%, #3730a3 100%);
-    border: 1px solid rgba(255,255,255,0.15);
-    transform: rotate(-4deg) translateX(30px) translateY(-10px) perspective(800px) rotateY(-6deg);
-    --hover-transform: rotate(-1deg) translateX(20px) translateY(-15px) perspective(800px) rotateY(-3deg);
-    z-index: 2;
-    box-shadow: 0 40px 80px rgba(99,102,241,0.35), 0 10px 30px rgba(0,0,0,0.5);
-  }
-  .cc-card-shadow {
-    position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%);
-    width: 260px; height: 30px; z-index: 0;
-    background: radial-gradient(ellipse, rgba(99,102,241,0.3) 0%, transparent 70%);
-    filter: blur(8px);
-  }
-  .cc-card-chip {
-    width: 34px; height: 26px; border-radius: 5px;
-    background: linear-gradient(135deg, rgba(255,255,255,0.3), rgba(255,255,255,0.1));
-    border: 1px solid rgba(255,255,255,0.25);
-  }
-  .cc-card-chip-dark {
-    background: linear-gradient(135deg, rgba(99,102,241,0.4), rgba(99,102,241,0.15));
-    border: 1px solid rgba(99,102,241,0.3);
-  }
-  .cc-card-num {
-    font-family: 'DM Mono', monospace;
-    font-size: 0.75rem; letter-spacing: 0.18em; color: rgba(255,255,255,0.7);
-  }
-  .cc-card-label { font-size: 0.6rem; color: rgba(255,255,255,0.4); text-transform: uppercase; letter-spacing: 0.1em; }
-  .cc-card-value { font-size: 1.1rem; font-weight: 700; color: #fff; }
-  .cc-card-logo {
-    width: 36px; height: 22px; display: flex; align-items: center; gap: -4px;
-  }
-  .cc-card-logo span {
-    width: 22px; height: 22px; border-radius: 50%; display: block;
-  }
-  .cc-card-logo-a { background: rgba(255,255,255,0.5); }
-  .cc-card-logo-b { background: rgba(255,255,255,0.25); margin-left: -8px; }
-
-  /* Marquee divider */
-  .cc-marquee-wrap {
-    overflow: hidden; border-top: 1px solid rgba(255,255,255,0.06);
-    border-bottom: 1px solid rgba(255,255,255,0.06);
-    padding: 1.25rem 0; white-space: nowrap;
-  }
-  .cc-marquee-track {
-    display: inline-flex; gap: 0;
-    animation: marqueeScroll 24s linear infinite;
-  }
-  .cc-marquee-item {
-    display: inline-flex; align-items: center; gap: 1.25rem;
-    padding: 0 2.5rem; font-size: 0.72rem; font-weight: 700;
-    letter-spacing: 0.12em; text-transform: uppercase; color: rgba(255,255,255,0.2);
-  }
-  .cc-marquee-item span { color: #6366f1; font-size: 1.1rem; }
-  @keyframes marqueeScroll { from { transform: translateX(0); } to { transform: translateX(-50%); } }
-
-  /* Section: GESTÃO */
-  .cc-section-big { max-width: 1400px; margin: 0 auto; padding: 7rem 3rem; }
-  .cc-section-eyebrow {
-    font-size: 0.7rem; font-weight: 700; letter-spacing: 0.14em;
-    text-transform: uppercase; color: rgba(255,255,255,0.25); margin-bottom: 1.5rem;
-    display: flex; align-items: center; gap: 10px;
-  }
-  .cc-section-eyebrow::before {
-    content: ''; display: inline-block; width: 20px; height: 1px;
-    background: rgba(255,255,255,0.25);
-  }
-  .cc-gestao-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4rem; align-items: end; margin-bottom: 5rem; }
-  .cc-big-text {
-    font-size: clamp(3rem, 5.5vw, 5.5rem); font-weight: 900;
-    line-height: 0.93; letter-spacing: -0.04em; text-transform: uppercase;
-  }
-  .cc-gestao-right { padding-bottom: 0.5rem; }
-  .cc-gestao-desc {
-    font-size: 0.9rem; color: rgba(255,255,255,0.38); line-height: 1.75;
-    margin-bottom: 2rem; max-width: 380px;
-  }
-
-  /* Feature cards */
-  .cc-feat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.07); border-radius: 16px; overflow: hidden; }
-  .cc-feat-card {
-    background: #05070e; padding: 2rem 1.5rem;
-    transition: background 0.25s;
-    cursor: default;
-  }
-  .cc-feat-card:hover { background: #0c101e; }
-  .cc-feat-icon {
-    width: 44px; height: 44px; border-radius: 12px;
-    background: rgba(99,102,241,0.12); border: 1px solid rgba(99,102,241,0.2);
-    display: flex; align-items: center; justify-content: center;
-    color: #6366f1; margin-bottom: 1.25rem;
-  }
-  .cc-feat-title { font-size: 0.9rem; font-weight: 700; margin-bottom: 0.6rem; line-height: 1.3; }
-  .cc-feat-desc { font-size: 0.78rem; color: rgba(255,255,255,0.3); line-height: 1.6; }
-
-  /* Pricing */
-  .cc-pricing-wrap {
-    padding: 7rem 3rem;
-    max-width: 1400px;
-    margin: 0 auto;
-    display: flex; /* Adicionado para facilitar o alinhamento */
-    flex-direction: column;
-    align-items: center; /* Centraliza tudo dentro do wrap */
-  }.cc-pricing-header {
-    text-align: center;
-    margin-bottom: 4rem;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-  }
-  .cc-plans-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 1px;
-    background: rgba(255,255,255,0.07);
-    border: 1px solid rgba(255,255,255,0.07);
-    border-radius: 20px;
-    overflow: hidden;
-    max-width: 820px;
-    margin: 0 auto; /* Isso garante que a grid fique no centro */
+    position: relative;
+    min-height: 100vh;
     width: 100%;
+    overflow: hidden;
+    isolation: isolate;
+    background-color: #d8d8d8;
+    font-family: 'Inter', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    color: var(--cch-ink);
+    -webkit-font-smoothing: antialiased;
   }
-  .cc-plan { background: #05070e; padding: 3rem; transition: background 0.25s; }
-  .cc-plan:hover { background: #080b16; }
-  .cc-plan.featured { background: #0f1128; }
-  .cc-plan-tag {
-    font-size: 0.62rem; font-weight: 800; letter-spacing: 0.14em;
-    text-transform: uppercase; color: rgba(255,255,255,0.25);
-    margin-bottom: 2rem; display: flex; align-items: center; gap: 8px;
-  }
-  .cc-plan-tag-badge {
-    background: rgba(99,102,241,0.15); color: #a5b4fc;
-    border: 1px solid rgba(99,102,241,0.25); border-radius: 100px;
-    padding: 0.15rem 0.6rem; font-size: 0.6rem;
-  }
-  .cc-plan-price { margin-bottom: 0.5rem; display: flex; align-items: baseline; gap: 4px; }
-  .cc-plan-currency { font-size: 1.25rem; font-weight: 700; color: rgba(255,255,255,0.4); margin-top: 8px; }
-  .cc-plan-val {
-    font-family: 'DM Mono', monospace; font-size: 5rem; font-weight: 500;
-    letter-spacing: -0.05em; line-height: 1; color: #fff;
-  }
-  .cc-plan-period { font-size: 0.8rem; color: rgba(255,255,255,0.25); align-self: flex-end; margin-bottom: 8px; }
-  .cc-plan-desc { font-size: 0.8rem; color: rgba(255,255,255,0.28); line-height: 1.6; margin-bottom: 2.5rem; }
-  .cc-plan-cta {
-    display: block; width: 100%; text-align: center;
-    padding: 0.85rem 1.5rem; border-radius: 10px;
-    font-weight: 700; font-size: 0.85rem; text-decoration: none;
-    margin-bottom: 2.5rem; transition: opacity 0.2s, transform 0.2s;
-  }
-  .cc-plan-cta:hover { opacity: 0.85; transform: translateY(-2px); }
-  .cc-cta-filled { background: #6366f1; color: #fff; }
-  .cc-cta-outline { background: transparent; color: rgba(255,255,255,0.7); border: 1px solid rgba(255,255,255,0.15); }
-  .cc-plan-divider { border: none; border-top: 1px solid rgba(255,255,255,0.06); margin: 0 0 2rem; }
-  .cc-plan-feats { list-style: none; display: flex; flex-direction: column; gap: 0.8rem; }
-  .cc-plan-feats li { display: flex; align-items: flex-start; gap: 10px; font-size: 0.82rem; color: rgba(255,255,255,0.38); }
-  .cc-feat-check { color: #22d3a0; flex-shrink: 0; font-size: 0.8rem; margin-top: 1px; }
+  .cch *, .cch *::before, .cch *::after { box-sizing: border-box; }
 
-  /* Footer */
-  .cc-footer {
-    border-top: 1px solid rgba(255,255,255,0.06);
-    padding: 2.5rem 3rem; display: flex; justify-content: space-between; align-items: center;
-    max-width: 1400px; margin: 0 auto;
+  /* ---------- Fundo (vídeo) ---------- */
+  .cch-video-bg {
+    position: absolute; inset: 0; z-index: 0; pointer-events: none;
+    width: 100%; height: 100%;
+    object-fit: cover; object-position: center 45%;
+    background: #d8d8d8;
+    opacity: 1;
+    transition: opacity 0.2s linear;
   }
-  .cc-footer-logo { font-size: 0.85rem; font-weight: 800; display: flex; align-items: center; gap: 8px; color: rgba(255,255,255,0.3); text-decoration: none; }
-  .cc-footer-links { display: flex; gap: 2rem; }
-  .cc-footer-links a { font-size: 0.75rem; color: rgba(255,255,255,0.2); text-decoration: none; transition: color 0.2s; }
-  .cc-footer-links a:hover { color: rgba(255,255,255,0.5); }
-  .cc-copy { font-size: 0.75rem; color: rgba(255,255,255,0.15); }
-
-  /* Fade in */
-  .cc-fadein { opacity: 0; transform: translateY(28px); transition: opacity 0.8s ease, transform 0.8s ease; }
-  .cc-fadein.visible { opacity: 1; transform: translateY(0); }
-
-  @media (max-width: 1024px) {
-    .cc-hero { grid-template-columns: 1fr; padding: 8rem 1.5rem 4rem; min-height: auto; gap: 4rem; }
-    .cc-cards-scene { height: 320px; }
-    .cc-card { width: 240px; height: 145px; }
-    .cc-gestao-grid { grid-template-columns: 1fr; gap: 2rem; margin-bottom: 3rem; }
-    .cc-feat-grid { grid-template-columns: 1fr 1fr; }
-    .cc-plans-grid { grid-template-columns: 1fr; max-width: 420px; }
-    .cc-nav-links { display: none; }
-    .cc-footer { flex-direction: column; gap: 1.5rem; text-align: center; }
-    .cc-footer-links { flex-wrap: wrap; justify-content: center; }
+  .cch-video-bg.cch-video-bg--loop {
+    opacity: 0;
   }
-  @media (max-width: 640px) {
-    .cc-feat-grid { grid-template-columns: 1fr; }
-    .cc-hero-headline { font-size: 3.5rem; }
-    .cc-big-text { font-size: 3rem; }
-    .cc-section-big, .cc-pricing-wrap { padding: 5rem 1.5rem; }
+  .cch-video-bg.cch-video-bg--loop.is-active {
+    opacity: 1;
+  }
+  .cch-video-bg.cch-video-bg--hidden {
+    opacity: 0;
+  }
+  .cch-scrim {
+    position: absolute; inset: 0; z-index: 1; pointer-events: none;
+    background: linear-gradient(
+      92deg,
+      rgba(216,216,214,0.86) 0%,
+      rgba(216,216,214,0.62) 20%,
+      rgba(216,216,214,0.2) 40%,
+      rgba(216,216,214,0.12) 60%,
+      rgba(216,216,214,0.58) 80%,
+      rgba(216,216,214,0.8) 100%
+    );
+  }
+  .cch-scrim::after {
+    content: ''; position: absolute; inset: -20%;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)'/%3E%3C/svg%3E");
+    opacity: 0.08; mix-blend-mode: overlay;
+  }
+
+  /* ---------- Navbar ---------- */
+  .cch-nav {
+    position: relative; z-index: 20;
+    display: flex; align-items: center; justify-content: space-between; gap: 1.5rem;
+    padding: 1.9rem 3.2rem 0;
+    max-width: 1980px; margin: 0 auto;
+  }
+
+  .cch-logo-slot {
+    flex: none;
+    /* Espaço reservado para a logo da marca */
+    min-width: 3rem; min-height: 2.5rem;
+  }
+
+  .cch-nav-right {
+    display: flex; align-items: center; gap: 0.9rem;
+    margin-left: auto;
+  }
+
+  .cch-menu {
+    display: flex; align-items: center; gap: 0.3rem;
+    padding: 0.45rem;
+    border-radius: 14px;
+    background: rgba(0,0,0,0.13);
+    -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
+  }
+  .cch-menu a {
+    display: inline-flex; align-items: center; gap: 0.4rem;
+    padding: 0.55rem 1.5rem;
+    border: 0; background: transparent; cursor: pointer;
+    font-family: inherit; font-size: 0.93rem; font-weight: 700;
+    color: rgba(255,255,255,0.78); text-decoration: none;
+    border-radius: 9px; white-space: nowrap;
+    transition: background 0.2s ease, color 0.2s ease;
+  }
+  .cch-menu a:hover { background: rgba(255,255,255,0.16); color: #fff; }
+  .cch-menu .is-active { background: #38383b; color: #fff; }
+  .cch-menu .is-active:hover { background: #38383b; }
+
+  .cch-login {
+    display: inline-flex; align-items: center; justify-content: center;
+    padding: 0.82rem 1.9rem;
+    background: #0b0b0d; color: #fff;
+    font-family: inherit; font-size: 0.93rem; font-weight: 700;
+    border: 0; border-radius: 11px; cursor: pointer; text-decoration: none;
+    white-space: nowrap;
+    transition: transform 0.2s ease, background 0.2s ease;
+  }
+  .cch-login:hover { background: #000; transform: translateY(-1px); }
+
+  /* ---------- Conteúdo (Hero) ---------- */
+  .cch-inner {
+    position: relative; z-index: 10;
+    max-width: 1980px; margin: 0 auto;
+    padding: 7rem 3.2rem 2.5rem;
+    display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+    align-items: center;
+    gap: 3rem;
+    min-height: calc(100vh - 6.5rem);
+  }
+
+  .cch-left { display: flex; flex-direction: column; }
+  .cch-title {
+    margin: 0;
+    font-size: clamp(2.8rem, 5.4vw, 7.4rem);
+    line-height: 1.04;
+    font-weight: 900;
+    letter-spacing: -0.03em;
+    text-transform: uppercase;
+    color: #131316;
+  }
+  .cch-title span { display: block; }
+  .cch-title .cch-accent { color: var(--cch-purple); }
+
+  .cch-lead {
+    margin: 2rem 0 0;
+    max-width: 28.6rem;
+    font-size: 1.1rem; line-height: 1.52; font-weight: 400;
+    color: var(--cch-body);
+  }
+  .cch-ctas { display: flex; flex-wrap: wrap; gap: 1.1rem; margin-top: 2.1rem; }
+  .cch-btn {
+    display: inline-flex; align-items: center; justify-content: center;
+    padding: 1.05rem 2.6rem; border: 0; border-radius: 12px;
+    font-family: inherit; font-size: 0.98rem; font-weight: 700;
+    cursor: pointer; text-decoration: none; white-space: nowrap;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+  }
+  .cch-btn-primary {
+    background: linear-gradient(180deg, var(--cch-purple-btn) 0%, var(--cch-purple-btn-dark) 100%);
+    color: #fff;
+    box-shadow: 0 12px 28px rgba(108,79,240,0.26);
+  }
+  .cch-btn-primary:hover { transform: translateY(-2px); box-shadow: 0 16px 34px rgba(108,79,240,0.34); }
+  .cch-btn-ghost {
+    background: rgba(0,0,0,0.13); color: #fff;
+    -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+  }
+  .cch-btn-ghost:hover { background: rgba(0,0,0,0.2); transform: translateY(-2px); }
+
+  /* ---------- Coluna direita (Hero) ---------- */
+  .cch-right {
+    display: flex; flex-direction: column; align-items: flex-end;
+    text-align: right;
+  }
+  .cch-stat + .cch-stat { margin-top: 2.4rem; }
+  .cch-stat-label {
+    display: flex; align-items: center; justify-content: flex-end; gap: 0.5rem;
+    font-size: 0.85rem; font-weight: 700; letter-spacing: 0.1em;
+    text-transform: uppercase; color: #2c2c30;
+  }
+  .cch-dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--cch-purple); flex: none;
+  }
+  .cch-stat-value {
+    display: block; margin-top: 0.6rem;
+    font-size: clamp(1.9rem, 2.7vw, 3rem);
+    font-weight: 800; letter-spacing: -0.03em; line-height: 1; color: #131316;
+  }
+
+  /* ---------- Scroll hint ---------- */
+  .cch-scroll {
+    position: absolute; left: 50%; bottom: 1rem; transform: translateX(-50%);
+    z-index: 15;
+    display: flex; flex-direction: column; align-items: center; gap: 0.6rem;
+    color: #4d4d52; text-align: center;
+    font-size: 0.9rem; line-height: 1.3;
+  }
+  .cch-mouse { animation: cch-float 2.4s ease-in-out infinite; }
+  @keyframes cch-float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(5px); }
+  }
+
+  /* ---------- Recursos (2ª seção) ---------- */
+  .cch-recursos-layer {
+    background: none;
+  }
+  .cch-layer-bg {
+    position: absolute; inset: 0; z-index: 0; pointer-events: none;
+    background-color: #f4f5f7;
+  }
+  .cch-rec-inner {
+    position: relative; z-index: 10;
+    max-width: 1980px; margin: 0 auto;
+    min-height: calc(100vh - 6.5rem);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    text-align: center;
+    padding: 7rem 3.2rem 3.2rem;
+  }
+  .cch-rec-eyebrow {
+    display: inline-flex; align-items: center; gap: 0.5rem;
+    font-size: 0.85rem; font-weight: 700; letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--cch-purple-rec);
+  }
+  .cch-dot--rec { background: var(--cch-purple-rec); }
+  .cch-rec-title {
+    margin: 1.4rem 0 0;
+    max-width: 46rem;
+    font-size: clamp(2.8rem, 5.4vw, 7.4rem);
+    line-height: 1.04;
+    font-weight: 900;
+    letter-spacing: -0.03em;
+    text-transform: uppercase;
+    color: var(--cch-ink);
+  }
+  .cch-rec-title span { display: block; }
+  .cch-rec-title .cch-accent-rec { color: var(--cch-purple-rec); }
+  .cch-rec-lead {
+    margin: 2rem 0 0;
+    max-width: 34rem;
+    font-size: 1.1rem; line-height: 1.52; font-weight: 400;
+    color: var(--cch-body);
+  }
+  .cch-rec-cta {
+    display: inline-flex; align-items: center; gap: 0.6rem;
+    margin-top: 2.3rem;
+    padding: 1.05rem 1.9rem 1.05rem 2.3rem;
+    background: #0f1216; color: #fff;
+    font-family: inherit; font-size: 0.98rem; font-weight: 700;
+    border-radius: 999px; text-decoration: none; white-space: nowrap;
+    transition: transform 0.2s ease, background 0.2s ease;
+  }
+  .cch-rec-cta:hover { background: #000; transform: translateY(-2px); }
+  .cch-rec-arrow { width: 18px; height: 18px; flex: none; }
+
+  /* ---------- Transição "Apple" (scroll pinado) ---------- */
+  .cch-story {
+    position: relative;
+    height: 180vh;
+  }
+  .cch-pin {
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow: hidden;
+  }
+  .cch-nav-wrap {
+    position: absolute; top: 0; left: 0; right: 0; z-index: 30;
+  }
+  .cch-layers-viewport {
+    position: absolute; inset: 0; z-index: 0;
+  }
+  .cch-layer {
+    position: absolute; inset: 0;
+    pointer-events: none;
+  }
+  .cch-hero-layer { z-index: 1; }
+  .cch-recursos-layer { z-index: 2; }
+
+  .cch-story.cch-story--static { height: auto; }
+  .cch-story--static .cch-pin {
+    position: static; height: auto;
+  }
+  .cch-story--static .cch-nav-wrap { position: relative; }
+  .cch-story--static .cch-layers-viewport { position: static; }
+  .cch-story--static .cch-layer {
+    position: relative; inset: auto;
+    min-height: 100vh;
+    pointer-events: auto;
+  }
+
+  /* ---------- Responsivo ---------- */
+  @media (max-width: 1280px) {
+    .cch-nav { padding: 1.6rem 1.75rem 0; }
+    .cch-inner { padding: 5.5rem 1.75rem 2rem; }
+    .cch-menu a { padding: 0.55rem 1rem; font-size: 0.88rem; }
+  }
+  @media (max-width: 980px) {
+    .cch-menu { display: none; }
+    .cch-inner {
+      grid-template-columns: 1fr; gap: 2.5rem;
+      padding: 4.5rem 1.5rem 2.5rem;
+      min-height: 0;
+    }
+    .cch-right { align-items: flex-start; text-align: left; }
+    .cch-stat-label { justify-content: flex-start; }
+    .cch-scroll {
+      position: relative; left: auto; bottom: auto; transform: none;
+      margin: 1rem auto 2rem; width: max-content;
+    }
+    /* Em coluna única o vídeo fica só como textura ambiente,
+       sem "janela" central, para não brigar com o texto. */
+    .cch-video-bg { opacity: 0.4; filter: blur(1px); }
+    .cch-scrim { background: rgba(216,216,214,0.85); }
+    .cch-scrim::after { opacity: 0.14; }
+    .cch-rec-inner { min-height: 0; padding: 5rem 1.5rem 3rem; }
+  }
+  @media (max-width: 560px) {
+    .cch-nav { padding: 1.1rem 1.25rem 0; }
+    .cch-login { padding: 0.7rem 1.3rem; font-size: 0.88rem; }
+    .cch-lead { margin-top: 1.6rem; }
+    .cch-ctas { gap: 0.75rem; margin-top: 1.6rem; }
+    .cch-btn { flex: 1 1 auto; padding: 0.95rem 1.2rem; font-size: 0.92rem; }
+    .cch-stat + .cch-stat { margin-top: 2rem; }
+    .cch-rec-cta { padding: 0.9rem 1.6rem 0.9rem 2rem; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .cch-mouse { animation: none; }
+    .cch *, .cch *::before, .cch *::after { transition: none !important; }
+  }
+
+  /* ---------- Recursos em destaque (cards) ---------- */
+  .cch-feats {
+    position: relative;
+    background: #f4f5f7;
+    padding: 5rem 3.2rem 6rem;
+  }
+  .cch-feats-inner {
+    max-width: 54rem; margin: 0 auto;
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 1.15rem;
+  }
+  .cch-feat-card {
+    background: #fff;
+    border-radius: 1.4rem;
+    padding: 1.9rem;
+    box-shadow: 0 24px 48px rgba(19,19,22,0.05);
+    opacity: 0;
+    transform: translateY(40px);
+    transition: opacity 0.8s cubic-bezier(0.16,1,0.3,1), transform 0.8s cubic-bezier(0.16,1,0.3,1);
+    will-change: opacity, transform;
+  }
+  .cch-feat-card.is-in {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  .cch-feat-card--dark {
+    background: #0f1216;
+  }
+  .cch-feat-icon {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 2.75rem; height: 2.75rem;
+    border-radius: 0.8rem;
+    background: rgba(83,88,238,0.12);
+    color: #5358ee;
+    margin-bottom: 1.25rem;
+  }
+  .cch-feat-icon svg { width: 1.15rem; height: 1.15rem; }
+  .cch-feat-card--dark .cch-feat-icon {
+    background: #5358ee;
+    color: #fff;
+  }
+  .cch-feat-title {
+    margin: 0 0 0.55rem;
+    font-size: 1.15rem;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+    color: #131316;
+  }
+  .cch-feat-card--dark .cch-feat-title { color: #fff; }
+  .cch-feat-desc {
+    margin: 0;
+    max-width: 24rem;
+    font-size: 0.88rem;
+    line-height: 1.5;
+    color: #6d6d72;
+  }
+  .cch-feat-card--dark .cch-feat-desc { color: rgba(255,255,255,0.6); }
+
+  @media (max-width: 1280px) {
+    .cch-feats { padding: 4.5rem 1.75rem 5rem; }
+  }
+  @media (max-width: 900px) {
+    .cch-feats-inner { grid-template-columns: 1fr; gap: 1rem; }
+    .cch-feat-card { padding: 1.75rem; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .cch-feat-card {
+      transition: none !important;
+      opacity: 1 !important;
+      transform: none !important;
+    }
   }
 `;
 
-/* ─────────────────────────────────────────────
-   COMPONENTES INTERNOS
-───────────────────────────────────────────── */
+/* ---------- Ícones ---------- */
 
-function FloatingCards() {
+function MouseIcon() {
   return (
-    <div className="cc-cards-scene">
-      {/* Card de trás */}
-      <div className="cc-card cc-card-back">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-          <div className="cc-card-chip cc-card-chip-dark" />
-          <div style={{ textAlign: 'right' }}>
-            <div className="cc-card-label">Ciclo Ativo</div>
-            <div className="cc-card-value" style={{ fontSize: '0.85rem' }}>Agosto 2026</div>
-          </div>
-        </div>
-        <div>
-          <div className="cc-card-num">•••• •••• •••• 2034</div>
-          <div className="cc-card-label" style={{ marginTop: '4px' }}>Capital Cycle</div>
-        </div>
-      </div>
-
-      {/* Card da frente */}
-      <div className="cc-card cc-card-front">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-          <div className="cc-card-chip" />
-          <div className="cc-card-logo">
-            <span className="cc-card-logo-a" />
-            <span className="cc-card-logo-b" />
-          </div>
-        </div>
-        <div>
-          <div className="cc-card-label">Saldo Consolidado</div>
-          <div className="cc-card-value">R$ 18.240,00</div>
-          <div style={{ display: 'flex', gap: '1.5rem', marginTop: '0.35rem' }}>
-            <div>
-              <div className="cc-card-label">Entradas/mês</div>
-              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: '0.75rem', color: '#22d3a0', fontWeight: 600 }}>+R$ 6.800</div>
-            </div>
-            <div>
-              <div className="cc-card-label">Saídas/mês</div>
-              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: '0.75rem', color: '#f87171', fontWeight: 600 }}>-R$ 2.340</div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Sombra de elevação */}
-      <div className="cc-card-shadow" />
-    </div>
+    <svg className="cch-mouse" width="28" height="43" viewBox="0 0 38 58" fill="none"
+      stroke="currentColor" strokeWidth="2" aria-hidden="true">
+      <rect x="1.5" y="1.5" width="35" height="55" rx="17.5" />
+      <path d="M19 13v10" strokeLinecap="round" />
+    </svg>
   );
 }
 
-const FEATURES = [
+function ArrowRightIcon() {
+  return (
+    <svg className="cch-rec-arrow" viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M5 12h14" />
+      <path d="M13 6l6 6-6 6" />
+    </svg>
+  );
+}
+
+/* ---------- Cards de recursos em destaque ---------- */
+
+const FEATURE_CARDS = [
   {
-    icon: <BarChart3 size={20} />,
     title: 'Dashboard Financeiro',
-    desc: 'Saldo consolidado de todas as contas com indicadores de fluxo em tempo real.'
+    desc: 'Saldo consolidado de todas as contas com indicadores de fluxo em tempo real.',
+    Icon: BarChart3,
   },
   {
-    icon: <RefreshCcw size={20} />,
     title: 'Transações Inteligentes',
-    desc: 'Registre entradas e saídas com categorias, filtros avançados e histórico completo.'
+    desc: 'Registre entradas e saídas com categorias, filtros avançados e histórico completo.',
+    Icon: ArrowLeftRight,
   },
   {
-    icon: <Target size={20} />,
     title: 'Ciclos de Investimento',
-    desc: 'Metas de orçamento por período com progresso calculado automaticamente.'
+    desc: 'Metas de orçamento por período com progresso calculado automaticamente.',
+    Icon: Clock,
   },
   {
-    icon: <Sparkles size={20} />,
     title: 'Capital Advisor',
-    desc: 'Análise dos seus dados financeiros em linguagem natural, direto no aplicativo.'
+    desc: 'Análise dos seus dados financeiros em linguagem natural, direto no aplicativo.',
+    Icon: ShieldCheck,
+    dark: true,
   },
 ];
 
-const PLANS = [
-  {
-    id: 'jovem',
-    name: 'Jovem',
-    price: '19,90',
-    desc: 'Para quem está começando a organizar as finanças com controle prático.',
-    cta: 'Começar com o Jovem',
-    ctaClass: 'cc-cta-outline',
-    featured: false,
-    feats: [
-      'Dashboard financeiro completo',
-      'Transações ilimitadas',
-      'Até 3 contas bancárias',
-      'Ciclos de investimento (2 ativos)',
-      'Capital Advisor — 50 consultas/mês',
-      'Sincronização em tempo real',
-    ]
-  },
-  {
-    id: 'adulto',
-    name: 'Adulto',
-    price: '47,90',
-    desc: 'Controle avançado com IA ilimitada, múltiplas contas e relatórios completos.',
-    cta: 'Começar com o Adulto',
-    ctaClass: 'cc-cta-filled',
-    featured: true,
-    badge: 'Mais popular',
-    feats: [
-      'Tudo do plano Jovem',
-      'Contas bancárias ilimitadas',
-      'Ciclos de investimento ilimitados',
-      'Capital Advisor — consultas ilimitadas',
-      'Relatórios exportáveis PDF/CSV',
-      'Análise comparativa de períodos',
-      'Suporte prioritário',
-    ]
-  },
+/* ---------- Navegação (reutilizada no Hero e nos Recursos) ---------- */
+
+const NAV_LINKS = [
+  { id: 'inicio', label: 'Início' },
+  { id: 'recursos', label: 'Recursos' },
+  { id: 'capital-advisor', label: 'Capital Advisor' },
+  { id: 'planos', label: 'Planos' },
 ];
 
-const MARQUEE_ITEMS = [
-  'Dashboard em tempo real', 'Capital Advisor', 'Ciclos de investimento',
-  'Contas bancárias', 'Análise de fluxo', 'Transações inteligentes',
-  'Relatórios automáticos', 'Segurança de dados',
-];
+function MainNav({ active = 'inicio', onNavigate }) {
+  return (
+    <header className="cch-nav">
+      <div className="cch-logo-slot" aria-hidden="true" />
 
-/* ─────────────────────────────────────────────
-   COMPONENTE PRINCIPAL
-───────────────────────────────────────────── */
-export default function HomePage() {
-  // Injeta CSS global
+      <div className="cch-nav-right">
+        <nav className="cch-menu" aria-label="Navegação principal">
+          {NAV_LINKS.map(({ id, label }) => (
+            <a
+              key={id}
+              href={`#${id}`}
+              className={active === id ? 'is-active' : undefined}
+              onClick={(e) => {
+                e.preventDefault();
+                onNavigate(id);
+              }}
+            >
+              {label}
+            </a>
+          ))}
+        </nav>
+
+        {/* `from: 'home'` liga a transição de encolhimento do Login.
+            Sem esse state (URL digitada direto) a página abre estática. */}
+        <Link className="cch-login" to="/login" state={{ from: 'home' }}>Entrar</Link>
+      </div>
+    </header>
+  );
+}
+
+/* ---------- Scroll pinado (progresso 0 → 1) ---------- */
+
+const clamp01 = (value) => Math.min(1, Math.max(0, value));
+
+/* Mesma curva padronizada no resto do projeto */
+const EASE = [0.16, 1, 0.3, 1];
+
+function useScrollStory(ref, enabled) {
+  const [progress, setProgress] = useState(0);
+
   useEffect(() => {
-    const styleEl = document.createElement('style');
-    styleEl.setAttribute('data-cc-home', '1');
-    styleEl.textContent = GLOBAL_CSS;
-    document.head.appendChild(styleEl);
-    return () => styleEl.remove();
+    if (!enabled) return;
+    const el = ref.current;
+    if (!el) return;
+
+    let rafId = null;
+    let target = 0;
+    let current = 0;
+
+    const computeTarget = () => {
+      const rect = el.getBoundingClientRect();
+      const runway = el.offsetHeight - window.innerHeight;
+      target = runway > 0 ? clamp01(-rect.top / runway) : 0;
+    };
+
+    // O laço se encerra quando a interpolação alcança o alvo e só volta a
+    // rodar no próximo scroll. Antes ele girava para sempre, re-renderizando
+    // a página inteira a cada frame mesmo com tudo parado.
+    const tick = () => {
+      const delta = target - current;
+
+      if (Math.abs(delta) < 0.0006) {
+        current = target;
+        setProgress(current);
+        rafId = null;
+        return;
+      }
+
+      current += delta * 0.22;
+      setProgress(current);
+      rafId = requestAnimationFrame(tick);
+    };
+
+    const start = () => {
+      if (rafId === null) rafId = requestAnimationFrame(tick);
+    };
+
+    const onScroll = () => {
+      computeTarget();
+      start();
+    };
+
+    computeTarget();
+    current = target;
+    setProgress(current);
+
+    window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', onScroll);
+    return () => {
+      window.removeEventListener('scroll', onScroll);
+      window.removeEventListener('resize', onScroll);
+      if (rafId !== null) cancelAnimationFrame(rafId);
+    };
+  }, [ref, enabled]);
+
+  return enabled ? progress : 1;
+}
+
+function usePinnedStoryEnabled() {
+  const [enabled, setEnabled] = useState(true);
+
+  useEffect(() => {
+    const media = window.matchMedia('(min-width: 981px) and (prefers-reduced-motion: no-preference)');
+    const sync = () => setEnabled(media.matches);
+    sync();
+    media.addEventListener('change', sync);
+    return () => media.removeEventListener('change', sync);
   }, []);
 
-  // Observer para fade-in ao scroll
+  return enabled;
+}
+
+/* ---------- Navegação por âncora com rolagem suave ----------
+   O Hero e os Recursos vivem dentro do mesmo bloco "pinado", então a
+   posição deles no documento não corresponde ao que aparece na tela: os
+   Recursos só ficam visíveis no fim do runway de scroll da história.
+   Por isso o destino é calculado, e não delegado ao salto nativo da âncora. */
+
+function useSmoothScrollTo(storyRef, pinnedEnabled) {
+  return useCallback((id) => {
+    const behavior = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+      ? 'auto'
+      : 'smooth';
+
+    const story = storyRef.current;
+    let top;
+
+    if (id === 'inicio') {
+      top = 0;
+    } else if (id === 'recursos' && pinnedEnabled && story) {
+      // Fim do runway = transição concluída, Recursos totalmente visível.
+      top = story.offsetTop + Math.max(0, story.offsetHeight - window.innerHeight);
+    } else {
+      const el = document.getElementById(id);
+      if (!el) return;
+      top = el.getBoundingClientRect().top + window.scrollY;
+    }
+
+    window.scrollTo({ top, behavior });
+  }, [storyRef, pinnedEnabled]);
+}
+
+/* ---------- Revela ao entrar na viewport (uma única vez) ---------- */
+
+function useRevealOnScroll(threshold = 0.18) {
+  const ref = useRef(null);
+  const [inView, setInView] = useState(false);
+
   useEffect(() => {
-    const els = document.querySelectorAll('.cc-fadein');
-    const obs = new IntersectionObserver(
-      (entries) => entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); }),
-      { threshold: 0.12 }
+    const el = ref.current;
+    if (!el) return;
+    if (typeof IntersectionObserver === 'undefined') {
+      setInView(true);
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) {
+          setInView(true);
+          observer.disconnect();
+        }
+      },
+      { threshold, rootMargin: '0px 0px -10% 0px' }
     );
-    els.forEach(el => obs.observe(el));
-    return () => obs.disconnect();
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [threshold]);
+
+  return [ref, inView];
+}
+
+/* ---------- Componente ---------- */
+
+export default function HomePage() {
+  const videoRef = useRef(null);
+  const loopVideoRef = useRef(null);
+  const storyRef = useRef(null);
+
+  const pinnedEnabled = usePinnedStoryEnabled();
+  const progress = useScrollStory(storyRef, pinnedEnabled);
+  const [featsRef, featsInView] = useRevealOnScroll();
+  const scrollToSection = useSmoothScrollTo(storyRef, pinnedEnabled);
+
+  // Chegando pela animação de voltar do Login, a tela já está coberta de
+  // preto: aqui ela é revelada com um fade, em vez de a Home aparecer
+  // num corte seco.
+  const location = useLocation();
+  const [revealing, setRevealing] = useState(() => location.state?.from === 'login');
+
+  // A Home precisa abrir no topo. A história pinada é dirigida pelo scroll,
+  // então voltar (ou recarregar) com a página restaurada no meio dela deixa
+  // a tela num estado intermediário — camadas sobrepostas e a transição
+  // parada no meio, parecendo travada.
+  useEffect(() => {
+    const anterior = window.history.scrollRestoration;
+    if ('scrollRestoration' in window.history) {
+      window.history.scrollRestoration = 'manual';
+    }
+    window.scrollTo(0, 0);
+    return () => {
+      if ('scrollRestoration' in window.history) {
+        window.history.scrollRestoration = anterior;
+      }
+    };
   }, []);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    const loopVideo = loopVideoRef.current;
+    if (!video || !loopVideo) return;
+
+    const media = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+    const handleEnded = () => {
+      const mid = loopVideo.duration ? loopVideo.duration / 2 : 0;
+      loopVideo.currentTime = mid;
+      loopVideo.play().catch(() => {});
+      video.classList.add('cch-video-bg--hidden');
+      loopVideo.classList.add('is-active');
+    };
+
+    const syncPlayback = () => {
+      if (media.matches) {
+        video.pause();
+        loopVideo.pause();
+      } else if (loopVideo.classList.contains('is-active')) {
+        loopVideo.play().catch(() => {});
+      } else {
+        video.play().catch(() => {});
+      }
+    };
+
+    syncPlayback();
+    video.addEventListener('ended', handleEnded);
+    media.addEventListener('change', syncPlayback);
+    return () => {
+      video.removeEventListener('ended', handleEnded);
+      media.removeEventListener('change', syncPlayback);
+    };
+  }, []);
+
+  /* Etapas escalonadas: 1) o texto/nav do Hero some, 2) o fundo troca
+     de cinza para branco, 3) o conteúdo dos Recursos aparece por cima
+     já num fundo quase branco — evita o efeito "cubo" de misturar tudo
+     de uma vez. */
+  const heroContentP = clamp01(progress / 0.45);
+  const bgCrossP = clamp01((progress - 0.15) / 0.45);
+  const recContentP = clamp01((progress - 0.5) / 0.5);
+
+  const heroContentStyle = pinnedEnabled ? {
+    opacity: 1 - heroContentP,
+    transform: `translateY(${-heroContentP * 46}px)`,
+    pointerEvents: heroContentP > 0.9 ? 'none' : 'auto',
+  } : undefined;
+
+  const recBgStyle = pinnedEnabled ? { opacity: bgCrossP } : undefined;
+
+  const recContentStyle = pinnedEnabled ? {
+    opacity: recContentP,
+    transform: `translateY(${(1 - recContentP) * 36}px)`,
+    pointerEvents: recContentP < 0.1 ? 'none' : 'auto',
+  } : undefined;
+
+  const activeNav = progress >= 0.5 ? 'recursos' : 'inicio';
 
   return (
-    <div className="cc-home">
+    <>
+      <style>{PAGE_CSS}</style>
 
-      <nav className="cc-nav">
-        {/* Nova Logo em Imagem */}
-        <Link to="/" className="cc-nav-logo">
-          <img src={logoImg} alt="CapitalCycle Logo" className="cc-nav-logo-img" />
-        </Link>
+      {revealing && (
+        <motion.div
+          className="pointer-events-none fixed inset-0 z-[60] bg-[#05070e]"
+          initial={{ opacity: 1 }}
+          animate={{ opacity: 0 }}
+          transition={{ duration: 0.5, ease: EASE }}
+          onAnimationComplete={() => setRevealing(false)}
+          aria-hidden="true"
+        />
+      )}
 
-        <div className="cc-nav-links">
-          <a href="#recursos">Recursos</a>
-          <a href="#recursos">Capital Advisor</a>
-          <a href="#planos">Planos</a>
+      <div ref={storyRef} className={`cch-story ${pinnedEnabled ? '' : 'cch-story--static'}`}>
+      <div className="cch-pin">
+        <div className="cch-nav-wrap">
+          <MainNav active={activeNav} onNavigate={scrollToSection} />
         </div>
 
-        {/* Novos Botões (Login e Cadastro) */}
-        <div className="cc-nav-actions">
-          <Link to="/login" className="cc-btn-ghost">
-            Login
-          </Link>
-          <Link to="/cadastro" className="cc-btn-premium">
-            Cadastro <ArrowRight size={14} />
-          </Link>
-        </div>
-      </nav>
+        <div className="cch-layers-viewport">
+        <div className="cch cch-layer cch-hero-layer">
+          <video
+            ref={videoRef}
+            className="cch-video-bg"
+            src={heroVideo}
+            poster={heroVideoPoster}
+            autoPlay
+            muted
+            playsInline
+            preload="auto"
+            aria-hidden="true"
+          />
+          <video
+            ref={loopVideoRef}
+            className="cch-video-bg cch-video-bg--loop"
+            src={heroVideoLoop}
+            muted
+            loop
+            playsInline
+            preload="auto"
+            aria-hidden="true"
+          />
+          <div className="cch-scrim" aria-hidden="true" />
 
-      {/* ── HERO ── */}
-      <div className="cc-hero">
-        {/* Esquerda */}
-        <div>
-          <h1 className="cc-hero-headline">
-            SUA<br />
-            JORNADA<br />
-            <span>FINANCEIRA</span>
-          </h1>
-          <p className="cc-hero-sub">
-            Da primeira transação ao ciclo de investimento completo — controle total do seu capital com inteligência artificial integrada.
-          </p>
-          <div className="cc-hero-ctas">
-            <a href="#planos" className="cc-btn-primary">
-              Começar agora
-            </a>
-            <Link to="/login" className="cc-btn-ghost">
-              Já tenho conta
-            </Link>
+          <div className="cch-inner" id="inicio" style={heroContentStyle}>
+            <div className="cch-left">
+              <h1 className="cch-title">
+                <span>Sua</span>
+                <span>Jornada</span>
+                <span className="cch-accent">Financeira</span>
+              </h1>
+
+              <p className="cch-lead">
+                Da primeira transação ao ciclo de investimento completo — controle
+                total do seu capital com inteligência artificial integrada.
+              </p>
+
+              <div className="cch-ctas">
+                <a className="cch-btn cch-btn-primary" href="/cadastro">Começar agora</a>
+                <Link className="cch-btn cch-btn-ghost" to="/login" state={{ from: 'home' }}>Já tenho conta</Link>
+              </div>
+            </div>
+
+            <div className="cch-right">
+              <div className="cch-stat">
+                <span className="cch-stat-label">
+                  <span className="cch-dot" aria-hidden="true" />
+                  Fluxo positivo
+                </span>
+                <span className="cch-stat-value">R$ 18k</span>
+              </div>
+
+              <div className="cch-stat">
+                <span className="cch-stat-label">Ciclos ativos</span>
+                <span className="cch-stat-value">14+</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="cch-scroll" style={heroContentStyle}>
+            <MouseIcon />
+            <span>Role para baixo</span>
           </div>
         </div>
 
-        {/* Direita */}
-        <div style={{ position: 'relative' }}>
-          <FloatingCards />
-        </div>
-      </div>
-
-      {/* ── MARQUEE ── */}
-      <div className="cc-marquee-wrap">
-        <div className="cc-marquee-track">
-          {[...MARQUEE_ITEMS, ...MARQUEE_ITEMS].map((item, i) => (
-            <div key={i} className="cc-marquee-item">
-              <span>•</span> {item}
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* ── GESTÃO SECTION ── */}
-      <div id="recursos" className="cc-section-big">
-        <div className="cc-gestao-grid cc-fadein">
-          <div>
-            <div className="cc-section-eyebrow">Recursos</div>
-            <div className="cc-big-text">
-              GESTÃO<br />QUE EVOLUI<br />COM VOCÊ
-            </div>
+        <div className="cch cch-layer cch-recursos-layer">
+          {/* A atmosfera vive DENTRO do fundo dos Recursos para herdar o
+              mesmo crossfade — assim ela nunca aparece por cima do vídeo
+              do cartão enquanto a transição acontece. */}
+          <div className="cch-layer-bg" style={recBgStyle} aria-hidden="true">
+            <AmbientGlow />
+            <FloatingFigures variant="sides" />
           </div>
-          <div className="cc-gestao-right">
-            <p className="cc-gestao-desc">
-              Ferramentas profissionais para controle total do seu dinheiro — do lançamento individual à inteligência financeira por IA.
+
+          <div className="cch-rec-inner" id="recursos" style={recContentStyle}>
+            <span className="cch-rec-eyebrow">
+              <span className="cch-dot cch-dot--rec" aria-hidden="true" />
+              Recursos
+            </span>
+
+            <h2 className="cch-rec-title">
+              <span>Gestão</span>
+              <span className="cch-accent-rec">Que evolui com você</span>
+            </h2>
+
+            <p className="cch-rec-lead">
+              Ferramentas profissionais para controle total do seu dinheiro — do
+              lançamento individual à inteligência financeira por IA.
             </p>
-            <a href="#planos" className="cc-btn-primary">
-              Ver planos <ArrowRight size={14} />
+
+            <a
+              className="cch-rec-cta"
+              href="#planos"
+              onClick={(e) => {
+                e.preventDefault();
+                scrollToSection('planos');
+              }}
+            >
+              Ver planos
+              <ArrowRightIcon />
             </a>
           </div>
         </div>
-
-        <div className="cc-feat-grid cc-fadein">
-          {FEATURES.map((f, i) => (
-            <div key={i} className="cc-feat-card">
-              <div className="cc-feat-icon">{f.icon}</div>
-              <div className="cc-feat-title">{f.title}</div>
-              <div className="cc-feat-desc">{f.desc}</div>
-            </div>
-          ))}
         </div>
       </div>
+      </div>
+
+      <section className="cch-feats" ref={featsRef} aria-label="Recursos em destaque">
+        <div className="cch-feats-inner">
+          {FEATURE_CARDS.map(({ title, desc, Icon, dark }, i) => (
+            <article
+              key={title}
+              className={`cch-feat-card${dark ? ' cch-feat-card--dark' : ''}${featsInView ? ' is-in' : ''}`}
+              style={{ transitionDelay: `${i * 110}ms` }}
+            >
+              <span className="cch-feat-icon" aria-hidden="true">
+                <Icon size={19} strokeWidth={2.2} />
+              </span>
+              <h3 className="cch-feat-title">{title}</h3>
+              <p className="cch-feat-desc">{desc}</p>
+            </article>
+          ))}
+        </div>
+      </section>
 
       <CapitalAdvisorSection />
 
-      {/* ── PRICING ── */}
-      <div id="planos" className="cc-pricing-wrap">
-        <div className="cc-fadein" style={{ marginBottom: '4rem' }}>
-          <div className="cc-section-eyebrow">Planos</div>
-          <div className="cc-big-text">
-            ESCOLHA<br />SEU PLANO
-          </div>
-        </div>
-
-        <div className="cc-plans-grid cc-fadein">
-          {PLANS.map((plan) => (
-            <div key={plan.name} className={`cc-plan${plan.featured ? ' featured' : ''}`}>
-              <div className="cc-plan-tag">
-                {plan.name}
-                {plan.badge && <span className="cc-plan-tag-badge">{plan.badge}</span>}
-              </div>
-              <div className="cc-plan-price">
-                <span className="cc-plan-currency">R$</span>
-                <span className="cc-plan-val">{plan.price}</span>
-                <span className="cc-plan-period">/mês</span>
-              </div>
-              <p className="cc-plan-desc">{plan.desc}</p>
-              <Link
-                to="/cadastro"
-                state={{ plan: plan.id }}
-                className={`cc-plan-cta ${plan.ctaClass}`}
-              >
-                {plan.cta}
-              </Link>
-              <hr className="cc-plan-divider" />
-              <ul className="cc-plan-feats">
-                {plan.feats.map((feat, i) => (
-                  <li key={i}>
-                    <span className="cc-feat-check">✓</span>
-                    {feat}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
-        </div>
-
-        <p style={{ marginTop: '2rem', fontSize: '0.75rem', color: 'rgba(255,255,255,0.15)' }}>
-          Pagamento seguro · Cancele quando quiser · Sem fidelidade
-        </p>
-      </div>
-
-      {/* ── FOOTER ── */}
-      <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-        <footer className="cc-footer">
-
-          <span className="cc-copy">© 2026 CapitalCycle</span>
-          <div className="cc-footer-links">
-            <a href="#">Termos</a>
-            <a href="#">Privacidade</a>
-            <a href="#">Contato</a>
-          </div>
-        </footer>
-      </div>
-    </div>
+      <PlanosSection />
+    </>
   );
 }
