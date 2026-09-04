@@ -3,9 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowLeftRight, BarChart3, Clock, ShieldCheck } from 'lucide-react';
 
-import heroVideo from '../assets/video/hero-cartao.mp4';
-import heroVideoLoop from '../assets/video/hero-cartao-loop.mp4';
-import heroVideoPoster from '../assets/video/hero-cartao-poster.png';
+import HeroSection from '../components/home/hero/HeroSection';
 import CapitalAdvisorSection from '../components/home/CapitalAdvisorSection';
 import PlanosSection from '../components/home/PlanosSection';
 import AmbientGlow from '../components/home/AmbientGlow';
@@ -13,8 +11,8 @@ import FloatingFigures from '../components/home/FloatingFigures';
 
 /* =========================================================
    HOME — Capital Cycle
-   Hero (vídeo do cartão) faz uma transição estilo "Apple"
-   (scroll pinado, fade + slide) até a seção de Recursos.
+   Hero (o ciclo 3D, em src/components/home/hero) faz uma transição
+   estilo "Apple" (scroll pinado, fade + slide) até os Recursos.
    ========================================================= */
 
 const PAGE_CSS = `
@@ -38,42 +36,6 @@ const PAGE_CSS = `
     -webkit-font-smoothing: antialiased;
   }
   .cch *, .cch *::before, .cch *::after { box-sizing: border-box; }
-
-  /* ---------- Fundo (vídeo) ---------- */
-  .cch-video-bg {
-    position: absolute; inset: 0; z-index: 0; pointer-events: none;
-    width: 100%; height: 100%;
-    object-fit: cover; object-position: center 45%;
-    background: #d8d8d8;
-    opacity: 1;
-    transition: opacity 0.2s linear;
-  }
-  .cch-video-bg.cch-video-bg--loop {
-    opacity: 0;
-  }
-  .cch-video-bg.cch-video-bg--loop.is-active {
-    opacity: 1;
-  }
-  .cch-video-bg.cch-video-bg--hidden {
-    opacity: 0;
-  }
-  .cch-scrim {
-    position: absolute; inset: 0; z-index: 1; pointer-events: none;
-    background: linear-gradient(
-      92deg,
-      rgba(216,216,214,0.86) 0%,
-      rgba(216,216,214,0.62) 20%,
-      rgba(216,216,214,0.2) 40%,
-      rgba(216,216,214,0.12) 60%,
-      rgba(216,216,214,0.58) 80%,
-      rgba(216,216,214,0.8) 100%
-    );
-  }
-  .cch-scrim::after {
-    content: ''; position: absolute; inset: -20%;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)'/%3E%3C/svg%3E");
-    opacity: 0.08; mix-blend-mode: overlay;
-  }
 
   /* ---------- Navbar ---------- */
   .cch-nav {
@@ -180,34 +142,9 @@ const PAGE_CSS = `
     display: flex; flex-direction: column; align-items: flex-end;
     text-align: right;
   }
-  .cch-stat + .cch-stat { margin-top: 2.4rem; }
-  .cch-stat-label {
-    display: flex; align-items: center; justify-content: flex-end; gap: 0.5rem;
-    font-size: 0.85rem; font-weight: 700; letter-spacing: 0.1em;
-    text-transform: uppercase; color: #2c2c30;
-  }
   .cch-dot {
     width: 7px; height: 7px; border-radius: 50%;
     background: var(--cch-purple); flex: none;
-  }
-  .cch-stat-value {
-    display: block; margin-top: 0.6rem;
-    font-size: clamp(1.9rem, 2.7vw, 3rem);
-    font-weight: 800; letter-spacing: -0.03em; line-height: 1; color: #131316;
-  }
-
-  /* ---------- Scroll hint ---------- */
-  .cch-scroll {
-    position: absolute; left: 50%; bottom: 1rem; transform: translateX(-50%);
-    z-index: 15;
-    display: flex; flex-direction: column; align-items: center; gap: 0.6rem;
-    color: #4d4d52; text-align: center;
-    font-size: 0.9rem; line-height: 1.3;
-  }
-  .cch-mouse { animation: cch-float 2.4s ease-in-out infinite; }
-  @keyframes cch-float {
-    0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(5px); }
   }
 
   /* ---------- Recursos (2ª seção) ---------- */
@@ -265,7 +202,10 @@ const PAGE_CSS = `
   /* ---------- Transição "Apple" (scroll pinado) ---------- */
   .cch-story {
     position: relative;
-    height: 180vh;
+    /* Quatro fases do ciclo + a transição para os Recursos. Com 180vh
+       (a altura de quando a Hero era um vídeo em loop) a narrativa
+       passava rápido demais para ser lida. */
+    height: 260vh;
   }
   .cch-pin {
     position: sticky;
@@ -312,16 +252,6 @@ const PAGE_CSS = `
       min-height: 0;
     }
     .cch-right { align-items: flex-start; text-align: left; }
-    .cch-stat-label { justify-content: flex-start; }
-    .cch-scroll {
-      position: relative; left: auto; bottom: auto; transform: none;
-      margin: 1rem auto 2rem; width: max-content;
-    }
-    /* Em coluna única o vídeo fica só como textura ambiente,
-       sem "janela" central, para não brigar com o texto. */
-    .cch-video-bg { opacity: 0.4; filter: blur(1px); }
-    .cch-scrim { background: rgba(216,216,214,0.85); }
-    .cch-scrim::after { opacity: 0.14; }
     .cch-rec-inner { min-height: 0; padding: 5rem 1.5rem 3rem; }
   }
   @media (max-width: 560px) {
@@ -330,11 +260,9 @@ const PAGE_CSS = `
     .cch-lead { margin-top: 1.6rem; }
     .cch-ctas { gap: 0.75rem; margin-top: 1.6rem; }
     .cch-btn { flex: 1 1 auto; padding: 0.95rem 1.2rem; font-size: 0.92rem; }
-    .cch-stat + .cch-stat { margin-top: 2rem; }
     .cch-rec-cta { padding: 0.9rem 1.6rem 0.9rem 2rem; }
   }
   @media (prefers-reduced-motion: reduce) {
-    .cch-mouse { animation: none; }
     .cch *, .cch *::before, .cch *::after { transition: none !important; }
   }
 
@@ -413,16 +341,6 @@ const PAGE_CSS = `
 `;
 
 /* ---------- Ícones ---------- */
-
-function MouseIcon() {
-  return (
-    <svg className="cch-mouse" width="28" height="43" viewBox="0 0 38 58" fill="none"
-      stroke="currentColor" strokeWidth="2" aria-hidden="true">
-      <rect x="1.5" y="1.5" width="35" height="55" rx="17.5" />
-      <path d="M19 13v10" strokeLinecap="round" />
-    </svg>
-  );
-}
 
 function ArrowRightIcon() {
   return (
@@ -644,8 +562,6 @@ function useRevealOnScroll(threshold = 0.18) {
 /* ---------- Componente ---------- */
 
 export default function HomePage() {
-  const videoRef = useRef(null);
-  const loopVideoRef = useRef(null);
   const storyRef = useRef(null);
 
   const pinnedEnabled = usePinnedStoryEnabled();
@@ -676,54 +592,16 @@ export default function HomePage() {
     };
   }, []);
 
-  useEffect(() => {
-    const video = videoRef.current;
-    const loopVideo = loopVideoRef.current;
-    if (!video || !loopVideo) return;
+  /* Etapas escalonadas. A Hero agora tem uma narrativa própria para
+     contar dentro do runway (as quatro fases do ciclo acendendo), então
+     os Recursos entram bem mais tarde do que entravam com o vídeo: o
+     crossfade só começa depois que o ciclo terminou de acender, senão
+     a segunda seção lava a primeira no meio da história.
 
-    const media = window.matchMedia('(prefers-reduced-motion: reduce)');
-
-    const handleEnded = () => {
-      const mid = loopVideo.duration ? loopVideo.duration / 2 : 0;
-      loopVideo.currentTime = mid;
-      loopVideo.play().catch(() => {});
-      video.classList.add('cch-video-bg--hidden');
-      loopVideo.classList.add('is-active');
-    };
-
-    const syncPlayback = () => {
-      if (media.matches) {
-        video.pause();
-        loopVideo.pause();
-      } else if (loopVideo.classList.contains('is-active')) {
-        loopVideo.play().catch(() => {});
-      } else {
-        video.play().catch(() => {});
-      }
-    };
-
-    syncPlayback();
-    video.addEventListener('ended', handleEnded);
-    media.addEventListener('change', syncPlayback);
-    return () => {
-      video.removeEventListener('ended', handleEnded);
-      media.removeEventListener('change', syncPlayback);
-    };
-  }, []);
-
-  /* Etapas escalonadas: 1) o texto/nav do Hero some, 2) o fundo troca
-     de cinza para branco, 3) o conteúdo dos Recursos aparece por cima
-     já num fundo quase branco — evita o efeito "cubo" de misturar tudo
-     de uma vez. */
-  const heroContentP = clamp01(progress / 0.45);
-  const bgCrossP = clamp01((progress - 0.15) / 0.45);
-  const recContentP = clamp01((progress - 0.5) / 0.5);
-
-  const heroContentStyle = pinnedEnabled ? {
-    opacity: 1 - heroContentP,
-    transform: `translateY(${-heroContentP * 46}px)`,
-    pointerEvents: heroContentP > 0.9 ? 'none' : 'auto',
-  } : undefined;
+     O escalonamento continua o mesmo — fundo primeiro, conteúdo
+     depois — para evitar o efeito "cubo" de misturar tudo de uma vez. */
+  const bgCrossP = clamp01((progress - 0.66) / 0.26);
+  const recContentP = clamp01((progress - 0.82) / 0.18);
 
   const recBgStyle = pinnedEnabled ? { opacity: bgCrossP } : undefined;
 
@@ -733,7 +611,7 @@ export default function HomePage() {
     pointerEvents: recContentP < 0.1 ? 'none' : 'auto',
   } : undefined;
 
-  const activeNav = progress >= 0.5 ? 'recursos' : 'inicio';
+  const activeNav = progress >= 0.74 ? 'recursos' : 'inicio';
 
   return (
     <>
@@ -757,70 +635,7 @@ export default function HomePage() {
         </div>
 
         <div className="cch-layers-viewport">
-        <div className="cch cch-layer cch-hero-layer">
-          <video
-            ref={videoRef}
-            className="cch-video-bg"
-            src={heroVideo}
-            poster={heroVideoPoster}
-            autoPlay
-            muted
-            playsInline
-            preload="auto"
-            aria-hidden="true"
-          />
-          <video
-            ref={loopVideoRef}
-            className="cch-video-bg cch-video-bg--loop"
-            src={heroVideoLoop}
-            muted
-            loop
-            playsInline
-            preload="auto"
-            aria-hidden="true"
-          />
-          <div className="cch-scrim" aria-hidden="true" />
-
-          <div className="cch-inner" id="inicio" style={heroContentStyle}>
-            <div className="cch-left">
-              <h1 className="cch-title">
-                <span>Sua</span>
-                <span>Jornada</span>
-                <span className="cch-accent">Financeira</span>
-              </h1>
-
-              <p className="cch-lead">
-                Da primeira transação ao ciclo de investimento completo — controle
-                total do seu capital com inteligência artificial integrada.
-              </p>
-
-              <div className="cch-ctas">
-                <a className="cch-btn cch-btn-primary" href="/cadastro">Começar agora</a>
-                <Link className="cch-btn cch-btn-ghost" to="/login" state={{ from: 'home' }}>Já tenho conta</Link>
-              </div>
-            </div>
-
-            <div className="cch-right">
-              <div className="cch-stat">
-                <span className="cch-stat-label">
-                  <span className="cch-dot" aria-hidden="true" />
-                  Fluxo positivo
-                </span>
-                <span className="cch-stat-value">R$ 18k</span>
-              </div>
-
-              <div className="cch-stat">
-                <span className="cch-stat-label">Ciclos ativos</span>
-                <span className="cch-stat-value">14+</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="cch-scroll" style={heroContentStyle}>
-            <MouseIcon />
-            <span>Role para baixo</span>
-          </div>
-        </div>
+        <HeroSection progress={progress} pinnedEnabled={pinnedEnabled} />
 
         <div className="cch cch-layer cch-recursos-layer">
           {/* A atmosfera vive DENTRO do fundo dos Recursos para herdar o
