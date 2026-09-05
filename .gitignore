@@ -71,5 +71,7 @@ node_modules/
 # build output
 dist/
 
-# Capturas de referência (não versionadas)
-referencias/*.png
+# NÃO ignorar referencias/: os prints de referência precisam chegar ao
+# repositório para que a sessão de trabalho consiga abri-los. A regra
+# anterior (referencias/*.png) fazia o `git add .` engolir as imagens em
+# silêncio — foi assim que os prints desta rodada nunca chegaram.
