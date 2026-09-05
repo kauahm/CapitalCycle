@@ -76,6 +76,26 @@ const PAGE_CSS = `
   .cch-menu .is-active { background: #38383b; color: #fff; }
   .cch-menu .is-active:hover { background: #38383b; }
 
+  /* ---------- Navbar sobre a Hero escura ---------- */
+  .cch-nav, .cch-nav .cch-menu, .cch-nav .cch-login {
+    transition: background 0.5s ease, color 0.5s ease, box-shadow 0.5s ease;
+  }
+  .cch-nav--dark .cch-menu {
+    background: rgba(255,255,255,0.07);
+    border: 1px solid rgba(255,255,255,0.08);
+  }
+  .cch-nav--dark .cch-menu .is-active {
+    background: rgba(255,255,255,0.92); color: #0b0b12;
+  }
+  .cch-nav--dark .cch-menu .is-active:hover { background: #fff; }
+  /* Botão preto sobre fundo preto desaparece: no escuro ele inverte. */
+  .cch-nav--dark .cch-login {
+    background: #ffffff; color: #0b0b12;
+  }
+  .cch-nav--dark .cch-login:hover {
+    background: #ffffff; box-shadow: 0 8px 24px rgba(255,255,255,0.16);
+  }
+
   .cch-login {
     display: inline-flex; align-items: center; justify-content: center;
     padding: 0.82rem 1.9rem;
@@ -390,9 +410,12 @@ const NAV_LINKS = [
   { id: 'planos', label: 'Planos' },
 ];
 
-function MainNav({ active = 'inicio', onNavigate }) {
+/* `onDark` acompanha a Hero: enquanto o ciclo está no ar o fundo é
+   quase preto, e o botão preto de "Entrar" simplesmente desapareceria
+   nele. A navbar troca de tema junto com a transição para os Recursos. */
+function MainNav({ active = 'inicio', onNavigate, onDark = false }) {
   return (
-    <header className="cch-nav">
+    <header className={`cch-nav${onDark ? ' cch-nav--dark' : ''}`}>
       <div className="cch-logo-slot" aria-hidden="true" />
 
       <div className="cch-nav-right">
@@ -603,8 +626,10 @@ export default function HomePage() {
 
      O escalonamento continua o mesmo — fundo primeiro, conteúdo
      depois — para evitar o efeito "cubo" de misturar tudo de uma vez. */
-  const bgCrossP = clamp01((progress - 0.66) / 0.26);
-  const recContentP = clamp01((progress - 0.82) / 0.18);
+    // Os Recursos nascem do preto do apagão, não da Hero: por isso o
+  // crossfade só começa depois que o apagão já fechou.
+  const bgCrossP = clamp01((progress - 0.76) / 0.16);
+  const recContentP = clamp01((progress - 0.87) / 0.13);
 
   const recBgStyle = pinnedEnabled ? { opacity: bgCrossP } : undefined;
 
@@ -617,7 +642,12 @@ export default function HomePage() {
   // Sem o pin, `progress` é fixo em 1 (a história não tem runway). Ler
   // esse 1 como "já chegou nos Recursos" marcava o item errado no menu
   // com a Hero inteira na tela.
-  const activeNav = pinnedEnabled && progress >= 0.74 ? 'recursos' : 'inicio';
+  const activeNav = pinnedEnabled && progress >= 0.78 ? 'recursos' : 'inicio';
+
+  // A navbar vira clara quando o fundo dos Recursos já cobriu o escuro
+  // da Hero. Sem pin (mobile) a Hero fica sempre escura no topo, então
+  // a navbar acompanha.
+  const navOnDark = !pinnedEnabled || bgCrossP < 0.45;
 
   return (
     <>
@@ -637,7 +667,7 @@ export default function HomePage() {
       <div ref={storyRef} className={`cch-story ${pinnedEnabled ? '' : 'cch-story--static'}`}>
       <div className="cch-pin">
         <div className="cch-nav-wrap">
-          <MainNav active={activeNav} onNavigate={scrollToSection} />
+          <MainNav active={activeNav} onNavigate={scrollToSection} onDark={navOnDark} />
         </div>
 
         <div className="cch-layers-viewport">

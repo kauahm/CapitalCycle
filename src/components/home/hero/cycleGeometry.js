@@ -149,21 +149,35 @@ export function makeRibbonGeometry(curve, {
   return geo;
 }
 
-/* ---------- Sombra de contato ----------
-   Um radial gradient desenhado em canvas 2D e usado como textura num
-   plano deitado. Sombra real (shadow map) custaria um render pass a
-   mais por frame para um borrão que ninguém inspeciona — e sobre
-   fundo claro é justamente o borrão que ancora o objeto no espaço.
-   Sem ele o ciclo parece adesivo colado na tela. */
-export function makeContactShadowTexture(size = 256) {
+/* ---------- Halo de luz ----------
+   Um radial gradient branco desenhado em canvas 2D, usado como textura
+   em planos com blending aditivo.
+
+   Serve a duas funções que as referências mostram serem essenciais e
+   que a versão anterior não tinha:
+
+   1. O SANGRAMENTO. Em apple-macbook-pro.webp a luz do objeto não fica
+      presa nele — vaza para o fundo como um brilho colorido difuso. É
+      isso que faz o objeto parecer estar DENTRO de um espaço, e não
+      recortado por cima de um fundo.
+   2. O PESO. Sobre fundo escuro uma sombra escura é invisível, então o
+      que ancora o objeto é o oposto: uma poça de luz sob ele, como o
+      reflexo sob o MacBook Pro.
+
+   Um pass de bloom de verdade (EffectComposer) custaria dois render
+   targets em tela cheia por frame. Isto custa dois quads. */
+export function makeGlowTexture(size = 256) {
   const canvas = document.createElement('canvas');
   canvas.width = canvas.height = size;
   const ctx = canvas.getContext('2d');
   const g = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
-  g.addColorStop(0, 'rgba(24,26,38,0.34)');
-  g.addColorStop(0.45, 'rgba(24,26,38,0.15)');
-  g.addColorStop(0.75, 'rgba(24,26,38,0.04)');
-  g.addColorStop(1, 'rgba(24,26,38,0)');
+  // A curva é deliberadamente suave no miolo e longa na cauda: um
+  // gradiente linear formaria um disco com borda perceptível.
+  g.addColorStop(0.00, 'rgba(255,255,255,1)');
+  g.addColorStop(0.16, 'rgba(255,255,255,0.62)');
+  g.addColorStop(0.36, 'rgba(255,255,255,0.24)');
+  g.addColorStop(0.62, 'rgba(255,255,255,0.06)');
+  g.addColorStop(1.00, 'rgba(255,255,255,0)');
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, size, size);
 

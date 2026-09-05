@@ -68,8 +68,14 @@ function MouseIcon() {
    revelação de dados da narrativa, então precisa continuar legível
    exatamente enquanto as fases acendem — só sai quando o ciclo já
    terminou de contar a história e a transição para os Recursos começa. */
-const TEXT_OUT = [0, 0.30];
-const PHASES_OUT = [0.70, 0.84];
+// A headline não pode evaporar logo no primeiro toque de scroll: some
+// aos 30% do runway, ela mal é lida. Um respiro antes de começar a
+// sair, e uma saída mais longa.
+const TEXT_OUT = [0.06, 0.42];
+const PHASES_OUT = [0.56, 0.70];
+// O apagão cobre a saída do ciclo e entrega um preto limpo para os
+// Recursos nascerem em cima.
+const BLACKOUT_IN = [0.62, 0.76];
 
 function fadeStyle(p, [from, to], { lift = 0, enabled = true }) {
   if (!enabled) return undefined;
@@ -90,6 +96,9 @@ export default function HeroSection({ progress = 0, pinnedEnabled = true }) {
   const activePhase = phaseFromProgress(p);
 
   const textStyle = fadeStyle(p, TEXT_OUT, { lift: 46, enabled: pinnedEnabled });
+  const blackoutOpacity = pinnedEnabled
+    ? Math.min(1, Math.max(0, (p - BLACKOUT_IN[0]) / (BLACKOUT_IN[1] - BLACKOUT_IN[0])))
+    : 0;
   const phasesStyle = fadeStyle(p, PHASES_OUT, { lift: 28, enabled: pinnedEnabled });
 
   return (
@@ -120,10 +129,13 @@ export default function HeroSection({ progress = 0, pinnedEnabled = true }) {
           </div>
         </div>
 
-        <div className="cch-right" style={phasesStyle}>
-          <div className="cchero-phases">
-            <h2 className="cchero-phases-title">O ciclo do seu capital</h2>
+        {/* Irmã de .cch-left, não filha: a régua tem o próprio fade
+            (sai bem depois da headline, porque é ela que acompanha o
+            ciclo acendendo) e não pode herdar a opacidade do texto. */}
+        <div className="cchero-phases" style={phasesStyle}>
+          <h2 className="cchero-phases-title">O ciclo do seu capital</h2>
 
+          <div className="cchero-phases-row">
             {PHASES.map(({ id, label, value, note }, i) => (
               <div
                 key={id}
@@ -140,6 +152,14 @@ export default function HeroSection({ progress = 0, pinnedEnabled = true }) {
           </div>
         </div>
       </div>
+
+      {blackoutOpacity > 0 && (
+        <div
+          className="cchero-blackout"
+          style={{ opacity: blackoutOpacity }}
+          aria-hidden="true"
+        />
+      )}
 
       <div className="cchero-scroll" style={textStyle}>
         <MouseIcon />

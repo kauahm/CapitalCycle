@@ -8,11 +8,30 @@
    ========================================================= */
 
 const HERO_CSS = `
-  /* ---------- Palco 3D ---------- */
+  /* ---------- Palco 3D ----------
+     Fundo escuro, não cinza médio. As referências são unânimes: o que
+     dá drama é faixa tonal, e cinza médio não tem nenhuma — não tem
+     preto para o objeto se destacar nem branco para o especular
+     brilhar. WatchUltra.png e apple-macbook-pro.webp partem do preto.
+
+     Não é preto puro: um gradiente radial levanta discretamente a
+     região onde o ciclo vive, para o objeto parecer estar num
+     ambiente iluminado e não recortado sobre o vazio. */
   .cchero-stage {
     position: absolute; inset: 0; z-index: 0;
     pointer-events: none;
-    background-color: #d8d8d8;
+    background:
+      radial-gradient(58% 60% at 64% 48%, #12142a 0%, #080914 52%, #050609 100%),
+      #050609;
+  }
+
+  /* Brilho difuso atrás do canvas — a mesma ideia do sangramento de luz
+     do MacBook Pro, mas em CSS, cobrindo a área inteira. Empurra o
+     objeto para dentro de um espaço em vez de deixá-lo colado na tela. */
+  .cchero-stage::before {
+    content: ''; position: absolute; inset: 0;
+    background:
+      radial-gradient(26% 30% at 64% 50%, rgba(99,102,241,0.22) 0%, rgba(99,102,241,0) 72%);
   }
 
   .cchero-canvas, .cchero-fallback {
@@ -55,90 +74,158 @@ const HERO_CSS = `
      branco terem contraste, mantendo o miolo limpo para o ciclo. */
   .cchero-scrim {
     position: absolute; inset: 0; pointer-events: none;
-    background: linear-gradient(
-      92deg,
-      rgba(216,216,214,0.9) 0%,
-      rgba(216,216,214,0.72) 22%,
-      rgba(216,216,214,0.22) 44%,
-      rgba(216,216,214,0.1) 62%,
-      rgba(216,216,214,0.42) 82%,
-      rgba(216,216,214,0.7) 100%
-    );
+    background:
+      linear-gradient(
+        92deg,
+        rgba(5,6,9,0.92) 0%,
+        rgba(5,6,9,0.70) 26%,
+        rgba(5,6,9,0.12) 46%,
+        rgba(5,6,9,0.00) 64%,
+        rgba(5,6,9,0.18) 88%,
+        rgba(5,6,9,0.45) 100%
+      ),
+      /* vinheta: fecha as bordas e concentra o olho no objeto,
+         como em WatchUltra.png */
+      radial-gradient(120% 100% at 62% 46%, rgba(5,6,9,0) 40%, rgba(5,6,9,0.72) 100%);
   }
   .cchero-scrim::after {
     content: ''; position: absolute; inset: -20%;
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)'/%3E%3C/svg%3E");
-    opacity: 0.08; mix-blend-mode: overlay;
+    opacity: 0.10; mix-blend-mode: soft-light;
+  }
+
+  /* A Hero deixa de ser um grid de duas colunas. O texto ocupa a
+     esquerda e o lado direito inteiro fica livre para o objeto ser
+     protagonista — como em WatchUltra.png, onde nada disputa espaço
+     com o produto. */
+  .cch-hero-layer .cch-inner {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .cch-hero-layer .cch-left { max-width: 46rem; }
+
+  /* ---------- Texto da Hero sobre fundo escuro ----------
+     Os tokens de tipografia continuam vindo do PAGE_CSS (a Hero não
+     inventa uma segunda escala); aqui só invertem as cores, e só dentro
+     da camada da Hero — os Recursos seguem claros. */
+  .cch-hero-layer .cch-title { color: #ffffff; }
+  .cch-hero-layer .cch-title .cch-accent { color: #a5a0ff; }
+  .cch-hero-layer .cch-lead { color: rgba(255,255,255,0.68); }
+
+  .cch-hero-layer .cch-btn-primary {
+    box-shadow: 0 12px 34px rgba(99,102,241,0.42);
+  }
+  .cch-hero-layer .cch-btn-primary:hover {
+    box-shadow: 0 18px 44px rgba(99,102,241,0.55);
+  }
+  /* O ghost era preto translúcido sobre fundo claro; no escuro ele
+     precisa ser o contrário para continuar existindo. */
+  .cch-hero-layer .cch-btn-ghost {
+    background: rgba(255,255,255,0.10);
+    border: 1px solid rgba(255,255,255,0.16);
+    color: #ffffff;
+  }
+  .cch-hero-layer .cch-btn-ghost:hover {
+    background: rgba(255,255,255,0.17);
   }
 
   /* ---------- Leitura das fases do ciclo ----------
      A "revelação de dados" da narrativa, em HTML acessível: a fase
      acesa aqui é a mesma que está acesa na fita 3D. */
+  /* ---------- Régua de etapas ----------
+     Era uma coluna de quatro linhas encostada à direita, no mesmo lado
+     do objeto: dois centros de leitura disputando a mesma metade da
+     tela. Nenhuma das referências faz isso — em 8.png e 9.png o
+     indicador de etapa é um bloco horizontal discreto, fora do caminho
+     do objeto. Aqui ele desce para o rodapé da coluna de texto. */
   .cchero-phases {
-    display: flex; flex-direction: column;
-    width: 100%; max-width: 21rem;
-    margin-left: auto;
+    display: block;
+    width: 100%;
+    max-width: 44rem;
+    margin: 3.2rem 0 0;
   }
   .cchero-phases-title {
-    margin: 0 0 1.35rem;
-    font-size: 0.78rem; font-weight: 700;
-    letter-spacing: 0.14em; text-transform: uppercase;
-    color: #4d4d52;
-    text-align: right;
+    margin: 0 0 1rem;
+    font-size: 0.72rem; font-weight: 700;
+    letter-spacing: 0.16em; text-transform: uppercase;
+    color: rgba(255,255,255,0.66);
+    text-align: left;
+  }
+  .cchero-phases-row {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    gap: 1.5rem;
   }
 
+  /* A hierarquia entre a fase ativa e as demais NÃO é feita por
+     opacity. Escurecer o bloco inteiro multiplicava a opacidade sobre
+     cores já translúcidas e derrubava o contraste dos rótulos para
+     1.87:1 — abaixo do mínimo legível, num texto que carrega dado real
+     (o valor de cada fase).
+
+     A distinção fica por conta da barra acesa, do rótulo mais claro e
+     da nota, que só existe na fase ativa. Todas as quatro continuam
+     legíveis o tempo todo. */
   .cchero-phase {
-    display: grid;
-    grid-template-columns: auto 1fr;
-    align-items: baseline;
-    gap: 0.7rem;
-    padding: 0.72rem 0;
-    border-top: 1px solid rgba(19,19,22,0.12);
-    text-align: right;
-    transition: opacity 0.45s ease;
-    opacity: 0.42;
+    display: block;
+    padding-top: 0.85rem;
+    text-align: left;
   }
-  .cchero-phase:last-child { border-bottom: 1px solid rgba(19,19,22,0.12); }
-  .cchero-phase.is-on { opacity: 1; }
 
+  /* A barra no topo de cada etapa é o indicador de progresso: apagada
+     nas etapas que ainda não chegaram, acesa na atual. */
   .cchero-phase-dot {
-    grid-row: 1 / span 2;
-    align-self: center;
-    width: 7px; height: 7px; border-radius: 50%;
-    background: rgba(19,19,22,0.22);
+    display: block;
+    width: 100%; height: 2px; border-radius: 2px;
+    background: rgba(255,255,255,0.16);
     transition: background 0.45s ease, box-shadow 0.45s ease;
   }
   .cchero-phase.is-on .cchero-phase-dot {
-    background: var(--cch-purple, #8b7cf6);
-    box-shadow: 0 0 0 4px rgba(139,124,246,0.18);
+    background: #8b7cf6;
+    box-shadow: 0 0 12px 1px rgba(139,124,246,0.65);
   }
 
   .cchero-phase-head {
-    display: flex; align-items: baseline; justify-content: space-between;
-    gap: 1rem;
+    display: flex; flex-direction: column; gap: 0.3rem;
+    margin-top: 0.8rem;
   }
   .cchero-phase-label {
-    font-size: 0.83rem; font-weight: 700;
-    letter-spacing: 0.09em; text-transform: uppercase;
-    color: #2c2c30; white-space: nowrap;
+    font-size: 0.7rem; font-weight: 700;
+    letter-spacing: 0.13em; text-transform: uppercase;
+    color: rgba(255,255,255,0.68); white-space: nowrap;
+    transition: color 0.45s ease;
   }
+  .cchero-phase.is-on .cchero-phase-label { color: rgba(255,255,255,0.95); }
   .cchero-phase-value {
-    font-size: 1.32rem; font-weight: 800;
-    letter-spacing: -0.02em; color: #131316;
+    font-size: 1.12rem; font-weight: 800;
+    letter-spacing: -0.02em; color: rgba(255,255,255,0.80);
     white-space: nowrap;
+    transition: color 0.45s ease;
   }
+  .cchero-phase.is-on .cchero-phase-value { color: #ffffff; }
 
   /* A nota só existe para a fase ativa — quatro descrições visíveis ao
      mesmo tempo viram parágrafo, e a coluna deixa de ser um indicador. */
   .cchero-phase-note {
-    grid-column: 2;
     margin: 0;
-    font-size: 0.82rem; line-height: 1.4; color: #6d6d72;
+    font-size: 0.82rem; line-height: 1.4; color: rgba(255,255,255,0.62);
     max-height: 0; opacity: 0; overflow: hidden;
     transition: max-height 0.45s cubic-bezier(0.16,1,0.3,1), opacity 0.35s ease, margin 0.45s ease;
   }
   .cchero-phase.is-on .cchero-phase-note {
-    max-height: 3.2rem; opacity: 1; margin-top: 0.35rem;
+    max-height: 3.2rem; opacity: 1; margin-top: 0.45rem;
+  }
+
+  /* ---------- Apagão da transição ----------
+     A Hero é preta e os Recursos são quase brancos. Fundir os dois
+     diretamente passa por 50% de cada = cinza-lama, com o anel fantasma
+     e o texto da próxima seção visíveis ao mesmo tempo.
+
+     Em dois tempos o corte fica limpo, que é como as páginas da Apple
+     encadeiam uma seção escura numa clara: o ciclo se apaga no preto
+     primeiro, e só então o claro nasce do preto. */
+  .cchero-blackout {
+    position: absolute; inset: 0; z-index: 5;
+    pointer-events: none;
+    background: #050609;
   }
 
   /* ---------- Dica de rolagem ---------- */
@@ -146,7 +233,7 @@ const HERO_CSS = `
     position: absolute; left: 50%; bottom: 1rem; transform: translateX(-50%);
     z-index: 15;
     display: flex; flex-direction: column; align-items: center; gap: 0.6rem;
-    color: #4d4d52; text-align: center;
+    color: rgba(255,255,255,0.55); text-align: center;
     font-size: 0.9rem; line-height: 1.3;
   }
   .cchero-mouse { animation: cchero-float 2.4s ease-in-out infinite; }
@@ -181,18 +268,13 @@ const HERO_CSS = `
       position: relative; left: auto; bottom: auto; transform: none;
       margin: 2rem auto 0; width: max-content;
     }
-    .cchero-phases { max-width: none; margin-left: 0; }
-    .cchero-phases-title { text-align: left; }
-    .cchero-phase { text-align: left; }
+    .cchero-phases { max-width: none; margin-top: 2.4rem; }
+    .cchero-phases-row { grid-template-columns: repeat(2, 1fr); gap: 1.1rem 1.25rem; }
   }
 
   @media (max-width: 560px) {
-    .cchero-phase { padding: 0.6rem 0; gap: 0.6rem; }
-    .cchero-phase-value { font-size: 1.15rem; }
-    .cchero-phase-label { font-size: 0.76rem; }
-    /* Numa tela estreita o par rótulo/valor não cabe lado a lado sem
-       quebrar o número no meio. */
-    .cchero-phase-head { flex-direction: column; gap: 0.15rem; }
+    .cchero-phase-value { font-size: 1rem; }
+    .cchero-phase-label { font-size: 0.64rem; letter-spacing: 0.1em; }
   }
 
   @media (prefers-reduced-motion: reduce) {
