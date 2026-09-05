@@ -128,7 +128,7 @@ function CycleRig({ progressRef, pointerRef, tier, scrollDriven }) {
     // Mais baixa no layout estreito: em tela alta, a espiral cheia
     // estoura o topo do enquadramento e parece cortada por acidente.
     // (Altura é enquadramento, não fidelidade — por isso `wide`.)
-    const growthCurve = new GrowthCurve(0.74, wide ? 2.15 : 1.45, 0.72);
+    const growthCurve = new GrowthCurve(0.74, wide ? 1.70 : 1.30, 0.72);
 
     const ringGeo = makeRibbonGeometry(cycleCurve, {
       segments: lite ? 170 : 380,
@@ -327,9 +327,9 @@ function CycleRig({ progressRef, pointerRef, tier, scrollDriven }) {
        quase todo apagado e quase não emite luz; conforme as fases
        acendem, o sangramento no fundo cresce junto. Se a intensidade
        fosse fixa, a luz existiria antes da fonte. */
-    const emit = 0.14 + Math.pow(reveal, 1.35) * 1.16;
+    const emit = 0.14 + Math.pow(reveal, 1.25) * 1.55;
     if (haloRef.current) {
-      haloRef.current.material.opacity = fade * emit * 0.72;
+      haloRef.current.material.opacity = fade * emit * 0.80;
       const hs = 0.82 + reveal * 0.26;
       haloRef.current.scale.set(hs, hs, 1);
     }
@@ -403,7 +403,7 @@ function CycleRig({ progressRef, pointerRef, tier, scrollDriven }) {
         <planeGeometry args={lite ? [7, 7] : [10.5, 10.5]} />
         <meshBasicMaterial
           map={scene.glowTex}
-          color="#4c50d8"
+          color="#5a55e8"
           transparent
           depthWrite={false}
           blending={THREE.AdditiveBlending}
