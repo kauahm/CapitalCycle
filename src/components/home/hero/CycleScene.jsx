@@ -36,7 +36,7 @@ const lerp = (a, b, t) => a + (b - a) * t;
    No desktop a headline ocupa a metade esquerda; o objeto 3D nunca
    pode disputar espaço com ela. No 'lite' o layout vira coluna única
    e o ciclo passa a ser fundo, centralizado e acima do texto. */
-const SHIFT = { wide: 1.95, narrow: 0 };
+const SHIFT = { wide: 1.95, narrow: 0.95 };
 
 /* Percurso da câmera. Quatro marcos, um por estado da narrativa:
    1 aterrissagem · 2 primeiro scroll · 3 história · 4 transição. */
@@ -53,8 +53,8 @@ const CAM_FULL = [
    atravessar a lista de fases, onde rótulos pequenos e cinzas perdem
    legibilidade na hora. */
 const CAM_LITE = [
-  { p: 0.00, pos: [0, 4.40, 8.10], look: [0, -1.90, 0] },
-  { p: 1.00, pos: [0, 5.20, 7.80], look: [0, -1.62, 0] },
+  { p: 0.00, pos: [0, 4.40, 8.60], look: [0, -1.75, 0] },
+  { p: 1.00, pos: [0, 5.30, 8.20], look: [0, -1.45, 0] },
 ];
 
 /* Percurso da câmera como CURVA, não como pares de keyframes.

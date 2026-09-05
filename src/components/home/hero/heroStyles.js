@@ -94,6 +94,10 @@ const HERO_CSS = `
     opacity: 0.10; mix-blend-mode: soft-light;
   }
 
+  /* A classe .cch pinta o cinza claro herdado do design antigo e vale
+     para as duas camadas da história. A Hero é escura agora. */
+  .cch-hero-layer { background-color: #050609; }
+
   /* A Hero deixa de ser um grid de duas colunas. O texto ocupa a
      esquerda e o lado direito inteiro fica livre para o objeto ser
      protagonista — como em WatchUltra.png, onde nada disputa espaço
@@ -253,14 +257,32 @@ const HERO_CSS = `
     }
     .cchero-fallback svg { width: 88vw; max-height: 38%; opacity: 0.42; }
     .cchero-canvas { opacity: 0; }
-    .cchero-canvas.is-ready { opacity: 0.5; }
+    /* Em 1.png (Jeton) a headline branca fica DIRETO sobre o 3D e
+       funciona, porque a tipografia é enorme e o scrim protege a zona
+       do texto. A 0.5 o ciclo virava um fantasma e o mobile perdia o
+       conceito inteiro. */
+    .cchero-canvas.is-ready { opacity: 0.85; }
+    /* Sobrou do tema claro e lavava o fundo escuro até cinza, deixando
+       o texto branco ilegível.
+
+       Direcional, e não uniforme: escurece a faixa esquerda (headline,
+       subtítulo, CTAs) e o rodapé (a régua de etapas), e deixa o canto
+       superior direito quase limpo, que é onde o ciclo vive. Um scrim
+       uniforme forte protege o texto mas apaga o objeto junto. */
     .cchero-scrim {
-      background: linear-gradient(
-        180deg,
-        rgba(216,216,214,0.66) 0%,
-        rgba(216,216,214,0.82) 42%,
-        rgba(216,216,214,0.94) 100%
-      );
+      background:
+        linear-gradient(
+          180deg,
+          rgba(5,6,9,0.06) 0%,
+          rgba(5,6,9,0.48) 52%,
+          rgba(5,6,9,0.90) 100%
+        ),
+        linear-gradient(
+          90deg,
+          rgba(5,6,9,0.74) 0%,
+          rgba(5,6,9,0.30) 58%,
+          rgba(5,6,9,0.00) 100%
+        );
     }
     .cchero-scrim::after { opacity: 0.12; }
 

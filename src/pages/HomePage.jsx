@@ -247,9 +247,9 @@ const PAGE_CSS = `
   .cch-recursos-layer { z-index: 2; }
 
   /* Sem o pin, a navbar deixa de flutuar sobre a Hero e passa a ocupar
-     espaço próprio acima dela. Sem esta cor o topo da página fica com
-     uma faixa clara emendada no cinza da Hero. */
-  .cch-story.cch-story--static { height: auto; background: #d8d8d6; }
+     espaço próprio acima dela. A cor acompanha a Hero, que agora é
+     escura — clara, ela emendava uma faixa cinza no topo do preto. */
+  .cch-story.cch-story--static { height: auto; background: #050609; }
   .cch-story--static .cch-pin {
     position: static; height: auto;
   }
