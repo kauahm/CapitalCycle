@@ -2,6 +2,15 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Inter agora é carregada como fonte variável (wght 100..900). O
+   optical sizing e as alternativas estilísticas cv11 (o "1" com
+   base) e ss03 só existem no arquivo variável — é o que muda as
+   curvas nos corpos grandes dos headlines. */
+:root {
+  font-optical-sizing: auto;
+  font-feature-settings: 'cv11' 1, 'ss03' 1;
+}
+
 /* ==========================================
    AUTOPREENCHIMENTO (Chrome/Safari)
    O navegador pinta o campo de azul claro quando preenche

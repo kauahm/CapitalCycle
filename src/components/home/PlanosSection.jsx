@@ -1,10 +1,8 @@
 import { memo } from 'react';
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { Check } from 'lucide-react';
 import { PLAN_LIST } from '../ui/plans';
-import AmbientGlow from './AmbientGlow';
-import FloatingFigures from './FloatingFigures';
 
 /* =========================================================
    PLANOS — seção de preços da Home
@@ -24,6 +22,7 @@ const reveal = {
     transition: { duration: 0.8, ease: EASE, delay: i * 0.11 },
   }),
 };
+
 
 function PlanCard({ plan, index }) {
   const dark = plan.featured;
@@ -90,10 +89,10 @@ function PlanCard({ plan, index }) {
       <Link
         to="/cadastro"
         state={{ plan: plan.id }}
-        className={`mt-7 inline-flex items-center justify-center rounded-xl px-6 py-3.5 text-sm font-bold transition-colors ${
+        className={`mt-7 inline-flex items-center justify-center rounded-xl px-6 py-3.5 text-sm font-bold transition-colors active:scale-[0.985] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[3px] focus-visible:outline-[#5358ee] ${
           dark
             ? 'bg-[#5358ee] text-white hover:bg-[#4348e0]'
-            : 'bg-[#ddd7fc] text-[#4b3fd6] hover:bg-[#d1c9fb]'
+            : 'bg-[#5358ee]/10 text-[#4348e0] hover:bg-[#5358ee]/[0.16]'
         }`}
       >
         Começar com o {plan.name}
@@ -123,19 +122,26 @@ function PlanCard({ plan, index }) {
 }
 
 function PlanosSection() {
+  // Sem esta trava a seção continuava animando com movimento
+  // reduzido ligado: o `whileInView` do framer-motion não olha a
+  // preferência sozinho.
+  const semMovimento = useReducedMotion();
+
+  // `initial: false` faz o framer pintar direto no estado final, sem
+  // animar — e os filhos herdam isso, então nada fica invisível.
+  const orquestra = semMovimento
+    ? { initial: false, animate: 'show' }
+    : { initial: 'hidden', whileInView: 'show', viewport: { once: true, amount: 0.15 } };
+
   return (
     <section
       id="planos"
       className="relative bg-[#f4f5f7] px-6 pb-24 pt-12 sm:px-10 sm:pb-28 sm:pt-16 lg:px-16"
     >
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(255,255,255,0.95),rgba(244,245,247,1)_60%)]" />
-      <AmbientGlow />
-      <FloatingFigures variant="sides" />
 
       <motion.div
-        initial="hidden"
-        whileInView="show"
-        viewport={{ once: true, amount: 0.15 }}
+        {...orquestra}
         className="relative z-10 mx-auto flex w-full max-w-[58rem] flex-col items-center text-center"
       >
         <motion.span
@@ -158,7 +164,7 @@ function PlanosSection() {
         <motion.p
           variants={reveal}
           custom={2}
-          className="mt-7 max-w-xl text-base leading-relaxed text-[#3c3c40]"
+          className="mt-7 max-w-xl text-base leading-relaxed text-[#3c3c40] [text-wrap:pretty]"
         >
           Do controle prático ao avançado com IA — dois planos para cada etapa da
           sua jornada de capital.

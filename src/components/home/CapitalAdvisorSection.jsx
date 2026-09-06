@@ -2,8 +2,6 @@ import { memo, useRef, useState } from 'react';
 import { motion, useReducedMotion, useScroll, useSpring, useTransform } from 'framer-motion';
 import { ArrowUp, Sparkles } from 'lucide-react';
 import useTypewriter from '../../hooks/useTypewriter';
-import AmbientGlow from './AmbientGlow';
-import FloatingFigures from './FloatingFigures';
 
 const EASE = [0.16, 1, 0.3, 1];
 
@@ -48,39 +46,50 @@ function CapitalAdvisorSection() {
   const HERO_RANGE = [0.25, 0.85];
   const BAR_RANGE = [0.5, 0.9];
 
-  const heroOpacity = useTransform(progress, HERO_RANGE, [1, 0]);
-  const heroY = useTransform(progress, HERO_RANGE, [0, -56]);
+  /* Com movimento reduzido nada disso pode andar. `useTransform`
+     roda de qualquer jeito — a preferência só era respeitada no
+     placeholder que digita sozinho, então a seção inteira continuava
+     se mexendo no scroll para quem tinha pedido para não se mexer.
+     As faixas viram constantes: o hook continua sendo chamado na
+     mesma ordem, mas o valor não varia. */
+  const faixa = (de, para) => (reduceMotion ? [para, para] : [de, para]);
+
+  const heroOpacity = useTransform(progress, HERO_RANGE, faixa(1, 1));
+  const heroY = useTransform(progress, HERO_RANGE, faixa(0, 0));
 
   // A barra já nasce solida e legivel (nada de comecar "sumida"); o
   // scroll so intensifica largura/altura/sombra por cima dessa base.
-  const barWidth = useTransform(progress, BAR_RANGE, ['86%', '100%']);
-  const barHeight = useTransform(progress, BAR_RANGE, ['3.75rem', '4.5rem']);
-  const barBg = useTransform(progress, BAR_RANGE, ['rgba(255,255,255,0.82)', 'rgba(255,255,255,0.94)']);
-  const barBorder = useTransform(progress, BAR_RANGE, ['rgba(255,255,255,0.7)', 'rgba(255,255,255,0.95)']);
+  const barWidth = useTransform(progress, BAR_RANGE, faixa('86%', '100%'));
+  const barHeight = useTransform(progress, BAR_RANGE, faixa('3.75rem', '4.5rem'));
+  const barBg = useTransform(progress, BAR_RANGE, faixa('rgba(255,255,255,0.82)', 'rgba(255,255,255,0.94)'));
+  const barBorder = useTransform(progress, BAR_RANGE, faixa('rgba(255,255,255,0.7)', 'rgba(255,255,255,0.95)'));
   const barShadow = useTransform(
     progress,
     BAR_RANGE,
-    ['0 12px 28px rgba(15,15,20,0.08)', '0 30px 64px rgba(15,15,20,0.18)']
+    faixa('0 12px 28px rgba(15,15,20,0.08)', '0 30px 64px rgba(15,15,20,0.18)')
   );
 
   return (
-    <section id="capital-advisor" ref={sectionRef} className="relative h-[150vh] bg-[#f4f5f7]">
-      <div className="sticky top-0 flex h-screen flex-col justify-center overflow-hidden">
+    /* Os 150vh são a pista de rolagem do efeito. Com movimento
+       reduzido não há efeito nenhum, e sobrariam 50vh de rolagem
+       morta — a seção encolhe para a altura do conteúdo. */
+    <section
+      id="capital-advisor"
+      ref={sectionRef}
+      className={`relative bg-[#f4f5f7] ${reduceMotion ? 'h-auto' : 'h-[150vh]'}`}
+    >
+      <div className={`flex flex-col justify-center overflow-hidden ${reduceMotion ? "py-28" : "sticky top-0 h-screen"}`}>
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_15%,rgba(255,255,255,0.95),rgba(244,245,247,1)_62%)]" />
-        <AmbientGlow />
-        {/* Conteúdo alinhado à esquerda (max-w-3xl) — as figuras ficam
-            só na metade direita, bem longe do título e da barra. */}
-        <FloatingFigures variant="right" />
 
         <div className="relative z-10 mx-auto w-full max-w-[1980px] px-6 sm:px-10 lg:px-16">
           <motion.div style={{ opacity: heroOpacity, y: heroY }} className="max-w-3xl">
             <div className="mb-8 flex flex-col gap-2">
               <span className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-[0.12em] text-neutral-900">
-                <span className="h-1.5 w-1.5 rounded-full bg-primary" aria-hidden="true" />
+                <span className="h-1.5 w-1.5 rounded-full bg-[#5358ee]" aria-hidden="true" />
                 Capital Advisor
               </span>
               <span className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-[0.12em] text-neutral-500">
-                <span className="h-1.5 w-1.5 rounded-full bg-primary/60" aria-hidden="true" />
+                <span className="h-1.5 w-1.5 rounded-full bg-[#5358ee]/60" aria-hidden="true" />
                 Sessão ativa
               </span>
             </div>
@@ -88,7 +97,7 @@ function CapitalAdvisorSection() {
             <h2 className="text-[clamp(2.6rem,7vw,5.7rem)] font-black uppercase leading-[0.95] tracking-tight text-neutral-950">
               <span className="block">Pergunte.</span>
               <span className="block">Analise.</span>
-              <span className="block text-primary">Decida.</span>
+              <span className="block text-[#5358ee]">Decida.</span>
             </h2>
           </motion.div>
 
@@ -109,7 +118,7 @@ function CapitalAdvisorSection() {
               <Sparkles
                 size={17}
                 strokeWidth={2.2}
-                className="hidden flex-none text-primary sm:block"
+                className="hidden flex-none text-[#5358ee] sm:block"
                 aria-hidden="true"
               />
 
@@ -126,7 +135,7 @@ function CapitalAdvisorSection() {
                   onFocus={() => setFocused(true)}
                   onBlur={() => setFocused(false)}
                   autoComplete="off"
-                  className="w-full bg-transparent text-sm text-neutral-800 outline-none sm:text-base"
+                  className="w-full bg-transparent text-sm text-neutral-800 caret-[#5358ee] outline-none focus-visible:outline-none sm:text-base"
                 />
 
                 {showPlaceholder && (
@@ -161,7 +170,7 @@ function CapitalAdvisorSection() {
                     : { duration: 0.4, ease: EASE }
                 }
                 whileTap={{ scale: 0.9 }}
-                className="flex h-10 w-10 flex-none items-center justify-center rounded-full bg-primary text-white shadow-lg shadow-primary/30 sm:h-11 sm:w-11"
+                className="flex h-10 w-10 flex-none items-center justify-center rounded-full bg-[#5358ee] text-white shadow-lg shadow-[#5358ee]/30 sm:h-11 sm:w-11"
               >
                 <ArrowUp size={18} strokeWidth={2.4} />
               </motion.button>
