@@ -1,7 +1,6 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeftRight, BarChart3, Clock, ShieldCheck } from 'lucide-react';
 
 import logoClara from '../assets/logo-topo.png';
 import logoEscura from '../assets/logo-black.png';
@@ -9,7 +8,9 @@ import logoEscura from '../assets/logo-black.png';
 import HeroSection from '../components/home/hero/HeroSection';
 import ProdutoSection from '../components/home/ProdutoSection';
 import CapitalAdvisorSection from '../components/home/CapitalAdvisorSection';
+import PassagemSection from '../components/home/PassagemSection';
 import PlanosSection from '../components/home/PlanosSection';
+import RetornoSection from '../components/home/RetornoSection';
 
 /* =========================================================
    HOME — Capital Cycle
@@ -32,6 +33,14 @@ const PAGE_CSS = `
     --cch-muted: #6d6d72;
     --cch-purple-rec: #5358ee;
 
+    /* ---------- Faixa de conteúdo ----------
+       Prumada mestra da página: navbar, texto do Hero e ponta
+       esquerda do circuito nascem todos em x = 0 desta faixa.
+       É a coincidência dessas bordas que faz a página ler como
+       sistema, e por isso a medida vive aqui e não em cada seção. */
+    --cc-goteira: 20px;
+    --cc-faixa: min(1120px, 100% - var(--cc-goteira) * 2);
+
     position: relative;
     width: 100%;
     isolation: isolate;
@@ -42,12 +51,12 @@ const PAGE_CSS = `
   .cch *, .cch *::before, .cch *::after { box-sizing: border-box; }
 
   /* A navbar é fixa: sem isto a âncora pousa a seção debaixo dela. */
-  .cch [id], .cch-feats { scroll-margin-top: 6rem; }
+  .cch [id] { scroll-margin-top: 6rem; }
 
   /* Antialiasing suavizado afina o traço; em texto escuro sobre
      fundo claro isso deixa a leitura anêmica. Fica só no escuro. */
   .cch { -webkit-font-smoothing: auto; }
-  .cch-nav--dark, .cch-feat-card--dark { -webkit-font-smoothing: antialiased; }
+  .cch-nav--dark { -webkit-font-smoothing: antialiased; }
 
   .cch ::selection { background: rgba(83, 88, 238, 0.22); color: var(--cch-ink); }
 
@@ -63,9 +72,9 @@ const PAGE_CSS = `
     transition: background 0.35s ease, box-shadow 0.35s ease,
                 backdrop-filter 0.35s ease;
   }
-  /* .cch pinta #f4f5f7; sobre o vídeo isso seria uma faixa clara.
-     Dois nomes de classe para ganhar de .cch por especificidade,
-     não por ordem no arquivo. */
+  /* .cch pinta #f4f5f7; sobre uma seção escura isso seria uma faixa
+     clara atravessando o topo. Dois nomes de classe para ganhar de
+     .cch por especificidade, não por ordem no arquivo. */
   .cch.cch-nav-wrap { background: transparent; }
 
   /* Sobre as seções claras ela precisa de um chão próprio, senão o
@@ -77,149 +86,104 @@ const PAGE_CSS = `
     box-shadow: 0 1px 0 rgba(15, 18, 22, 0.06);
   }
 
+  /* A navbar ocupa a faixa, não a viewport: o logo cai exatamente
+     na mesma prumada do texto do Hero e da ponta esquerda do
+     circuito. Altura fixa de 72px, com centralização vertical
+     real — antes o padding inferior era zero e a barra ficava
+     pendurada. */
   .cch-nav {
     position: relative; z-index: 20;
     display: flex; align-items: center; justify-content: space-between; gap: 1.5rem;
-    padding: 1.9rem 3.2rem 0;
-    max-width: 1980px; margin: 0 auto;
+    height: 72px;
+    width: var(--cc-faixa);
+    margin-inline: auto;
   }
 
+  /* 32px e não os 20px da especificação: a marca é empilhada em
+     duas linhas ("CAPITAL / CYCLE") dentro de uma elipse, então a
+     altura útil de cada linha é ~28% do arquivo. A 20px cada linha
+     ficava com 5px de altura de caixa.
+
+     ---------- Alinhamento óptico ----------
+     Os dois PNGs têm 703x355 e a tinta começa em x=95, y=55, com
+     22px de folga embaixo. Encostar a CAIXA do arquivo na prumada
+     deixava a marca 8,6px recuada em relação ao texto do Hero e à
+     ponta do horizonte — a prumada mestra existia no código e não
+     na tela.
+
+     As compensações são frações da altura renderizada, não pixels
+     soltos: 95/355 na horizontal e (55-22)/2/355 na vertical. Se a
+     altura mudar, o alinhamento acompanha. A marca não foi
+     redesenhada nem redimensionada. */
   .cch-logo {
+    --cch-logo-alt: 32px;
     flex: none;
     display: inline-flex; align-items: center;
-    height: 2.5rem;
+    overflow: visible;
   }
   .cch-logo img {
-    height: 2.1rem; width: auto; display: block;
+    height: var(--cch-logo-alt); width: auto; display: block;
     object-fit: contain;
+    margin-left: calc(var(--cch-logo-alt) * -0.2676);
+    margin-top: calc(var(--cch-logo-alt) * -0.0465);
   }
 
   .cch-nav-right {
-    display: flex; align-items: center; gap: 0.9rem;
+    display: flex; align-items: center; gap: 24px;
     margin-left: auto;
   }
 
+  /* Sem pílula de fundo e sem chip sólido no item ativo: eram dois
+     retângulos escuros disputando o canto direito com o botão de
+     entrar. O ativo agora é marcado por um fio de 1px na cor e na
+     espessura do circuito — o indicador de navegação passa a ser
+     um segmento do mesmo instrumento. */
   .cch-menu {
-    display: flex; align-items: center; gap: 0.3rem;
-    padding: 0.45rem;
-    border-radius: 14px;
-    background: rgba(15, 18, 22, 0.05);
+    display: flex; align-items: center; gap: 0.25rem;
+    padding: 0;
+    background: transparent;
   }
   .cch-menu a {
-    display: inline-flex; align-items: center; gap: 0.4rem;
-    padding: 0.55rem 1.5rem;
-    border: 0; background: transparent; cursor: pointer;
-    font-family: inherit; font-size: 0.93rem; font-weight: 700;
-    color: var(--cch-body); text-decoration: none;
-    border-radius: 9px; white-space: nowrap;
-    transition: background 0.2s ease, color 0.2s ease;
-  }
-  .cch-menu a:hover { background: rgba(15, 18, 22, 0.07); color: var(--cch-ink); }
-  .cch-menu .is-active { background: #0f1216; color: #fff; }
-  .cch-menu .is-active:hover { background: #0f1216; color: #fff; }
-
-  .cch-login {
-    display: inline-flex; align-items: center; justify-content: center;
-    padding: 0.82rem 1.9rem;
-    background: #0f1216; color: #fff;
-    font-family: inherit; font-size: 0.93rem; font-weight: 700;
-    border: 0; border-radius: 11px; cursor: pointer; text-decoration: none;
-    white-space: nowrap;
-    transition: transform 0.2s ease, background 0.2s ease;
-  }
-  .cch-login:hover { background: #000; transform: translateY(-1px); }
-  .cch-login:active { transform: translateY(0) scale(0.985); }
-
-  /* ---------- Navbar sobre o hero escuro ----------
-     Botão preto sobre vídeo quase preto simplesmente desaparece:
-     no escuro ele inverte. */
-  .cch-nav--dark .cch-menu {
-    background: rgba(255, 255, 255, 0.08);
-    border: 1px solid rgba(255, 255, 255, 0.10);
-  }
-  .cch-nav--dark .cch-menu a { color: rgba(255, 255, 255, 0.78); }
-  .cch-nav--dark .cch-menu a:hover {
-    background: rgba(255, 255, 255, 0.14); color: #fff;
-  }
-  .cch-nav--dark .cch-menu .is-active { background: #fff; color: #0f1216; }
-  .cch-nav--dark .cch-menu .is-active:hover { background: #fff; color: #0f1216; }
-  .cch-nav--dark .cch-login { background: #fff; color: #0f1216; }
-  /* Um halo branco em volta de um botão branco não existe em nenhuma
-     das referências; o que elas fazem é clarear de leve. */
-  .cch-nav--dark .cch-login:hover { background: rgba(255, 255, 255, 0.88); }
-
-  /* ---------- Recursos ---------- */
-  .cch-recursos {
     position: relative;
-    background: #f4f5f7;
+    display: inline-flex; align-items: center;
+    padding: 0.4rem 0.75rem;
+    border: 0; background: transparent; cursor: pointer;
+    font-family: inherit; font-size: 14px; font-weight: 500;
+    color: var(--cch-body); text-decoration: none;
+    white-space: nowrap;
+    transition: color 0.2s ease;
   }
-  .cch-recursos-bg {
-    position: absolute; inset: 0; z-index: 0; pointer-events: none;
+  .cch-menu a:hover { color: var(--cch-ink); }
+  .cch-menu .is-active { color: var(--cch-ink); }
+  .cch-menu .is-active::after {
+    content: '';
+    position: absolute; left: 0.75rem; right: 0.75rem; bottom: 0;
+    height: 1px; background: var(--cch-muted);
   }
-  .cch-rec-inner {
-    position: relative; z-index: 10;
-    max-width: 1980px; margin: 0 auto;
-    min-height: calc(100vh - 6.5rem);
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
-    text-align: center;
-    padding: 7rem 3.2rem 3.2rem;
 
-    opacity: 0;
-    transform: translateY(18px);
-    transition: opacity 0.55s cubic-bezier(0.16,1,0.3,1), transform 0.55s cubic-bezier(0.16,1,0.3,1);
+  /* Link de texto, não botão. O índigo é reservado para o CTA
+     primário do Hero: um único elemento saturado por viewport. */
+  .cch-login {
+    display: inline-flex; align-items: center;
+    padding: 0.4rem 0;
+    background: transparent; color: var(--cch-ink);
+    font-family: inherit; font-size: 14px; font-weight: 600;
+    border: 0; border-radius: 0; cursor: pointer; text-decoration: none;
+    white-space: nowrap;
+    transition: color 0.2s ease;
   }
-  .cch-rec-inner.is-in { opacity: 1; transform: translateY(0); }
+  .cch-login:hover { color: #000; }
 
-  .cch-rec-eyebrow {
-    display: inline-flex; align-items: center; gap: 0.5rem;
-    font-size: 0.85rem; font-weight: 700; letter-spacing: 0.1em;
-    text-transform: uppercase; color: var(--cch-purple-rec);
-  }
-  .cch-dot {
-    width: 7px; height: 7px; border-radius: 50%;
-    background: var(--cch-purple-rec); flex: none;
-  }
-  .cch-rec-title {
-    margin: 1.4rem 0 0;
-    max-width: 56rem;
-    font-size: clamp(2.8rem, 5.4vw, 7.4rem);
-    line-height: 1.04;
-    font-weight: 900;
-    /* Zero, não negativo: apertar caixa alta fecha os contraformas. */
-    letter-spacing: 0;
-    text-transform: uppercase;
-    text-wrap: balance;
-    color: var(--cch-ink);
-  }
-  .cch-rec-title span { display: block; }
-  .cch-rec-title .cch-accent-rec { color: var(--cch-purple-rec); }
-  .cch-rec-lead {
-    margin: 2rem 0 0;
-    max-width: 34rem;
-    font-size: 1.1rem; line-height: 1.52; font-weight: 400;
-    text-wrap: pretty;
-    color: var(--cch-body);
-  }
-  .cch-rec-cta {
-    display: inline-flex; align-items: center; gap: 0.6rem;
-    margin-top: 2.3rem;
-    padding: 1.05rem 1.9rem 1.05rem 2.3rem;
-    background: #0f1216; color: #fff;
-    font-family: inherit; font-size: 0.98rem; font-weight: 700;
-    border-radius: 999px; text-decoration: none; white-space: nowrap;
-    transition: transform 0.32s cubic-bezier(0.16, 1, 0.3, 1),
-                background 0.32s cubic-bezier(0.16, 1, 0.3, 1);
-  }
-  .cch-rec-cta:hover {
-    background: #000; transform: translateY(-2px);
-    transition-duration: 0.18s;
-  }
-  .cch-rec-cta:active { transform: translateY(0) scale(0.985); }
-  .cch-rec-arrow {
-    width: 18px; height: 18px; flex: none;
-    transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
-  }
-  .cch-rec-cta:hover .cch-rec-arrow { transform: translateX(4px); }
+  /* ---------- Navbar sobre seção escura ----------
+     Com o Hero claro, a variante escura serve apenas à seção de
+     Produto, que segue quase preta até ser redesenhada. */
+  .cch-nav--dark .cch-menu a { color: rgba(255, 255, 255, 0.72); }
+  .cch-nav--dark .cch-menu a:hover { color: #fff; }
+  .cch-nav--dark .cch-menu .is-active { color: #fff; }
+  .cch-nav--dark .cch-menu .is-active::after { background: rgba(255, 255, 255, 0.55); }
+  .cch-nav--dark .cch-login { color: #fff; }
+  .cch-nav--dark .cch-login:hover { color: rgba(255, 255, 255, 0.78); }
+
 
   /* ---------- Foco visível ----------
      Não havia nenhum estilo de foco na landing: quem navega por
@@ -237,174 +201,33 @@ const PAGE_CSS = `
   .cch-nav--dark button:focus-visible {
     outline-color: #ffffff;
   }
-  .cch-feat-card:focus-within {
-    outline: 2px solid var(--cch-purple-rec);
-    outline-offset: 3px;
-  }
 
-  /* ---------- Responsivo ---------- */
+  /* ---------- Responsivo ----------
+     A goteira é o único valor responsivo da faixa: a partir de
+     768px ela abre de 20px para 48px, e a faixa continua limitada
+     a 1120px. A navbar acompanha sem regra própria, porque a
+     largura dela É a faixa. */
+  @media (min-width: 768px) {
+    .cch { --cc-goteira: 48px; }
+  }
   @media (max-width: 1280px) {
-    .cch-nav { padding: 1.6rem 1.75rem 0; }
-    .cch-menu a { padding: 0.55rem 1rem; font-size: 0.88rem; }
+    .cch-menu a { padding: 0.4rem 0.6rem; }
   }
   @media (max-width: 980px) {
     .cch-menu { display: none; }
-    .cch-rec-inner { min-height: 0; padding: 5rem 1.5rem 3rem; }
-  }
-  @media (max-width: 560px) {
-    .cch-nav { padding: 1.1rem 1.25rem 0; }
-    .cch-login { padding: 0.7rem 1.3rem; font-size: 0.88rem; }
-    .cch-rec-cta { padding: 0.9rem 1.6rem 0.9rem 2rem; }
   }
   @media (prefers-reduced-motion: reduce) {
     .cch *, .cch *::before, .cch *::after { transition: none !important; }
-    .cch-rec-inner { opacity: 1 !important; transform: none !important; }
   }
 
-  /* ---------- Recursos em destaque (cards) ---------- */
-  .cch-feats {
-    position: relative;
-    /* Alterna com o #f4f5f7 das vizinhas: cinco seções chapadas
-       iguais em sequência apagam o ritmo vertical da página. */
-    background: #ffffff;
-    padding: clamp(5rem, 9vw, 11rem) 3.2rem;
-  }
-  .cch-feats-inner {
-    max-width: 64rem; margin: 0 auto;
-    display: grid; grid-template-columns: 1fr 1fr;
-    /* Antes o gutter (18px) era menor que o padding interno (30px)
-       e os cards colavam uns nos outros. */
-    gap: 1.75rem;
-  }
-  .cch-feat-card {
-    background: #f7f7f9;
-    border-radius: 1.25rem;
-    padding: 2rem;
-    /* Chapado, com fio de borda. A 5% de alpha a sombra anterior era
-       fraca demais para ler como elevação e presente demais para ler
-       como plano — o pior dos dois. A elevação fica reservada para o
-       mockup do dashboard, que é o único elemento que flutua. */
-    border: 1px solid rgba(19, 19, 22, 0.07);
-    opacity: 0;
-    transform: translateY(18px);
-    transition: opacity 0.55s cubic-bezier(0.16,1,0.3,1),
-                transform 0.55s cubic-bezier(0.16,1,0.3,1),
-                border-color 0.3s cubic-bezier(0.16,1,0.3,1),
-                box-shadow 0.3s cubic-bezier(0.16,1,0.3,1);
-  }
-  /* Um card com sombra que não responde ao cursor lê como imagem. */
-  .cch-feat-card.is-in:hover {
-    border-color: rgba(83, 88, 238, 0.28);
-    box-shadow: 0 2px 4px rgba(19,19,22,0.04), 0 12px 28px rgba(19,19,22,0.07);
-  }
-  .cch-feat-card.is-in {
-    opacity: 1;
-    transform: translateY(0);
-  }
-  /* Superfície escura com luz encenada: brilho radial atrás do
-     conteúdo e um fio de aresta no topo. Um fill preto chapado é o
-     que mais denuncia superfície não trabalhada. */
-  .cch-feat-card--dark {
-    background:
-      radial-gradient(120% 90% at 30% -10%, rgba(83,88,238,0.16), transparent 62%),
-      linear-gradient(180deg, #171b22 0%, #0f1216 62%);
-    border-color: rgba(255, 255, 255, 0.07);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07);
-  }
-  .cch-feat-card--dark.is-in:hover {
-    border-color: rgba(83, 88, 238, 0.45);
-    box-shadow: inset 0 1px 0 rgba(255,255,255,0.09), 0 16px 34px rgba(0,0,0,0.22);
-  }
-  .cch-feat-icon {
-    display: inline-flex; align-items: center; justify-content: center;
-    width: 2.75rem; height: 2.75rem;
-    border-radius: 0.8rem;
-    background: rgba(83,88,238,0.12);
-    color: #5358ee;
-    margin-bottom: 1.25rem;
-  }
-  .cch-feat-icon svg { width: 1.15rem; height: 1.15rem; }
-  .cch-feat-card--dark .cch-feat-icon {
-    background: #5358ee;
-    color: #fff;
-  }
-  .cch-feat-title {
-    margin: 0 0 0.55rem;
-    font-size: 1.15rem;
-    font-weight: 800;
-    letter-spacing: -0.01em;
-    color: #131316;
-  }
-  .cch-feat-card--dark .cch-feat-title { color: #fff; }
-  .cch-feat-desc {
-    margin: 0;
-    max-width: 24rem;
-    font-size: 0.88rem;
-    line-height: 1.5;
-    color: #6d6d72;
-  }
-  .cch-feat-card--dark .cch-feat-desc { color: rgba(255,255,255,0.6); }
-
-  @media (max-width: 1280px) {
-    .cch-feats { padding: 4.5rem 1.75rem 5rem; }
-  }
-  @media (max-width: 900px) {
-    .cch-feats-inner { grid-template-columns: 1fr; gap: 1rem; }
-    .cch-feat-card { padding: 1.75rem; }
-    .cch-feats { padding-left: 1.5rem; padding-right: 1.5rem; }
-  }
-  @media (prefers-reduced-motion: reduce) {
-    .cch-feat-card {
-      transition: none !important;
-      opacity: 1 !important;
-      transform: none !important;
-    }
-  }
 `;
 
-/* ---------- Ícones ---------- */
 
-function ArrowRightIcon() {
-  return (
-    <svg className="cch-rec-arrow" viewBox="0 0 24 24" fill="none"
-      stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M5 12h14" />
-      <path d="M13 6l6 6-6 6" />
-    </svg>
-  );
-}
-
-/* ---------- Cards de recursos em destaque ---------- */
-
-const FEATURE_CARDS = [
-  {
-    title: 'Dashboard Financeiro',
-    desc: 'Saldo consolidado de todas as contas com indicadores de fluxo em tempo real.',
-    Icon: BarChart3,
-  },
-  {
-    title: 'Transações Inteligentes',
-    desc: 'Registre entradas e saídas com categorias, filtros avançados e histórico completo.',
-    Icon: ArrowLeftRight,
-  },
-  {
-    title: 'Ciclos de Investimento',
-    desc: 'Metas de orçamento por período com progresso calculado automaticamente.',
-    Icon: Clock,
-  },
-  {
-    title: 'Capital Advisor',
-    desc: 'Análise dos seus dados financeiros em linguagem natural, direto no aplicativo.',
-    Icon: ShieldCheck,
-    dark: true,
-  },
-];
 
 /* ---------- Navegação ---------- */
 
 const NAV_LINKS = [
   { id: 'inicio', label: 'Início' },
-  { id: 'recursos', label: 'Recursos' },
   { id: 'capital-advisor', label: 'Capital Advisor' },
   { id: 'planos', label: 'Planos' },
 ];
@@ -483,24 +306,37 @@ function useSecaoAtiva(ids) {
 }
 
 /* ---------- Tema da navbar ----------
-   Escura enquanto o hero (quase preto) ainda cobre a faixa do topo;
-   clara da seção de produto em diante. O limiar é a altura da
-   própria navbar: o tema vira exatamente quando ela deixa de ter
-   vídeo atrás. */
+   Sobre o hero a barra fica transparente: o fundo dela já é o
+   #f4f5f7 da página, e um chão translúcido ali seria uma faixa
+   visível sem função. Assim que o hero sai de baixo dela, a barra
+   ganha esse chão para o conteúdo não passar por trás dos links.
 
-const ALTURA_NAV = 84;
+   A variante escura deixou de ser acionada quando o Produto passou
+   a ser claro. O CSS dela continua no arquivo porque as seções
+   seguintes ainda não foram redesenhadas e podem voltar a precisar
+   dela; o gatilho é que não existe mais.
 
-function useNavEscura() {
-  const [escura, setEscura] = useState(true);
+   O limiar continua sendo a altura da própria barra: o tema vira
+   exatamente quando o hero deixa de estar atrás dela. */
+
+const ALTURA_NAV = 72;
+
+function useNavTema() {
+  const [tema, setTema] = useState('transparente');
 
   useEffect(() => {
     let frame = null;
 
+    const cobreABarra = (id) => {
+      const el = document.getElementById(id);
+      if (!el) return false;
+      const r = el.getBoundingClientRect();
+      return r.top <= ALTURA_NAV && r.bottom > ALTURA_NAV;
+    };
+
     const medir = () => {
       frame = null;
-      const hero = document.getElementById('inicio');
-      if (!hero) return;
-      setEscura(hero.getBoundingClientRect().bottom > ALTURA_NAV);
+      setTema(cobreABarra('inicio') ? 'transparente' : 'clara');
     };
 
     const aoRolar = () => {
@@ -517,37 +353,7 @@ function useNavEscura() {
     };
   }, []);
 
-  return escura;
-}
-
-/* ---------- Revela ao entrar na viewport (uma única vez) ---------- */
-
-function useRevealOnScroll(threshold = 0.18) {
-  const ref = useRef(null);
-  const [inView, setInView] = useState(false);
-
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    if (typeof IntersectionObserver === 'undefined') {
-      setInView(true);
-      return;
-    }
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0]?.isIntersecting) {
-          setInView(true);
-          observer.disconnect();
-        }
-      },
-      { threshold, rootMargin: '0px 0px -10% 0px' }
-    );
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [threshold]);
-
-  return [ref, inView];
+  return tema;
 }
 
 /* Mesma curva padronizada no resto do projeto */
@@ -556,10 +362,8 @@ const EASE = [0.16, 1, 0.3, 1];
 /* ---------- Componente ---------- */
 
 export default function HomePage() {
-  const [featsRef, featsInView] = useRevealOnScroll();
-  const [recRef, recInView] = useRevealOnScroll(0.12);
   const activeNav = useSecaoAtiva(NAV_IDS);
-  const navEscura = useNavEscura();
+  const navTema = useNavTema();
 
   const scrollToSection = useCallback((id) => {
     const behavior = window.matchMedia('(prefers-reduced-motion: reduce)').matches
@@ -612,73 +416,32 @@ export default function HomePage() {
         />
       )}
 
-      <div className={`cch cch-nav-wrap${navEscura ? '' : ' is-clara'}`}>
-        <MainNav active={activeNav} onNavigate={scrollToSection} onDark={navEscura} />
+      <div className={`cch cch-nav-wrap${navTema === 'clara' ? ' is-clara' : ''}`}>
+        <MainNav
+          active={activeNav}
+          onNavigate={scrollToSection}
+          onDark={navTema === 'escura'}
+        />
       </div>
 
       <div className="cch">
         <HeroSection />
 
         <ProdutoSection />
-
-        {/* Sem atmosfera decorativa: as manchas de gradiente índigo e
-            os números flutuantes de marca d'água saíram daqui e das
-            outras seções. Eram exatamente os dois clichês que o
-            projeto tinha decidido não usar, e o fundo chapado é o que
-            as referências mais contidas fazem. */}
-        <section className="cch-recursos" id="recursos">
-          <div className={`cch-rec-inner${recInView ? ' is-in' : ''}`} ref={recRef}>
-            <span className="cch-rec-eyebrow">
-              <span className="cch-dot" aria-hidden="true" />
-              Recursos
-            </span>
-
-            <h2 className="cch-rec-title">
-              <span>Gestão</span>
-              <span className="cch-accent-rec">Que evolui com você</span>
-            </h2>
-
-            <p className="cch-rec-lead">
-              Ferramentas profissionais para controle total do seu dinheiro — do
-              lançamento individual à inteligência financeira por IA.
-            </p>
-
-            <a
-              className="cch-rec-cta"
-              href="#planos"
-              onClick={(e) => {
-                e.preventDefault();
-                scrollToSection('planos');
-              }}
-            >
-              Ver planos
-              <ArrowRightIcon />
-            </a>
-          </div>
-        </section>
       </div>
-
-      <section className="cch-feats" ref={featsRef} aria-label="Recursos em destaque">
-        <div className="cch-feats-inner">
-          {FEATURE_CARDS.map(({ title, desc, Icon, dark }, i) => (
-            <article
-              key={title}
-              className={`cch-feat-card${dark ? ' cch-feat-card--dark' : ''}${featsInView ? ' is-in' : ''}`}
-              style={{ transitionDelay: `${i * 60}ms` }}
-            >
-              <span className="cch-feat-icon" aria-hidden="true">
-                <Icon size={19} strokeWidth={2.2} />
-              </span>
-              <h3 className="cch-feat-title">{title}</h3>
-              <p className="cch-feat-desc">{desc}</p>
-            </article>
-          ))}
-        </div>
-      </section>
 
       <CapitalAdvisorSection />
 
+      {/* Estações 05 e 06 do circuito. Não é uma seção de conteúdo:
+          é o trecho do eixo entre DECIDIR e os Planos. */}
+      <PassagemSection />
+
       <PlanosSection />
+
+      {/* Fechamento do circuito: a linha desce em E6, atravessa a
+          faixa e sobe em E0 — a mesma coluna em que ela começou a
+          descer no Hero. Não é footer e não tem conteúdo. */}
+      <RetornoSection />
     </>
   );
 }

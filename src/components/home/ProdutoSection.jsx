@@ -1,203 +1,287 @@
-import { memo } from 'react';
-import { motion, useReducedMotion } from 'framer-motion';
-import { Target, TrendingUp } from 'lucide-react';
+import { memo, useLayoutEffect, useRef, useState } from 'react';
 
 import DEMO from './demoAccount';
+import PRODUTO_CSS from './produtoStyles';
+import { geometriaDoProduto, geometriaDaDescida } from './hero/circuitoGeometria';
 import { formatarMoeda } from '../../utils/formatters';
 
 /* =========================================================
-   PRODUTO — a tela real do CapitalCycle, logo abaixo do hero.
+   PRODUTO — etapas 02 (ORGANIZAR) e 03 (ANALISAR).
 
-   O hero termina com a câmera dentro da tela do notebook e a
-   promessa da marca escrita nela. Esta seção é a resposta: a tela
-   de verdade, com os rótulos, as cores e o layout do Dashboard
-   Financeiro real. Ela não tem headline própria de propósito — o
-   hero acabou de dar uma, e duas seguidas competiriam. A
-   frase-ponte que apresentava esta tela também vive no hero agora,
-   como último elemento dele — repeti-la aqui seria dizer a mesma
-   coisa duas vezes seguidas.
+   A seção é a continuação do circuito, não outra tela. Fundo
+   #f4f5f7 como o Hero, mesmo traço grafite, mesmas estações,
+   mesmo raio, mesmo SVG 1:1. A linha desce do Hero em E0, recebe
+   as quatro contas, dobra para E1 e ali deixa de ser abstração:
+   vira o gráfico de fluxo, desenhado com os seis valores reais de
+   demoAccount.fluxo.
 
-   Os valores vêm todos de demoAccount.js, para o saldo do
-   cabeçalho e a soma das partes nunca se contradizerem.
+   Duas consequências disso, ambas propositais:
+
+   - o gráfico de barras esmeralda que vivia dentro do painel
+     deixou de existir. Ele era um segundo gráfico dos mesmos
+     dados, e a linha do circuito É o gráfico agora;
+
+   - o painel escuro encolheu para o que só ele pode mostrar — os
+     números consolidados e a meta — e passou a ocupar a mesma
+     coluna do gráfico acima dele.
+
+   Nenhum dado é inventado: tudo vem de demoAccount.js, a mesma
+   fonte que o Dashboard Financeiro real usa nos rótulos.
    ========================================================= */
 
-const EASE = [0.16, 1, 0.3, 1];
-
-/* Atenção: aqui dentro valem os tokens do APP (`primary` #6366f1,
-   `emerald`, `background` #070b14), não os da landing. É de propósito
-   — esta caixa é uma reprodução da tela real, e alinhá-la à paleta da
-   landing faria o mockup mentir sobre o produto. Fora desta função, a
-   landing usa só #5358EE. */
-function TelaDashboard() {
-  const { nome, saldoDisponivel, totalInvestido, contasAtivas, sobraDoMes, fluxo, meta } = DEMO;
-
-  const maiorFluxo = Math.max(...fluxo.map((m) => Math.abs(m.liquido)));
-  const progressoMeta = Math.round((meta.atual / meta.alvo) * 100);
-
-  return (
-    /* Sombra em camadas + um fio de luz na borda de cima. Sobre
-       fundo escuro uma sombra sozinha não se vê; o que dá relevo é
-       a aresta iluminada, como nas telas das referências. */
-    <div className="overflow-hidden rounded-[1.5rem] bg-background shadow-[0_1px_0_0_rgba(255,255,255,0.07)_inset,0_0_0_1px_rgba(255,255,255,0.06),0_2px_8px_rgba(0,0,0,0.4),0_18px_40px_rgba(0,0,0,0.45),0_50px_110px_rgba(0,0,0,0.5)]">
-      {/* Barra da janela — o mínimo para ler como "uma tela", não
-          como mais um card da landing. */}
-      <div className="flex items-center gap-2 border-b border-border bg-surface px-5 py-3.5">
-        <span className="h-2.5 w-2.5 rounded-full bg-surfaceLight" />
-        <span className="h-2.5 w-2.5 rounded-full bg-surfaceLight" />
-        <span className="h-2.5 w-2.5 rounded-full bg-surfaceLight" />
-        <span className="ml-auto text-[0.7rem] font-semibold tracking-wide text-textSecondary">
-          CapitalCycle · Dashboard Financeiro
-        </span>
-      </div>
-
-      <div className="space-y-8 p-6 sm:p-9">
-        {/* ── Cabeçalho: o saldo é o dado hero, o resto orbita ── */}
-        <div className="flex flex-col gap-7 lg:flex-row lg:items-end lg:justify-between">
-          <div>
-            <p className="mb-4 text-sm text-slate-500">
-              Olá, {nome}. Aqui está o resumo do seu capital.
-            </p>
-            <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-slate-500">
-              Saldo disponível
-            </p>
-            <p className="text-[clamp(2rem,5vw,3.1rem)] font-bold leading-none tracking-tight text-white tabular-nums">
-              {formatarMoeda(saldoDisponivel)}
-            </p>
-            <div className="mt-3 inline-flex items-center gap-1.5 text-sm font-medium text-emerald-400">
-              <TrendingUp size={16} aria-hidden="true" />
-              Sobrou {formatarMoeda(sobraDoMes)} este mês
-            </div>
-          </div>
-
-          <div className="flex shrink-0 gap-10">
-            <div>
-              <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-slate-500">
-                Investido
-              </p>
-              <p className="text-2xl font-semibold text-emerald-400 tabular-nums">
-                {formatarMoeda(totalInvestido)}
-              </p>
-            </div>
-            <div>
-              <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-slate-500">
-                Contas ativas
-              </p>
-              <p className="text-2xl font-semibold text-white tabular-nums">{contasAtivas}</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="h-px bg-border" />
-
-        {/* ── Fluxo líquido + meta em andamento ── */}
-        <div className="grid grid-cols-1 gap-9 lg:grid-cols-3">
-          <div className="lg:col-span-2">
-            <h3 className="mb-6 text-sm font-semibold text-slate-300">
-              Fluxo líquido — últimos 6 meses
-            </h3>
-            <div className="flex h-32 items-end gap-4">
-              {fluxo.map((m) => (
-                <div key={m.label} className="flex h-full flex-1 flex-col items-center justify-end gap-2">
-                  {/* Barras finas, topo arredondado e um degradê que
-                      escurece na base — blocos verdes chapados de
-                      largura total liam como "gráfico genérico". O mês
-                      corrente se destaca pela saturação, não por um
-                      anel em volta. */}
-                  <div
-                    className={`w-full max-w-[2.75rem] rounded-t-[4px] ${
-                      m.atual
-                        ? 'bg-gradient-to-t from-emerald-600/60 to-emerald-400'
-                        : 'bg-gradient-to-t from-emerald-700/30 to-emerald-500/55'
-                    }`}
-                    style={{ height: `${Math.max(4, (Math.abs(m.liquido) / maiorFluxo) * 100)}%` }}
-                  />
-                  <span
-                    className={`text-xs capitalize ${
-                      m.atual ? 'font-semibold text-slate-300' : 'text-slate-600'
-                    }`}
-                  >
-                    {m.label}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div>
-            <h3 className="mb-6 flex items-center gap-2 text-sm font-semibold text-slate-300">
-              <Target size={16} className="text-slate-500" aria-hidden="true" />
-              Metas em andamento
-            </h3>
-            <div className="rounded-xl border border-border p-5">
-              <p className="text-sm font-medium text-slate-200">{meta.nome}</p>
-              <p className="mt-1 text-xs text-slate-500 tabular-nums">
-                {formatarMoeda(meta.atual)} de {formatarMoeda(meta.alvo)}
-              </p>
-              <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-surfaceLight">
-                <div
-                  className="h-full rounded-full bg-primary"
-                  style={{ width: `${progressoMeta}%` }}
-                />
-              </div>
-              <p className="mt-2 text-xs font-semibold text-slate-400 tabular-nums">
-                {progressoMeta}% concluído
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/* A abertura do escuro para o claro.
-
-   Antes esta seção era #f4f5f7 e o hero terminava em #050608: dava
-   um corte de preto para branco numa única linha de pixels, e 50px
-   depois voltava ao escuro do painel do dashboard — preto, branco,
-   preto. A seção agora nasce no mesmo preto do hero (emenda
-   invisível) e só abre para o claro no rodapé dela, uma vez só.
-
-   As paradas não são igualmente espaçadas de propósito: uma rampa
-   linear de #050608 até #f4f5f7 passa metade do caminho num cinza
-   sujo. Concentrando a maior parte da distância no escuro e
-   abrindo rápido no fim, a passagem lê como amanhecer em vez de
-   mancha. */
-const ABERTURA = `linear-gradient(180deg,
-  rgba(5, 6, 8, 0) 0%,
-  #050608 12%,
-  #0a0c12 38%,
-  #1b1f2b 58%,
-  #6b7080 78%,
-  #c9ccd4 91%,
-  #f4f5f7 100%)`;
+/* Altura da caixa de plotagem em função da largura da faixa, para
+   a proporção do gráfico ser a mesma em qualquer viewport sem
+   depender de breakpoint. */
+const alturaDoPlot = (largura) => Math.min(190, Math.max(120, largura * 0.16));
 
 function ProdutoSection() {
-  const semMovimento = useReducedMotion();
+  const { nome, saldoDisponivel, totalInvestido, contasAtivas, sobraDoMes, fluxo, meta } = DEMO;
+  const progressoMeta = Math.round((meta.atual / meta.alvo) * 100);
 
-  const reveal = semMovimento
-    ? {}
-    : {
-        initial: { opacity: 0, y: 40 },
-        whileInView: { opacity: 1, y: 0 },
-        viewport: { once: true, amount: 0.15 },
-        transition: { duration: 0.8, ease: EASE },
-      };
+  const secaoRef = useRef(null);
+  const faixaRef = useRef(null);
+  const circuitoRef = useRef(null);
+  const abaixoRef = useRef(null);
+
+  const [geo, setGeo] = useState(() => geometriaDoProduto({
+    largura: 0,
+    valores: fluxo.map((m) => m.liquido),
+    contas: contasAtivas,
+    plotAltura: alturaDoPlot(0),
+  }));
+  const [descida, setDescida] = useState(() => geometriaDaDescida(0, 0));
+
+  // Medição antes da pintura, como no Hero. Sem listener de scroll:
+  // o ResizeObserver só dispara quando a faixa muda de tamanho.
+  useLayoutEffect(() => {
+    const secao = secaoRef.current;
+    const topo = circuitoRef.current;
+    const abaixo = abaixoRef.current;
+    if (!secao || !topo || !abaixo) return undefined;
+
+    const valores = fluxo.map((m) => m.liquido);
+    const arred = (v) => Math.round(v * 100) / 100;
+
+    const medir = () => {
+      const largura = topo.clientWidth;
+      // Quanto o eixo precisa subir para nascer na borda superior da
+      // seção — exatamente onde o Hero entrega o traço.
+      const entrada = topo.getBoundingClientRect().top - secao.getBoundingClientRect().top;
+      setGeo((atual) => (atual.largura === arred(largura) && atual.acima === arred(Math.max(0, entrada))
+        ? atual
+        : geometriaDoProduto({
+          largura,
+          valores,
+          contas: contasAtivas,
+          plotAltura: alturaDoPlot(largura),
+          entrada,
+        })));
+
+      const l = abaixo.clientWidth;
+      const a = abaixo.clientHeight;
+      setDescida((atual) => (atual.largura === Math.round(l * 100) / 100
+        && atual.altura === Math.round(a * 100) / 100
+        ? atual
+        : geometriaDaDescida(l, a)));
+    };
+
+    medir();
+    const ro = new ResizeObserver(medir);
+    ro.observe(secao);
+    ro.observe(topo);
+    ro.observe(abaixo);
+    // O bloco do título também: quando a Inter termina de carregar,
+    // o título reflui de duas linhas para uma e a distância até o
+    // topo da seção encolhe. Sem observar isso, o eixo continuava
+    // desenhado a partir da medida antiga e nascia acima da borda.
+    if (faixaRef.current) ro.observe(faixaRef.current);
+
+    let vivo = true;
+    if (document.fonts && document.fonts.ready) {
+      document.fonts.ready.then(() => { if (vivo) medir(); }).catch(() => {});
+    }
+
+    return () => { vivo = false; ro.disconnect(); };
+  }, [fluxo, contasAtivas]);
+
+  const ultimo = geo.pontos[geo.pontos.length - 1];
 
   return (
-    <section
-      id="produto"
-      className="relative bg-[#050608] px-6 pb-[24rem] pt-24 sm:px-10 sm:pt-28 lg:px-16"
-    >
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-x-0 bottom-0 h-[30rem]"
-        style={{ background: ABERTURA }}
-      />
+    <section className="ccprod" id="produto" ref={secaoRef}>
+      <style>{PRODUTO_CSS}</style>
 
-      <motion.div {...reveal} className="relative z-10 mx-auto w-full max-w-[64rem]">
-        <TelaDashboard />
-      </motion.div>
+      {/* O título recua até a mesma prumada dos rótulos de estação.
+          Com o eixo agora nascendo na borda superior da seção, ele
+          desce por onde o título estava e cortava o texto. Todo
+          texto do Produto vive à direita do eixo — o eixo é o
+          elemento mais à esquerda da seção. */}
+      <div
+        className="ccprod-faixa"
+        ref={faixaRef}
+        style={{ paddingLeft: `${geo.rotulos.organizar.x}px` }}
+      >
+        <h2 className="ccprod-titulo">A tela que você abre depois de entrar.</h2>
+      </div>
+
+      {/* Mesma técnica do Hero: o bloco tem a altura do desenho, e o
+          SVG é absoluto e mais alto, começando acima dele (viewBox
+          com origem negativa) para o eixo nascer na borda superior
+          da seção — o mesmo traço, não uma cópia. */}
+      <div
+        className="ccprod-circuito"
+        ref={circuitoRef}
+        style={{ height: `${geo.altura}px` }}
+      >
+        {geo.largura > 0 && (
+          <svg
+            width={geo.largura}
+            height={geo.alturaSvg}
+            viewBox={`0 ${-geo.acima} ${geo.largura} ${geo.alturaSvg}`}
+            style={{ top: `${-geo.acima}px` }}
+            aria-hidden="true"
+            focusable="false"
+          >
+            {geo.contas.map((conta) => (
+              <path key={conta.y} className="ccprod-traco" d={conta.d} />
+            ))}
+            <path className="ccprod-traco" d={geo.eixo} />
+            {ultimo && (
+              <circle className="ccprod-atual" cx={ultimo.x} cy={ultimo.y} r="3.5" />
+            )}
+          </svg>
+        )}
+
+        <span
+          className="ccprod-estacao"
+          style={{ left: `${geo.rotulos.organizar.x}px`, top: `${geo.rotulos.organizar.y}px` }}
+        >
+          02 — Organizar
+        </span>
+        <span
+          className="ccprod-nota"
+          style={{
+            left: `${geo.rotulos.organizar.x}px`,
+            top: `${geo.rotulos.organizar.y + 17}px`,
+          }}
+        >
+          {contasAtivas} contas ativas, uma leitura
+        </span>
+
+        <span
+          className="ccprod-estacao"
+          style={{ left: `${geo.rotulos.analisar.x}px`, top: `${geo.rotulos.analisar.y}px` }}
+        >
+          03 — Analisar
+        </span>
+        <span
+          className="ccprod-nota"
+          style={{
+            left: `${geo.rotulos.analisar.x}px`,
+            top: `${geo.rotulos.analisar.y + 17}px`,
+          }}
+        >
+          Fluxo líquido — últimos {fluxo.length} meses
+        </span>
+
+        {/* Rótulos de mês: mesma fonte de dados dos pontos. */}
+        {geo.pontos.map((ponto, i) => {
+          const ehUltimo = i === geo.pontos.length - 1;
+          return (
+            <span
+              key={fluxo[i].label}
+              className={`ccprod-mes${ehUltimo ? ' is-ultimo' : ''}`}
+              style={{
+                left: `${ehUltimo ? ponto.x + 10 : ponto.x}px`,
+                top: `${geo.rotulos.meses}px`,
+              }}
+            >
+              {fluxo[i].label}
+            </span>
+          );
+        })}
+
+        {/* Único valor escrito no gráfico: o do mês corrente, que é
+            o mesmo número que o painel abaixo chama de sobra.
+
+            Fica na mesma linha do rótulo da estação, alinhado à
+            direita na prumada da última leitura: colado ao ponto ele
+            cruzava o traço do gráfico sempre que um mês vizinho
+            ficava alto, e logo acima da plotagem ele batia na nota
+            "Fluxo líquido" nas faixas estreitas. Aqui o par
+            estação-à-esquerda / valor-à-direita lê como cabeçalho do
+            gráfico e não colide em nenhuma largura. */}
+        {ultimo && (
+          <span
+            className="ccprod-valor"
+            style={{ left: `${ultimo.x}px`, top: `${geo.rotulos.analisar.y}px` }}
+          >
+            {`+${formatarMoeda(sobraDoMes)}`}
+          </span>
+        )}
+      </div>
+
+      <div className="ccprod-abaixo" ref={abaixoRef}>
+        <div className="ccprod-painel">
+          <div className="ccprod-painel-topo">
+            <span>CapitalCycle · Dashboard Financeiro</span>
+            <span>{contasAtivas} contas</span>
+          </div>
+
+          <p className="ccprod-saudacao">
+            Olá, {nome}. Aqui está o resumo do seu capital.
+          </p>
+
+          <div className="ccprod-grade">
+            <div>
+              <p className="ccprod-rot">Saldo disponível</p>
+              <p className="ccprod-num ccprod-num--grande">{formatarMoeda(saldoDisponivel)}</p>
+            </div>
+            <div>
+              <p className="ccprod-rot">Investido</p>
+              <p className="ccprod-num ccprod-num--medio">{formatarMoeda(totalInvestido)}</p>
+            </div>
+            <div>
+              <p className="ccprod-rot">Contas ativas</p>
+              <p className="ccprod-num ccprod-num--medio">{contasAtivas}</p>
+            </div>
+          </div>
+
+          <div className="ccprod-meta">
+            <div className="ccprod-meta-linha">
+              <p className="ccprod-meta-nome">{meta.nome}</p>
+              <p className="ccprod-meta-valor">
+                {formatarMoeda(meta.atual)} de {formatarMoeda(meta.alvo)} · {progressoMeta}%
+              </p>
+            </div>
+            <div
+              className="ccprod-barra"
+              role="progressbar"
+              aria-valuenow={progressoMeta}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-label={meta.nome}
+            >
+              <span style={{ width: `${progressoMeta}%` }} />
+            </div>
+          </div>
+        </div>
+
+        {/* Depois do painel no DOM, e não antes: a descida corre na
+            prumada da borda direita dele. Desenhada por baixo, ela
+            sumiria durante toda a altura do painel — e o circuito
+            não pode desaparecer em nenhum trecho. */}
+        {descida.largura > 0 && descida.altura > 0 && (
+          <svg
+            width={descida.largura}
+            height={descida.altura}
+            viewBox={`0 0 ${descida.largura} ${descida.altura}`}
+            aria-hidden="true"
+            focusable="false"
+          >
+            <path className="ccprod-traco" d={descida.d} />
+          </svg>
+        )}
+      </div>
     </section>
   );
 }
