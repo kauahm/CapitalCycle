@@ -1,6 +1,7 @@
 import { memo, useLayoutEffect, useRef, useState } from 'react';
 
 import DEMO from './demoAccount';
+import useCircuitoScroll from './circuitoScroll';
 import PRODUTO_CSS from './produtoStyles';
 import { geometriaDoProduto, geometriaDaDescida } from './hero/circuitoGeometria';
 import { formatarMoeda } from '../../utils/formatters';
@@ -106,6 +107,47 @@ function ProdutoSection() {
 
   const ultimo = geo.pontos[geo.pontos.length - 1];
 
+  /* Revelação pelo scroll. As janelas saem todas de medidas reais:
+     `acima` é a distância do topo da seção até o bloco do circuito,
+     e a altura da seção é a soma dela com o bloco e com o campo de
+     baixo. Nenhum número de scroll fixo. */
+  useCircuitoScroll(secaoRef, () => {
+    const raiz = secaoRef.current;
+    if (!raiz) return null;
+    const alturaSecao = geo.acima + geo.altura + descida.altura;
+    if (alturaSecao <= 0) return null;
+    const fimDoEixo = (geo.acima + geo.altura) / alturaSecao;
+    const contas = [...raiz.querySelectorAll('.ccprod-conta')];
+    // As quatro entram juntas, na mesma janela: são quatro fontes
+    // convergindo, não quatro animações escalonadas.
+    const primeira = geo.contas.length ? geo.acima + geo.contas[0].y : 0;
+    const ultimaConta = geo.contas.length
+      ? geo.acima + geo.contas[geo.contas.length - 1].y + geo.raio
+      : 0;
+    return {
+      nome: 'produto',
+      trechos: [
+        { el: raiz.querySelector('.ccprod-eixo'), de: 0, ate: fimDoEixo },
+        { el: raiz.querySelector('.ccprod-descida'), de: fimDoEixo, ate: 1 },
+        ...contas.map((el) => ({
+          el,
+          de: primeira / alturaSecao,
+          ate: ultimaConta / alturaSecao,
+        })),
+      ],
+      // O ponto índigo acende no último vértice do gráfico, não no
+      // fim do eixo: o que sobra de path depois do vértice é só a
+      // descida reta até a base do bloco, e é esse comprimento que
+      // vira o gatilho.
+      binarios: [{
+        el: raiz.querySelector('.ccprod-atual'),
+        trecho: 0,
+        restante: ultimo ? geo.altura - ultimo.y : 0,
+        em: 1,
+      }],
+    };
+  }, [geo.largura, geo.altura, geo.acima, descida.altura]);
+
   return (
     <section className="ccprod" id="produto" ref={secaoRef}>
       <style>{PRODUTO_CSS}</style>
@@ -142,9 +184,9 @@ function ProdutoSection() {
             focusable="false"
           >
             {geo.contas.map((conta) => (
-              <path key={conta.y} className="ccprod-traco" d={conta.d} />
+              <path key={conta.y} className="ccprod-traco ccprod-conta" d={conta.d} />
             ))}
-            <path className="ccprod-traco" d={geo.eixo} />
+            <path className="ccprod-traco ccprod-eixo" d={geo.eixo} />
             {ultimo && (
               <circle className="ccprod-atual" cx={ultimo.x} cy={ultimo.y} r="3.5" />
             )}
@@ -278,7 +320,7 @@ function ProdutoSection() {
             aria-hidden="true"
             focusable="false"
           >
-            <path className="ccprod-traco" d={descida.d} />
+            <path className="ccprod-traco ccprod-descida" d={descida.d} />
           </svg>
         )}
       </div>

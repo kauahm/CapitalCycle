@@ -1,5 +1,6 @@
 import { memo, useLayoutEffect, useRef, useState } from 'react';
 
+import useCircuitoScroll from './circuitoScroll';
 import RETORNO_CSS from './retornoStyles';
 import { geometriaDoRetorno } from './hero/circuitoGeometria';
 
@@ -52,6 +53,19 @@ function RetornoSection() {
 
     return () => { vivo = false; ro.disconnect(); };
   }, []);
+
+  /* Revelação pelo scroll: um path só — desce, vira, atravessa e
+     sobe. É o único trecho da página desenhado da direita para a
+     esquerda, e é ele que a pessoa fecha com o próprio scroll. */
+  useCircuitoScroll(faixaRef, () => {
+    const raiz = faixaRef.current;
+    if (!raiz) return null;
+    return {
+      nome: 'retorno',
+      trechos: [{ el: raiz.querySelector('.ccret-traco'), de: 0, ate: 1 }],
+      binarios: [],
+    };
+  }, [geo.largura, geo.altura]);
 
   return (
     /* `div` e não `section`: não há conteúdo aqui, e um marco de

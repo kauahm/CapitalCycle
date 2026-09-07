@@ -1,6 +1,7 @@
 import { useLayoutEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 
+import useCircuitoScroll from '../circuitoScroll';
 import HERO_CSS from './heroStyles';
 import { geometriaDoCircuito } from './circuitoGeometria';
 
@@ -22,7 +23,16 @@ import { geometriaDoCircuito } from './circuitoGeometria';
    a faixa muda de tamanho.
    ========================================================= */
 
+/* Divisão do progresso do Hero entre os dois trechos. O horizonte
+   fica com a maior parte de propósito: no topo da página a seção já
+   nasce ~62% percorrida (a linha de leitura está dentro dela), e com
+   um peso menor o horizonte apareceria pronto. Com 0,82 ele abre
+   com cerca de três quartos desenhados — a composição lê inteira e
+   o primeiro gesto de scroll ainda a completa. */
+const PESO_HORIZONTE = 0.82;
+
 export default function HeroSection() {
+  const secaoRef = useRef(null);
   const circuitoRef = useRef(null);
   const baseRef = useRef(null);
   const [geo, setGeo] = useState(() => geometriaDoCircuito(0, 0));
@@ -55,8 +65,47 @@ export default function HeroSection() {
     return () => ro.disconnect();
   }, []);
 
+  // Revelação pelo scroll. O controlador é único para a Home; aqui
+  // a seção só declara os seus trechos na ordem em que a linha os
+  // percorre: horizonte da esquerda para a direita, depois a curva
+  // e a descida.
+  useCircuitoScroll(secaoRef, () => {
+    const raiz = secaoRef.current;
+    if (!raiz) return null;
+    const graduacoes = [...raiz.querySelectorAll('.cchero-graduacoes .cchero-traco')];
+    return {
+      nome: 'hero',
+      // Ancorado no topo do documento: o progresso passa a contar do
+      // scroll 0, e não de onde a linha de leitura cai dentro da
+      // primeira seção.
+      ancorarNoTopo: true,
+      trechos: [
+        {
+          el: raiz.querySelector('.cchero-horizonte'),
+          de: 0,
+          ate: PESO_HORIZONTE,
+          // Nasce desenhado até a primeira graduação: o instrumento
+          // já existe no primeiro quadro, e todo o resto do horizonte
+          // fica para o scroll. A fração é a própria posição de E1.
+          inicial: geo.largura > 0 && geo.graduacoes[0]
+            ? geo.graduacoes[0].x / geo.largura
+            : 0,
+        },
+        { el: raiz.querySelector('.cchero-ramo'), de: PESO_HORIZONTE, ate: 1 },
+      ],
+      // Cada graduação acende quando o horizonte passa pelo x dela.
+      // Como o horizonte é uma reta, a fração de comprimento é
+      // exatamente x/largura — nenhum ajuste manual.
+      binarios: graduacoes.map((el, i) => ({
+        el,
+        trecho: 0,
+        em: geo.largura > 0 && geo.graduacoes[i] ? geo.graduacoes[i].x / geo.largura : 1,
+      })),
+    };
+  }, [geo.largura, geo.altura, geo.alturaTopo]);
+
   return (
-    <section className="cchero" id="inicio">
+    <section className="cchero" id="inicio" ref={secaoRef}>
       <style>{HERO_CSS}</style>
 
       <div className="cchero-texto">
@@ -104,8 +153,8 @@ export default function HeroSection() {
             aria-hidden="true"
             focusable="false"
           >
-            <path className="cchero-traco" d={geo.horizonte} />
-            <path className="cchero-traco" d={geo.ramo} />
+            <path className="cchero-traco cchero-horizonte" d={geo.horizonte} />
+            <path className="cchero-traco cchero-ramo" d={geo.ramo} />
             <g className="cchero-graduacoes">
               {geo.graduacoes.map((marca) => (
                 <path key={marca.x} className="cchero-traco" d={marca.d} />

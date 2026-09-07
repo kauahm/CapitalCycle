@@ -1,6 +1,7 @@
 import { memo, useLayoutEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 
+import useCircuitoScroll from './circuitoScroll';
 import PLANOS_CSS from './planosStyles';
 import { geometriaDosPlanos } from './hero/circuitoGeometria';
 import { PLAN_LIST } from '../ui/plans';
@@ -62,6 +63,18 @@ function PlanosSection() {
 
     return () => { vivo = false; ro.disconnect(); };
   }, []);
+
+  /* Revelação pelo scroll: uma vertical só, ao lado da composição.
+     Nada da seção é animado além dela. */
+  useCircuitoScroll(faixaRef, () => {
+    const raiz = faixaRef.current;
+    if (!raiz) return null;
+    return {
+      nome: 'planos',
+      trechos: [{ el: raiz.querySelector('.ccpla-traco'), de: 0, ate: 1 }],
+      binarios: [],
+    };
+  }, [geo.largura, geo.altura]);
 
   return (
     /* `cch` junto pelo mesmo motivo do Advisor e da Passagem: esta

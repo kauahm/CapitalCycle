@@ -1,5 +1,6 @@
 import { memo, useLayoutEffect, useRef, useState } from 'react';
 
+import useCircuitoScroll from './circuitoScroll';
 import ADVISOR_CSS from './advisorStyles';
 import { geometriaDoAdvisor } from './hero/circuitoGeometria';
 
@@ -39,6 +40,12 @@ const PERGUNTAS = [
   'Como posso juntar R$ 20 mil em 6 meses?',
   'Onde estou gastando mais do que deveria?',
 ];
+
+/* Fatia do percurso da seção em que o ramo horizontal é desenhado.
+   Trechos horizontais não têm extensão vertical para mapear, então
+   esta é uma decisão de ritmo — a única do motor — e vale igual em
+   qualquer largura. */
+const FATIA_DO_RAMO = 0.12;
 
 function CapitalAdvisorSection() {
   const faixaRef = useRef(null);
@@ -87,6 +94,23 @@ function CapitalAdvisorSection() {
 
     return () => { vivo = false; ro.disconnect(); };
   }, []);
+
+  /* Revelação pelo scroll. O eixo desce por toda a seção; o ramo
+     que vira o sublinhado começa exatamente na linha de base do
+     campo (yCampo medido) e ocupa uma fatia curta do percurso. */
+  useCircuitoScroll(faixaRef, () => {
+    const raiz = faixaRef.current;
+    if (!raiz || !geo.altura) return null;
+    const inicioDoRamo = (geo.yCampo || 0) / geo.altura;
+    return {
+      nome: 'advisor',
+      trechos: [
+        { el: raiz.querySelector('.ccdec-traco:not(.ccdec-sublinhado)'), de: 0, ate: 1 },
+        { el: raiz.querySelector('.ccdec-sublinhado'), de: inicioDoRamo, ate: inicioDoRamo + FATIA_DO_RAMO },
+      ],
+      binarios: [],
+    };
+  }, [geo.largura, geo.altura, geo.yCampo]);
 
   return (
     /* `cch` junto: esta seção é irmã do wrapper .cch em HomePage, não

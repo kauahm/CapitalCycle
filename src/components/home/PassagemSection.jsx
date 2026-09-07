@@ -1,5 +1,6 @@
 import { memo, useLayoutEffect, useRef, useState } from 'react';
 
+import useCircuitoScroll from './circuitoScroll';
 import PASSAGEM_CSS from './passagemStyles';
 import { geometriaDaPassagem } from './hero/circuitoGeometria';
 
@@ -67,6 +68,27 @@ function PassagemSection() {
     return () => { vivo = false; ro.disconnect(); };
   }, []);
 
+  /* Revelação pelo scroll. O eixo é uma vertical pura, então a
+     fração de comprimento é exatamente y/altura: cada marca acende
+     no instante em que a linha passa por ela. */
+  useCircuitoScroll(faixaRef, () => {
+    const raiz = faixaRef.current;
+    if (!raiz || !geo.altura) return null;
+    const marcas = [...raiz.querySelectorAll('.ccpas-marca')];
+    return {
+      nome: 'passagem',
+      trechos: [{ el: raiz.querySelector('.ccpas-eixo'), de: 0, ate: 1 }],
+      binarios: marcas.map((el, i) => ({
+        el,
+        trecho: 0,
+        em: geo.marcas[i] ? geo.marcas[i].y / geo.altura : 1,
+      })),
+    };
+    // `marcas.length` nas dependências: as posições saem da medição
+    // dos rótulos e podem chegar depois da primeira geometria, sem
+    // alterar largura nem altura.
+  }, [geo.largura, geo.altura, geo.marcas.length, geo.marcas.map((m) => m.y).join()]);
+
   return (
     /* `cch` junto pelo mesmo motivo do Advisor: esta seção é irmã do
        wrapper .cch em HomePage, não filha, e sem a classe não recebe
@@ -84,9 +106,9 @@ function PassagemSection() {
             focusable="false"
           >
             {/* O mesmo eixo que desceu do Advisor, sem desvio. */}
-            <path className="ccpas-traco" d={geo.eixo} />
+            <path className="ccpas-traco ccpas-eixo" d={geo.eixo} />
             {geo.marcas.map((marca) => (
-              <path key={marca.y} className="ccpas-traco" d={marca.d} />
+              <path key={marca.y} className="ccpas-traco ccpas-marca" d={marca.d} />
             ))}
           </svg>
         )}
