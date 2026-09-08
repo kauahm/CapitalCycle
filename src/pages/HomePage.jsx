@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { motion } from 'framer-motion';
 
 import logoClara from '../assets/logo-topo.png';
 import logoEscura from '../assets/logo-black.png';
@@ -300,6 +299,42 @@ const PAGE_CSS = `
     .cch *, .cch *::before, .cch *::after { transition: none !important; }
   }
 
+  /* ---------- Revelação na volta do Login ----------
+     Chegando pela animação de voltar do Login, a tela já está coberta
+     de preto: aqui ela é revelada com um fade, em vez de a Home
+     aparecer num corte seco.
+
+     Era um <motion.div> do framer-motion. A biblioteca inteira
+     (125 KB) estava no bundle da rota pública por causa DESTE fade de
+     500ms — e a Home é o único lugar da landing que a usava. Em CSS
+     é a mesma curva, a mesma duração e o mesmo resultado, com zero
+     JavaScript.
+
+     Fica FORA do escopo .cch de propósito: o elemento é irmão do
+     wrapper, não filho dele.
+
+     Com movimento reduzido a duração cai para 1ms em vez de a
+     animação ser desligada. Um "animation: none" nunca dispara o
+     evento animationend, e sem esse evento o estado "revealing"
+     jamais voltaria a ser falso — a tela ficaria preta para sempre. */
+  .cch-revelar {
+    position: fixed;
+    inset: 0;
+    z-index: 60;
+    background: #05070e;
+    pointer-events: none;
+    animation: cch-revelar 500ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+
+  @keyframes cch-revelar {
+    from { opacity: 1; }
+    to   { opacity: 0; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .cch-revelar { animation-duration: 1ms; }
+  }
+
 `;
 
 
@@ -449,9 +484,6 @@ function useNavTema() {
   return tema;
 }
 
-/* Mesma curva padronizada no resto do projeto */
-const EASE = [0.16, 1, 0.3, 1];
-
 /* ---------- Componente ---------- */
 
 export default function HomePage() {
@@ -499,12 +531,9 @@ export default function HomePage() {
       <style>{PAGE_CSS}</style>
 
       {revealing && (
-        <motion.div
-          className="pointer-events-none fixed inset-0 z-[60] bg-[#05070e]"
-          initial={{ opacity: 1 }}
-          animate={{ opacity: 0 }}
-          transition={{ duration: 0.5, ease: EASE }}
-          onAnimationComplete={() => setRevealing(false)}
+        <div
+          className="cch-revelar"
+          onAnimationEnd={() => setRevealing(false)}
           aria-hidden="true"
         />
       )}
