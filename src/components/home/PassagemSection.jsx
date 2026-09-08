@@ -3,6 +3,7 @@ import { memo, useLayoutEffect, useRef, useState } from 'react';
 import useCircuitoScroll from './circuitoScroll';
 import PASSAGEM_CSS from './passagemStyles';
 import { geometriaDaPassagem } from './hero/circuitoGeometria';
+import { LEITURAS, codigo } from './estacoes';
 
 /* =========================================================
    PASSAGEM — estações 05 (INVESTIR) e 06 (EVOLUIR).
@@ -21,7 +22,7 @@ import { geometriaDaPassagem } from './hero/circuitoGeometria';
    contrário.
    ========================================================= */
 
-const ESTACOES = ['05 — Investir', '06 — Evoluir'];
+const ESTACOES = [5, 6];
 
 function PassagemSection() {
   const faixaRef = useRef(null);
@@ -83,6 +84,13 @@ function PassagemSection() {
         trecho: 0,
         em: geo.marcas[i] ? geo.marcas[i].y / geo.altura : 1,
       })),
+      // Cada estação é alcançada junto com a marca dela: mesmo
+      // gatilho, mesma fração, nenhuma medida nova.
+      estacoes: ESTACOES.map((n, i) => ({
+        n,
+        trecho: 0,
+        em: geo.marcas[i] ? geo.marcas[i].y / geo.altura : 1,
+      })),
     };
     // `marcas.length` nas dependências: as posições saem da medição
     // dos rótulos e podem chegar depois da primeira geometria, sem
@@ -117,14 +125,23 @@ function PassagemSection() {
           className="ccpas-estacoes"
           style={geo.larguraRotulo > 0 ? { width: `${geo.larguraRotulo}px` } : undefined}
         >
-          {ESTACOES.map((nome, i) => (
-            <p
-              key={nome}
-              className="ccpas-estacao"
-              ref={(el) => { rotulosRef.current[i] = el; }}
-            >
-              {nome}
-            </p>
+          {ESTACOES.map((n, i) => (
+            <div className="cc-most cc-most--leve ccpas-estacao" key={n}>
+              <span className="cc-most-cod">{codigo(n)}</span>
+              {/* A marca do eixo é desenhada na altura MEDIDA desta
+                  linha: o nome é o que a graduação aponta, e o
+                  índice e a leitura se organizam em volta dele. */}
+              <span
+                className="cc-most-nome"
+                ref={(el) => { rotulosRef.current[i] = el; }}
+              >
+                {LEITURAS[n].nome}
+              </span>
+              <span className="cc-most-linha">
+                <span className="cc-most-un">{LEITURAS[n].unidade}</span>
+                <span className="cc-most-val">{LEITURAS[n].valor}</span>
+              </span>
+            </div>
           ))}
         </div>
       </div>

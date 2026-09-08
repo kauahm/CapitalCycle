@@ -46,25 +46,38 @@ const PASSAGEM_CSS = `
   /* Os rótulos ficam em fluxo normal: é a posição deles que define
      onde as marcas são desenhadas, e não o contrário. A largura vem
      da geometria e termina encostando na marca. */
+  /* O intervalo encolheu na mesma medida em que as estações
+     cresceram: o que precisa ficar constante é a distância entre os
+     NOMES, porque é neles que as marcas do eixo são desenhadas. Com
+     o mostrador de três linhas ocupando ~57px, o vão de 116px cai
+     para 66px e as duas graduações continuam exatamente onde
+     estavam — o ritmo calibrado do eixo não se move. */
   .ccpas-estacoes {
     position: relative;
     z-index: 1;
     display: flex;
     flex-direction: column;
-    gap: clamp(72px, 7.8vw, 116px);
+    gap: clamp(48px, 4.6vw, 66px);
     text-align: right;
   }
 
-  .ccpas-estacao {
+  /* ---------- Estação leve ----------
+     Aqui a unidade e o valor dividem uma linha só. Estas duas não
+     são cabeçalhos de seção: são legendas de uma graduação do eixo,
+     e uma legenda de instrumento se lê numa linha. É também o que
+     permite dar dado às duas etapas sem esticar a passagem, que é
+     deliberadamente o trecho mais vazio da página. */
+  .ccpas-estacao .cc-most-un,
+  .ccpas-estacao .cc-most-val {
+    display: inline;
     margin: 0;
-    font-size: 11px;
-    font-weight: 500;
-    line-height: 1;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    font-variant-numeric: tabular-nums;
-    color: var(--cch-muted);
   }
+  .ccpas-estacao .cc-most-linha {
+    display: block;
+    margin-top: 13px;
+    white-space: nowrap;
+  }
+  .ccpas-estacao .cc-most-un { margin-right: 8px; }
 
   /* ---------- Tablet ---------- */
   @media (max-width: 1119px) {

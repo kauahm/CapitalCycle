@@ -52,6 +52,13 @@ const naJanela = (p, de, ate) => (ate > de ? clamp01((p - de) / (ate - de)) : (p
 
 const registro = new Set();
 
+/* Painéis que querem saber qual estação é a corrente — hoje só a
+   coluna de leitura do Hero. Não há um segundo motor para isso: o
+   estágio sai do MESMO progresso já calculado para desenhar a
+   linha, e a marca só é reescrita quando o número muda. */
+const paineis = new Set();
+let estacaoAtual = 1;
+
 let raf = null;
 let observadorTamanho = null;
 let observadorVisibilidade = null;
@@ -98,25 +105,59 @@ function escrever(entrada, p) {
   });
 
   // Marcas e pontos: presença binária, sem fade nem deslocamento.
-  // Quando `trecho` é informado, o gatilho é o progresso local
-  // daquele trecho — assim a marca nunca aparece antes de a linha
-  // ter chegado nela.
   entrada.binarios.forEach((bin) => {
     if (!bin.el) return;
-    const alvo = bin.trecho != null ? entrada.trechos[bin.trecho] : null;
-    // `restante` diz quanto de path ainda sobra depois do ponto de
-    // gatilho. Convertido em fração aqui, onde o comprimento já foi
-    // medido, o gatilho cai exatamente no vértice — e não no fim do
-    // trecho inteiro.
-    let limite = bin.em;
-    if (alvo && bin.restante != null && alvo.comprimento) {
-      limite = (alvo.comprimento - bin.restante) / alvo.comprimento;
-    }
-    const base = alvo ? (alvo.visivel != null ? alvo.visivel : 0) : p;
-    bin.el.style.visibility = base >= limite ? 'visible' : 'hidden';
+    bin.el.style.visibility = atingido(entrada, bin, p) ? 'visible' : 'hidden';
   });
 
   entrada.progresso = p;
+}
+
+/* Estações alcançadas por esta seção. Mesmo gatilho das marcas —
+   nenhuma medida nova, nenhum laço novo. Roda também para as
+   seções assentadas fora da viewport, que não precisam ser
+   redesenhadas mas continuam valendo para a conta. */
+function contarEstacoes(entrada, p) {
+  entrada.estacoes.forEach((est) => {
+    if (atingido(entrada, est, p) && est.n > maiorEstacao) maiorEstacao = est.n;
+  });
+}
+
+/* Um trecho chegou ao ponto de gatilho?
+
+   Quando `trecho` é informado, o gatilho é o progresso local
+   daquele trecho — assim a marca nunca aparece antes de a linha
+   ter chegado nela. `restante` diz quanto de path ainda sobra
+   depois do ponto de gatilho; convertido em fração aqui, onde o
+   comprimento já foi medido, ele cai exatamente no vértice, e não
+   no fim do trecho inteiro. */
+function atingido(entrada, spec, p) {
+  const alvo = spec.trecho != null ? entrada.trechos[spec.trecho] : null;
+  let limite = spec.em;
+  if (alvo && spec.restante != null && alvo.comprimento) {
+    limite = (alvo.comprimento - spec.restante) / alvo.comprimento;
+  }
+  const base = alvo ? (alvo.visivel != null ? alvo.visivel : 0) : p;
+  return base >= limite;
+}
+
+/* Repinta a marca de estágio corrente. Só é chamada quando o número
+   muda de fato — nunca por quadro. Cada painel acende a maior das
+   suas entradas que já foi alcançada, então uma coluna que lista
+   apenas 01, 03, 05 e 07 continua correta enquanto o circuito passa
+   por 02, 04 e 06. */
+function pintarEstacoes() {
+  paineis.forEach((painel) => {
+    let escolhida = null;
+    painel.itens.forEach((item) => {
+      if (item.n <= estacaoAtual && (escolhida == null || item.n > escolhida)) {
+        escolhida = item.n;
+      }
+    });
+    painel.itens.forEach((item) => {
+      item.el.classList.toggle('is-corrente', item.n === escolhida);
+    });
+  });
 }
 
 function completar(entrada) {
@@ -148,17 +189,26 @@ function linhaDeLeitura(y) {
   return base + Math.max(0, (vh - base) - restante);
 }
 
+/* Maior estação alcançada no quadro corrente. Vive fora de
+   `escrever` porque a conta é da página inteira, e não de uma
+   seção: o Hero lista estações que só são alcançadas lá embaixo. */
+let maiorEstacao = 1;
+
 function aplicar() {
   raf = null;
   if (semMovimento) return;
 
   const y = window.scrollY;
   const leitura = linhaDeLeitura(y);
+  maiorEstacao = 1;
 
   registro.forEach((entrada) => {
     // Fora da vizinhança da viewport a seção não precisa de
     // atualização por frame — ela já está em 0 ou em 1.
-    if (!entrada.visivel && entrada.assentada) return;
+    if (!entrada.visivel && entrada.assentada) {
+      contarEstacoes(entrada, entrada.progresso || 0);
+      return;
+    }
 
     // A primeira seção começa no topo do documento: sem isto a
     // linha de leitura já nasce dentro dela e boa parte do traço
@@ -169,8 +219,15 @@ function aplicar() {
     const p = fim > inicio ? clamp01((y - inicio) / (fim - inicio)) : 1;
 
     escrever(entrada, p);
+    contarEstacoes(entrada, p);
     entrada.assentada = !entrada.visivel;
   });
+
+  // Uma única escrita, e só quando o estágio muda de verdade.
+  if (maiorEstacao !== estacaoAtual) {
+    estacaoAtual = maiorEstacao;
+    pintarEstacoes();
+  }
 
   if (debug) atualizarDebug(y, leitura);
 }
@@ -273,8 +330,14 @@ function atualizarDebug(y, leitura) {
    são sempre derivadas de medidas reais da própria seção — nunca
    de números de scroll fixos.
 
+   Além dos trechos, a seção pode declarar as `estacoes` que o seu
+   traço alcança — com o mesmo gatilho das marcas — e um `painel`
+   que quer ser repintado quando o estágio corrente muda. Nenhum
+   dos dois cria listener, RAF ou medição própria: os dois saem do
+   progresso que já foi calculado para desenhar a linha.
+
    @param {object} raizRef   ref da caixa que define o progresso
-   @param {function} montar  () => ({ trechos, binarios })
+   @param {function} montar  () => ({ trechos, binarios, estacoes, painel })
    @param {Array} deps       recalcula quando a geometria muda
    ========================================================= */
 export default function useCircuitoScroll(raizRef, montar, deps = []) {
@@ -284,8 +347,13 @@ export default function useCircuitoScroll(raizRef, montar, deps = []) {
 
     const mq = sincronizarMovimento();
     const {
-      trechos = [], binarios = [], nome = 'secao', ancorarNoTopo = false,
+      trechos = [], binarios = [], estacoes = [], painel = null,
+      nome = 'secao', ancorarNoTopo = false,
     } = montar() || {};
+
+    // A coluna de leitura do Hero não tem laço próprio: ela só se
+    // inscreve aqui e é repintada quando o estágio muda.
+    if (painel && painel.itens && painel.itens.length) paineis.add(painel);
 
     const entrada = {
       raiz,
@@ -293,6 +361,8 @@ export default function useCircuitoScroll(raizRef, montar, deps = []) {
       ancorarNoTopo: !!ancorarNoTopo,
       trechos: trechos.map((t) => ({ de: 0, ate: 1, ...t, comprimento: null, visivel: null })),
       binarios,
+      estacoes,
+      painel,
       visivel: true,
       assentada: false,
       progresso: 0,
@@ -337,6 +407,7 @@ export default function useCircuitoScroll(raizRef, montar, deps = []) {
       if (observadorTamanho) observadorTamanho.unobserve(raiz);
       if (observadorVisibilidade) observadorVisibilidade.unobserve(raiz);
       completar(entrada);
+      if (painel) paineis.delete(painel);
       registro.delete(entrada);
       if (registro.size === 0) {
         desligar();

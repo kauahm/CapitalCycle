@@ -15,15 +15,15 @@ import RetornoSection from '../components/home/RetornoSection';
 /* =========================================================
    HOME — Capital Cycle
 
-   Só o hero tem pista de rolagem própria (o vídeo sincronizado
-   ao scroll, em components/home/hero). Da seção de produto em
-   diante as seções rolam normalmente, uma depois da outra, com
-   âncora nativa e scroll-spy — não existe mais nenhum crossfade
-   entre camadas empilhadas na mesma viewport.
+   Sete estações de um circuito só, em seis seções que rolam
+   normalmente, uma depois da outra, com âncora nativa e
+   scroll-spy. Não há pista de rolagem própria, pin, sticky nem
+   crossfade entre camadas: o scroll controla uma única coisa, que
+   é quanto da linha do circuito já foi desenhado.
 
-   A navbar é entregue ao hero e vive dentro do pin dele, flutuando
-   sobre o vídeo. Por isso usa o tema escuro: o fundo ali é o clipe
-   quase preto, não o #f4f5f7 do resto da página.
+   A navbar é fixa na página inteira e não pertence ao hero. Ela é
+   transparente enquanto nenhum conteúdo alcança a faixa dela, e
+   ganha um chão opaco a partir daí.
    ========================================================= */
 
 const PAGE_CSS = `
@@ -60,6 +60,76 @@ const PAGE_CSS = `
 
   .cch ::selection { background: rgba(83, 88, 238, 0.22); color: var(--cch-ink); }
 
+  /* ---------- Mostrador de estação ----------
+     O átomo tipográfico da identidade, definido UMA vez e usado
+     pelas sete estações. Quatro níveis, nesta ordem:
+
+       código    01/07     o índice sobre o total do percurso
+       nome      ENTRAR    a etapa
+       unidade   CONTAS…   o que está sendo medido
+       valor     4         o dado, sempre tabular
+
+     Não há caixa, fundo, borda, divisor nem ícone: o que separa os
+     quatro níveis é escala, peso e cor — os mesmos três recursos
+     que separam o resto da página. As estações leves usam só os
+     três primeiros níveis mais o valor curto.
+
+     O código do estágio corrente é o único que fica índigo, pela
+     regra da página: índigo é estado corrente ou ação primária. */
+  .cch .cc-most { display: block; }
+
+  .cch .cc-most-cod,
+  .cch .cc-most-nome,
+  .cch .cc-most-un {
+    display: block;
+    margin: 0;
+    line-height: 1;
+    text-transform: uppercase;
+    font-weight: 500;
+    white-space: nowrap;
+  }
+
+  .cch .cc-most-cod {
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    font-variant-numeric: tabular-nums;
+    color: var(--cch-muted);
+  }
+  .cch .cc-most-nome {
+    margin-top: 5px;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    color: var(--cch-ink);
+  }
+  /* Caixa alta é do CSS e não do conteúdo: o texto continua legível
+     para leitor de tela e o mesmo dado serve a qualquer estilo. */
+  .cch .cc-most-un {
+    margin-top: 13px;
+    font-size: 10px;
+    letter-spacing: 0.10em;
+    color: var(--cch-muted);
+  }
+  .cch .cc-most-val {
+    display: block;
+    margin: 5px 0 0;
+    /* Um valor monetário nunca quebra: partido em duas linhas ele
+       deixa de ser um número e vira duas. */
+    white-space: nowrap;
+    font-size: 18px;
+    font-weight: 500;
+    line-height: 1.15;
+    letter-spacing: -0.01em;
+    font-variant-numeric: tabular-nums;
+    color: var(--cch-ink);
+  }
+  /* Estação leve: o valor não é cabeçalho de seção, é legenda do
+     eixo. Mesmo átomo, um degrau abaixo. */
+  .cch .cc-most--leve .cc-most-val { font-size: 15px; }
+
+  /* Estágio corrente. Mudança de estado, sem transição e sem fade —
+     a marca troca quando o circuito alcança a estação seguinte. */
+  .cch .is-corrente .cc-most-cod { color: var(--cch-purple-rec); }
+
   /* ---------- Navbar ----------
      Vive dentro do pin do hero, flutuando sobre o vídeo. A variante
      clara continua aqui porque as regras base são compartilhadas;
@@ -67,22 +137,32 @@ const PAGE_CSS = `
   /* Fixa na página inteira, não presa ao hero. Ela morava dentro do
      pin do hero e sumia junto com ele — o visitante ficava sem
      navegação nenhuma da seção de produto até os Planos. */
+  /* Sem transição: a barra ganha o chão como MUDANÇA DE ESTADO, no
+     mesmo quadro. Animar background e backdrop-filter fazia todo
+     o conteúdo atrás da barra desfocar e lavar progressivamente
+     durante 350ms — um crossfade entre seções, que é exatamente o
+     que esta página não pode ter. */
   .cch-nav-wrap {
     position: fixed; top: 0; left: 0; right: 0; z-index: 50;
-    transition: background 0.35s ease, box-shadow 0.35s ease,
-                backdrop-filter 0.35s ease;
   }
   /* .cch pinta #f4f5f7; sobre uma seção escura isso seria uma faixa
      clara atravessando o topo. Dois nomes de classe para ganhar de
      .cch por especificidade, não por ordem no arquivo. */
   .cch.cch-nav-wrap { background: transparent; }
 
-  /* Sobre as seções claras ela precisa de um chão próprio, senão o
-     conteúdo passa por baixo e briga com os links. */
+  /* Chão OPACO, na cor exata da página, e sem desfoque.
+
+     Era translúcido a 78% com saturate(180%) blur(14px): o conteúdo
+     que passava por baixo continuava aparecendo — o CTA índigo do
+     Hero virava uma mancha colorida atrás do logo — e o desfoque
+     era o último resquício de glassmorphism da página, justamente a
+     estética que a auditoria mandou remover.
+
+     Opaco na cor do fundo, a barra não cria emenda visível: o que
+     marca que ela existe é o fio de 1px, na mesma família do traço
+     do circuito. */
   .cch.cch-nav-wrap.is-clara {
-    background: rgba(244, 245, 247, 0.78);
-    -webkit-backdrop-filter: saturate(180%) blur(14px);
-    backdrop-filter: saturate(180%) blur(14px);
+    background: #f4f5f7;
     box-shadow: 0 1px 0 rgba(15, 18, 22, 0.06);
   }
 
@@ -306,18 +386,28 @@ function useSecaoAtiva(ids) {
 }
 
 /* ---------- Tema da navbar ----------
-   Sobre o hero a barra fica transparente: o fundo dela já é o
-   #f4f5f7 da página, e um chão translúcido ali seria uma faixa
-   visível sem função. Assim que o hero sai de baixo dela, a barra
-   ganha esse chão para o conteúdo não passar por trás dos links.
+   A barra é transparente enquanto NÃO HÁ CONTEÚDO atrás dela: o
+   fundo dela já é o #f4f5f7 da página, e um chão ali seria uma
+   faixa visível sem função. Assim que algum conteúdo alcança a
+   faixa dos 72px, ela ganha o chão.
+
+   O gatilho anterior era outro — "o hero ainda cobre a barra?" — e
+   era a causa física da colisão entre o logo e o CTA. O hero tem
+   uma viewport inteira de altura, então continuava cobrindo a
+   barra por ~830px de rolagem; nesse intervalo o bloco de texto
+   já tinha subido para dentro dela, com a barra ainda transparente.
+   O logo e o botão "Criar conta" nascem na MESMA prumada mestra da
+   página, então os dois se sobrepunham por 46px — não era questão
+   de quem fica por cima, era conteúdo ocupando a faixa da barra.
+
+   A medida agora vem do DOM: o topo do bloco de conteúdo do hero.
+   Se a headline crescer, se a janela encolher ou se a coluna de
+   leitura mudar de altura, o limiar acompanha sozinho.
 
    A variante escura deixou de ser acionada quando o Produto passou
    a ser claro. O CSS dela continua no arquivo porque as seções
    seguintes ainda não foram redesenhadas e podem voltar a precisar
-   dela; o gatilho é que não existe mais.
-
-   O limiar continua sendo a altura da própria barra: o tema vira
-   exatamente quando o hero deixa de estar atrás dela. */
+   dela; o gatilho é que não existe mais. */
 
 const ALTURA_NAV = 72;
 
@@ -327,16 +417,19 @@ function useNavTema() {
   useEffect(() => {
     let frame = null;
 
-    const cobreABarra = (id) => {
-      const el = document.getElementById(id);
-      if (!el) return false;
-      const r = el.getBoundingClientRect();
-      return r.top <= ALTURA_NAV && r.bottom > ALTURA_NAV;
+    /* Verdadeiro enquanto todo o conteúdo do hero ainda está abaixo
+       da barra. `[data-cc-topo]` marca o bloco mais alto da seção;
+       sem ele, cai para a caixa da própria seção. */
+    const barraLivre = () => {
+      const hero = document.getElementById('inicio');
+      if (!hero) return false;
+      const conteudo = hero.querySelector('[data-cc-topo]') || hero;
+      return conteudo.getBoundingClientRect().top >= ALTURA_NAV;
     };
 
     const medir = () => {
       frame = null;
-      setTema(cobreABarra('inicio') ? 'transparente' : 'clara');
+      setTema(barraLivre() ? 'transparente' : 'clara');
     };
 
     const aoRolar = () => {

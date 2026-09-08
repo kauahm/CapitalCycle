@@ -3,6 +3,7 @@ import { memo, useLayoutEffect, useRef, useState } from 'react';
 import useCircuitoScroll from './circuitoScroll';
 import ADVISOR_CSS from './advisorStyles';
 import { geometriaDoAdvisor } from './hero/circuitoGeometria';
+import { LEITURAS, codigo } from './estacoes';
 
 /* =========================================================
    CAPITAL ADVISOR — etapa 04 do circuito, DECIDIR.
@@ -109,6 +110,10 @@ function CapitalAdvisorSection() {
         { el: raiz.querySelector('.ccdec-sublinhado'), de: inicioDoRamo, ate: inicioDoRamo + FATIA_DO_RAMO },
       ],
       binarios: [],
+      // 04 é alcançada quando o eixo chega à linha de base do campo,
+      // que é de onde o ramo sai. O eixo é uma vertical pura, então a
+      // fração de comprimento é exatamente a mesma fração de altura.
+      estacoes: [{ n: 4, trecho: 0, em: inicioDoRamo }],
     };
   }, [geo.largura, geo.altura, geo.yCampo]);
 
@@ -144,8 +149,32 @@ function CapitalAdvisorSection() {
           className="ccdec-conteudo"
           style={geo.larguraCampo > 0 ? { maxWidth: `${geo.larguraCampo}px` } : undefined}
         >
-          <span className="ccdec-estacao">04 — Decidir</span>
-          <p className="ccdec-nota">Da leitura para a decisão</p>
+          <span className="cc-most ccdec-estacao">
+            <span className="cc-most-cod">{codigo(4)}</span>
+            <span className="cc-most-nome">{LEITURAS[4].nome}</span>
+            <span className="cc-most-un">Da leitura para a decisão</span>
+          </span>
+
+          {/* As duas leituras que a decisão tem diante de si. São
+              literalmente os dois números do painel da seção
+              anterior, o que torna verdadeira — e visível — a frase
+              do rodapé sobre serem os mesmos dados.
+
+              A sobra do mês fica de fora: ela é a leitura da estação
+              03 e já apareceu sobre o gráfico. Três números aqui
+              transformariam a decisão numa barra de métricas.
+
+              Texto tipográfico alinhado à direita, encostando na
+              prumada do eixo: sem card, fundo, borda, ícone ou
+              mini-gráfico. */}
+          <ul className="ccdec-leituras">
+            {LEITURAS[4].leituras.map((leitura) => (
+              <li className="cc-most" key={leitura.unidade}>
+                <span className="cc-most-un">{leitura.unidade}</span>
+                <span className="cc-most-val">{leitura.valor}</span>
+              </li>
+            ))}
+          </ul>
 
           <h2 className="ccdec-titulo">
             O que faz sentido fazer com esses números agora.

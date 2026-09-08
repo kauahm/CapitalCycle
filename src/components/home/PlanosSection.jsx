@@ -5,6 +5,7 @@ import useCircuitoScroll from './circuitoScroll';
 import PLANOS_CSS from './planosStyles';
 import { geometriaDosPlanos } from './hero/circuitoGeometria';
 import { PLAN_LIST } from '../ui/plans';
+import { LEITURAS, codigo, qualificacaoDoPlano } from './estacoes';
 
 /* =========================================================
    PLANOS — estação 07 do circuito, ESCOLHER.
@@ -73,6 +74,12 @@ function PlanosSection() {
       nome: 'planos',
       trechos: [{ el: raiz.querySelector('.ccpla-traco'), de: 0, ate: 1 }],
       binarios: [],
+      // A última estação é alcançada assim que o eixo COMEÇA a ser
+      // desenhado aqui: chegar aos Planos é escolher. O limiar não
+      // pode ser zero — um trecho ainda não desenhado também está em
+      // zero, e com isso a coluna do Hero nascia marcando 07/07 no
+      // topo da página.
+      estacoes: [{ n: 7, trecho: 0, em: 0.02 }],
     };
   }, [geo.largura, geo.altura]);
 
@@ -101,8 +108,12 @@ function PlanosSection() {
           className="ccpla-conteudo"
           style={geo.larguraUtil > 0 ? { maxWidth: `${geo.larguraUtil}px` } : undefined}
         >
-          <span className="ccpla-estacao">07 — Escolher</span>
-          <p className="ccpla-nota">O próximo estágio do ciclo</p>
+          <span className="cc-most ccpla-estacao">
+            <span className="cc-most-cod">{codigo(7)}</span>
+            <span className="cc-most-nome">{LEITURAS[7].nome}</span>
+            <span className="cc-most-un">{LEITURAS[7].unidade}</span>
+            <span className="cc-most-val">{LEITURAS[7].valor}</span>
+          </span>
 
           <h2 className="ccpla-titulo">Escolha seu ritmo financeiro.</h2>
 
@@ -115,6 +126,13 @@ function PlanosSection() {
             {PLAN_LIST.map((plan) => (
               <article className="ccpla-plano" key={plan.id}>
                 <h3 className="ccpla-nome">{plan.name}</h3>
+
+                {/* Leitura rápida da diferença entre os dois planos,
+                    lida direto de plans.js. Não é argumento de venda:
+                    é o limite do plano em forma curta, o mesmo campo
+                    que as travas do painel consultam. A lista de
+                    benefícios abaixo continua inteira. */}
+                <p className="ccpla-limites">{qualificacaoDoPlano(plan.limits)}</p>
 
                 <p className="ccpla-preco">
                   <span className="ccpla-moeda">R$</span>

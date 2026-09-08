@@ -64,7 +64,47 @@ const HERO_CSS = `
     padding-bottom: var(--cc-hero-vao);
   }
 
+  /* Duas colunas de uma composição só, não um bloco com um painel
+     ao lado: flex-start alinha o topo da coluna de leitura ao topo
+     da headline, e é .cchero-texto que empurra a linha inteira
+     para a base da sua área. */
+  .cchero-linha {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 48px;
+    width: 100%;
+  }
+
   .cchero-bloco { max-width: 640px; }
+
+  /* ---------- Coluna de leitura ----------
+     Alinhada à direita da faixa, na mesma prumada em que o horizonte
+     termina: é a outra ponta do instrumento, não um card flutuando.
+     Sem fundo, borda, sombra, divisor, marcador ou fio de ligação —
+     o que a mantém unida é o alinhamento à direita e o intervalo
+     regular entre as entradas. */
+  .cchero-indice {
+    flex: none;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 26px;
+    text-align: right;
+  }
+  /* Leitura, não navegação: nada aqui é clicável, então nada aqui
+     reage ao ponteiro. */
+  .cchero-idx { cursor: default; }
+  /* A coluna é secundária: o valor fica no piso da escala de valor
+     e o nome recua para a cor do corpo, para não competir com a
+     headline a três metros de distância. */
+  .cchero-idx .cc-most-nome { color: var(--cch-body); }
+  .cchero-idx .cc-most-val { font-size: 15px; margin-top: 6px; }
+  /* No estágio corrente o nome sobe para a tinta cheia junto com o
+     código em índigo. Duas mudanças de estado, nenhuma cor nova. */
+  .cchero-idx.is-corrente .cc-most-nome { color: var(--cch-ink); }
 
   /* ---------- Tipografia ----------
      Inter variável, já carregada. Caixa de sentença e peso 600:
@@ -172,18 +212,11 @@ const HERO_CSS = `
   /* Única estação nomeada do Hero. Fica sobre a linha, sem
      bolinha e sem cor de marca — é marcação de escala, não
      eyebrow. */
-  .cchero-estacao {
-    position: absolute;
-    margin: 0;
-    font-size: 11px;
-    font-weight: 500;
-    line-height: 1;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    font-variant-numeric: tabular-nums;
-    color: var(--cch-muted);
-    white-space: nowrap;
-  }
+  /* Só posição: a tipografia inteira vem do átomo .cc-most, que é
+     o mesmo nas sete estações da página. O bloco desce por dentro
+     do campo aberto abaixo do horizonte — à direita da linha, que
+     continua descendo na prumada de E0. */
+  .cchero-estacao { position: absolute; }
 
   /* Campo aberto abaixo do horizonte. Vazio de propósito: é onde
      a linha continua. */
@@ -196,6 +229,12 @@ const HERO_CSS = `
     .cchero-title { font-size: 52px; }
     .cchero-lead { margin-top: 24px; font-size: 16px; }
     .cchero-acoes { margin-top: 36px; gap: 16px; }
+    /* Aperta antes de eliminar: a coluna continua inteira, com as
+       quatro leituras, só com menos respiro e um degrau de escala
+       a menos. Nenhum dado sai no tablet. */
+    .cchero-linha { gap: 32px; }
+    .cchero-indice { gap: 22px; }
+    .cchero-idx .cc-most-val { font-size: 14px; }
   }
 
   /* ---------- Mobile ----------
@@ -209,6 +248,14 @@ const HERO_CSS = `
       --cc-hero-base: clamp(160px, 30vh, 260px);
     }
     .cchero-texto { padding-top: calc(var(--cc-hero-nav) + 24px); }
+    /* A coluna de leitura SAI, inteira. Não desce para baixo do CTA
+       nem empilha depois dele: aqui ela não teria a largura para
+       ficar à direita, e empilhada viraria uma segunda lista sem
+       relação com a composição. A identidade no mobile continua
+       pela estação local — 01/07, a unidade, o valor e a linha que
+       dobra logo abaixo do texto. */
+    .cchero-indice { display: none; }
+    .cchero-linha { display: block; }
     .cchero-bloco { max-width: 100%; }
     .cchero-title { font-size: 36px; }
     .cchero-lead { margin-top: 20px; }

@@ -72,9 +72,11 @@ const PRODUTO_CSS = `
     stroke-width: 2;
   }
 
-  /* ---------- Rótulos ---------- */
-  .ccprod-estacao,
-  .ccprod-nota,
+  /* ---------- Rótulos ----------
+     Os mostradores das estações são posicionados aqui e nada mais:
+     a tipografia inteira vem do átomo .cc-most, compartilhado pelas
+     sete estações da página. */
+  .ccprod-leitura,
   .ccprod-mes,
   .ccprod-valor {
     position: absolute;
@@ -84,18 +86,6 @@ const PRODUTO_CSS = `
     white-space: nowrap;
   }
 
-  .ccprod-estacao {
-    font-size: 11px;
-    font-weight: 500;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: var(--cch-muted);
-  }
-  .ccprod-nota {
-    font-size: 12px;
-    font-weight: 400;
-    color: var(--cch-body);
-  }
   .ccprod-mes {
     font-size: 11px;
     font-weight: 500;
@@ -105,10 +95,12 @@ const PRODUTO_CSS = `
   /* O último mês não é centrado: a linha desce exatamente na
      prumada dele e passaria por cima do rótulo. */
   .ccprod-mes.is-ultimo { transform: none; }
+  /* O valor da estação 03 mora fora do bloco dela: alinhado à
+     direita na prumada da última leitura, ele lê como cabeçalho do
+     gráfico junto com o nome à esquerda. Mesmo nível tipográfico
+     dos outros valores, só deslocado. */
   .ccprod-valor {
-    font-size: 12px;
-    font-weight: 600;
-    color: var(--cch-ink);
+    margin-top: -2px;
     transform: translateX(-100%);
   }
 

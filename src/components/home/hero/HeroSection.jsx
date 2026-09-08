@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import useCircuitoScroll from '../circuitoScroll';
 import HERO_CSS from './heroStyles';
 import { geometriaDoCircuito } from './circuitoGeometria';
+import { INDICE_DO_HERO, LEITURAS, codigo } from '../estacoes';
 
 /* =========================================================
    HeroSection — composição estática, clara, sem movimento.
@@ -35,6 +36,7 @@ export default function HeroSection() {
   const secaoRef = useRef(null);
   const circuitoRef = useRef(null);
   const baseRef = useRef(null);
+  const indiceRef = useRef([]);
   const [geo, setGeo] = useState(() => geometriaDoCircuito(0, 0));
 
   // useLayoutEffect e não useEffect: a medição acontece antes da
@@ -101,6 +103,16 @@ export default function HeroSection() {
         trecho: 0,
         em: geo.largura > 0 && geo.graduacoes[i] ? geo.graduacoes[i].x / geo.largura : 1,
       })),
+      // A estação 01 é alcançada no instante em que a página abre:
+      // o horizonte já nasce desenhado até E1.
+      estacoes: [{ n: 1, trecho: 0, em: 0 }],
+      // A coluna não é animada nem observada: ela só se inscreve
+      // para receber a marca de estágio corrente do mesmo motor.
+      painel: {
+        itens: INDICE_DO_HERO
+          .map((item, i) => ({ n: item.n, el: indiceRef.current[i] }))
+          .filter((item) => item.el),
+      },
     };
   }, [geo.largura, geo.altura, geo.alturaTopo]);
 
@@ -108,31 +120,62 @@ export default function HeroSection() {
     <section className="cchero" id="inicio" ref={secaoRef}>
       <style>{HERO_CSS}</style>
 
+      {/* `data-cc-topo` marca o bloco mais alto da seção. A navbar
+          mede ELE para decidir quando ganhar chão: enquanto este
+          topo estiver abaixo dos 72px da barra, nada de conteúdo
+          pode entrar na faixa dela. */}
       <div className="cchero-texto">
-        <div className="cchero-bloco">
-          <h1 className="cchero-title">
-            <span>Todo capital</span>
-            <span>tem um ciclo.</span>
-          </h1>
+        <div className="cchero-linha" data-cc-topo>
+          <div className="cchero-bloco">
+            <h1 className="cchero-title">
+              <span>Todo capital</span>
+              <span>tem um ciclo.</span>
+            </h1>
 
-          <p className="cchero-lead">
-            Centralize suas contas, acompanhe seus investimentos e veja seu
-            patrimônio em um só lugar.
-          </p>
+            <p className="cchero-lead">
+              Centralize suas contas, acompanhe seus investimentos e veja seu
+              patrimônio em um só lugar.
+            </p>
 
-          <div className="cchero-acoes">
-            {/* Link e não <a href>: em <a> a navegação recarregava a
-                aplicação inteira e descartava o estado do router. */}
-            <Link className="cchero-cta" to="/cadastro">
-              Criar conta
-            </Link>
+            <div className="cchero-acoes">
+              {/* Link e não <a href>: em <a> a navegação recarregava a
+                  aplicação inteira e descartava o estado do router. */}
+              <Link className="cchero-cta" to="/cadastro">
+                Criar conta
+              </Link>
 
-            {/* Âncora nativa: #produto já existe e a página define
-                scroll-margin-top para a navbar fixa. */}
-            <a className="cchero-link" href="#produto">
-              Ver o produto
-            </a>
+              {/* Âncora nativa: #produto já existe e a página define
+                  scroll-margin-top para a navbar fixa. */}
+              <a className="cchero-link" href="#produto">
+                Ver o produto
+              </a>
+            </div>
           </div>
+
+          {/* ---------- Coluna de leitura ----------
+              Quatro etapas do percurso com o valor real de cada uma.
+              Não é menu e não vira um: sem link, sem hover, sem
+              cursor, sem alvo de clique. É a mesma informação que a
+              página vai mostrar por extenso mais abaixo, adiantada
+              aqui como índice — e é ela que diz, na primeira tela, de
+              que sistema esta página trata.
+
+              O primeiro item já nasce com `is-corrente`: sem JS, com
+              movimento reduzido ou antes do primeiro quadro, o
+              estágio marcado é o certo, e o motor só o move dali. */}
+          <ul className="cchero-indice" aria-label="Etapas do ciclo">
+            {INDICE_DO_HERO.map((item, i) => (
+              <li
+                key={item.n}
+                className={`cc-most cchero-idx${i === 0 ? ' is-corrente' : ''}`}
+                ref={(el) => { indiceRef.current[i] = el; }}
+              >
+                <span className="cc-most-cod">{item.codigo}</span>
+                <span className="cc-most-nome">{item.nome}</span>
+                <span className="cc-most-val">{item.resumo}</span>
+              </li>
+            ))}
+          </ul>
         </div>
       </div>
 
@@ -164,12 +207,19 @@ export default function HeroSection() {
         )}
 
         {/* Texto de verdade, não <text> de SVG: renderiza com a
-            Inter variável e é lido por leitor de tela. */}
+            Inter variável e é lido por leitor de tela.
+
+            Mostrador completo: a 01 é uma das quatro estações que
+            mostram unidade e valor. O que ela mede são as contas
+            conectadas, que é literalmente o que "entrar" produz. */}
         <span
-          className="cchero-estacao"
+          className="cc-most cchero-estacao"
           style={{ left: `${geo.rotuloX}px`, top: `${geo.rotuloY}px` }}
         >
-          01 — Entrar
+          <span className="cc-most-cod">{codigo(1)}</span>
+          <span className="cc-most-nome">{LEITURAS[1].nome}</span>
+          <span className="cc-most-un">{LEITURAS[1].unidade}</span>
+          <span className="cc-most-val">{LEITURAS[1].valor}</span>
         </span>
       </div>
 

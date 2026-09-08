@@ -5,6 +5,7 @@ import useCircuitoScroll from './circuitoScroll';
 import PRODUTO_CSS from './produtoStyles';
 import { geometriaDoProduto, geometriaDaDescida } from './hero/circuitoGeometria';
 import { formatarMoeda } from '../../utils/formatters';
+import { LEITURAS, codigo } from './estacoes';
 
 /* =========================================================
    PRODUTO — etapas 02 (ORGANIZAR) e 03 (ANALISAR).
@@ -36,7 +37,7 @@ import { formatarMoeda } from '../../utils/formatters';
 const alturaDoPlot = (largura) => Math.min(190, Math.max(120, largura * 0.16));
 
 function ProdutoSection() {
-  const { nome, saldoDisponivel, totalInvestido, contasAtivas, sobraDoMes, fluxo, meta } = DEMO;
+  const { nome, saldoDisponivel, totalInvestido, contasAtivas, fluxo, meta } = DEMO;
   const progressoMeta = Math.round((meta.atual / meta.alvo) * 100);
 
   const secaoRef = useRef(null);
@@ -145,6 +146,17 @@ function ProdutoSection() {
         restante: ultimo ? geo.altura - ultimo.y : 0,
         em: 1,
       }],
+      estacoes: [
+        // 02 é alcançada quando a última conta terminou de entrar.
+        // O gatilho vai no trecho da própria conta, e não no eixo:
+        // depois das contas o eixo ainda dobra e vira gráfico, então
+        // ali um comprimento restante não corresponderia a uma
+        // altura.
+        ...(contas.length ? [{ n: 2, trecho: 2 + contas.length - 1, em: 1 }] : []),
+        // 03 no último vértice do gráfico, o mesmo instante do ponto
+        // índigo — é quando a leitura do fluxo fica completa.
+        { n: 3, trecho: 0, restante: ultimo ? geo.altura - ultimo.y : 0, em: 1 },
+      ],
     };
   }, [geo.largura, geo.altura, geo.acima, descida.altura]);
 
@@ -193,36 +205,33 @@ function ProdutoSection() {
           </svg>
         )}
 
+        {/* Estação 02, leve: as quatro contas que entram pela
+            prumada mestra viram um número só, que é exatamente o
+            que "organizar" produz. A nota em prosa que ficava aqui
+            ("4 contas ativas, uma leitura") saiu: o dado diz a
+            mesma coisa e diz medindo. */}
         <span
-          className="ccprod-estacao"
+          className="cc-most cc-most--leve ccprod-leitura"
           style={{ left: `${geo.rotulos.organizar.x}px`, top: `${geo.rotulos.organizar.y}px` }}
         >
-          02 — Organizar
-        </span>
-        <span
-          className="ccprod-nota"
-          style={{
-            left: `${geo.rotulos.organizar.x}px`,
-            top: `${geo.rotulos.organizar.y + 17}px`,
-          }}
-        >
-          {contasAtivas} contas ativas, uma leitura
+          <span className="cc-most-cod">{codigo(2)}</span>
+          <span className="cc-most-nome">{LEITURAS[2].nome}</span>
+          <span className="cc-most-un">{LEITURAS[2].unidade}</span>
+          <span className="cc-most-val">{LEITURAS[2].valor}</span>
         </span>
 
+        {/* Estação 03, mostrador completo. A unidade traz o período
+            real coberto pelo gráfico, e é o único lugar da página
+            em que o período aparece — repetido em outras seções ele
+            viraria moldura. O valor não fica aqui: ele já é o
+            número alinhado à direita, na prumada da última leitura. */}
         <span
-          className="ccprod-estacao"
+          className="cc-most ccprod-leitura"
           style={{ left: `${geo.rotulos.analisar.x}px`, top: `${geo.rotulos.analisar.y}px` }}
         >
-          03 — Analisar
-        </span>
-        <span
-          className="ccprod-nota"
-          style={{
-            left: `${geo.rotulos.analisar.x}px`,
-            top: `${geo.rotulos.analisar.y + 17}px`,
-          }}
-        >
-          Fluxo líquido — últimos {fluxo.length} meses
+          <span className="cc-most-cod">{codigo(3)}</span>
+          <span className="cc-most-nome">{LEITURAS[3].nome}</span>
+          <span className="cc-most-un">{LEITURAS[3].unidade}</span>
         </span>
 
         {/* Rótulos de mês: mesma fonte de dados dos pontos. */}
@@ -254,10 +263,10 @@ function ProdutoSection() {
             gráfico e não colide em nenhuma largura. */}
         {ultimo && (
           <span
-            className="ccprod-valor"
+            className="cc-most-val ccprod-valor"
             style={{ left: `${ultimo.x}px`, top: `${geo.rotulos.analisar.y}px` }}
           >
-            {`+${formatarMoeda(sobraDoMes)}`}
+            {LEITURAS[3].valor}
           </span>
         )}
       </div>

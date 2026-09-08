@@ -53,25 +53,10 @@ const PLANOS_CSS = `
      nunca encosta no traço nem passa por trás dele. */
   .ccpla-conteudo { position: relative; z-index: 1; }
 
-  /* ---------- Cabeçalho da etapa ---------- */
-  .ccpla-estacao {
-    display: block;
-    margin: 0;
-    font-size: 11px;
-    font-weight: 500;
-    line-height: 1;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    font-variant-numeric: tabular-nums;
-    color: var(--cch-muted);
-  }
-  .ccpla-nota {
-    margin: 8px 0 0;
-    font-size: 12px;
-    font-weight: 400;
-    line-height: 1.5;
-    color: var(--cch-body);
-  }
+  /* ---------- Cabeçalho da etapa ----------
+     Tipografia inteira do átomo .cc-most. A nota em prosa que ficava
+     aqui ("O próximo estágio do ciclo") saiu: no lugar dela está o
+     que a etapa mede, que é quantos planos existem. */
 
   .ccpla-titulo {
     margin: clamp(28px, 3vw, 44px) 0 0;
@@ -122,6 +107,20 @@ const PLANOS_CSS = `
     font-weight: 600;
     letter-spacing: -0.01em;
     color: var(--cch-ink);
+  }
+
+  /* Os limites do plano em uma linha. Mesmo nível tipográfico das
+     unidades das estações — porque é o que ela é: a unidade em que
+     este plano é medido. Nenhuma cor, borda ou fundo separa um
+     card do outro; o que os diferencia é o que está escrito. */
+  .ccpla-limites {
+    margin: 10px 0 0;
+    font-size: 10px;
+    font-weight: 500;
+    line-height: 1.4;
+    letter-spacing: 0.10em;
+    text-transform: uppercase;
+    color: var(--cch-muted);
   }
 
   /* Preço com presença, sem virar protagonista: o nome vem antes e

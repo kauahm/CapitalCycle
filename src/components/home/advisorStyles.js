@@ -50,26 +50,32 @@ const ADVISOR_CSS = `
      acende. */
   .ccdec-faixa.is-focado .ccdec-sublinhado { stroke-width: 2; }
 
-  /* ---------- Texto ---------- */
+  /* ---------- Texto ----------
+     position: relative também para ancorar as leituras: a borda direita
+     deste bloco É a prumada do eixo menos o raio, então basta
+     alinhá-las a right: 0. */
   .ccdec-conteudo { position: relative; z-index: 1; }
 
-  .ccdec-estacao {
-    display: block;
+  /* Só o que o átomo .cc-most não resolve. A unidade desta estação
+     não é uma medida, é o que a etapa faz — por isso ela ganha a
+     cor de corpo e não a de legenda. */
+  .ccdec-estacao .cc-most-un { color: var(--cch-body); }
+
+  /* ---------- Leituras ----------
+     No topo à direita, na altura do cabeçalho da estação: o campo
+     continua sendo o protagonista da seção, e estes dois números
+     ficam fora do caminho dele. */
+  .ccdec-leituras {
+    position: absolute;
+    top: 0;
+    right: 0;
     margin: 0;
-    font-size: 11px;
-    font-weight: 500;
-    line-height: 1;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    font-variant-numeric: tabular-nums;
-    color: var(--cch-muted);
-  }
-  .ccdec-nota {
-    margin: 8px 0 0;
-    font-size: 12px;
-    font-weight: 400;
-    line-height: 1.5;
-    color: var(--cch-body);
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+    text-align: right;
   }
 
   .ccdec-titulo {
@@ -160,6 +166,33 @@ const ADVISOR_CSS = `
      composição ganha altura. O sublinhado continua sendo o ramo do
      circuito, sob o input. */
   @media (max-width: 767px) {
+    /* As duas leituras saem da coluna à direita e viram uma leitura
+       corrida acima do campo — nenhum dado é removido. Se não
+       couber na largura, quebra em duas linhas em vez de vazar. */
+    .ccdec-leituras {
+      position: static;
+      flex-direction: row;
+      flex-wrap: wrap;
+      align-items: baseline;
+      /* O afastamento é o separador. Um ponto entre as duas leituras
+         funcionaria só enquanto elas coubessem na mesma linha: ao
+         quebrar, ele ia parar no início da segunda. */
+      gap: 10px 20px;
+      margin-top: 22px;
+      text-align: left;
+    }
+    .ccdec-leituras .cc-most {
+      display: flex;
+      align-items: baseline;
+      gap: 7px;
+    }
+    .ccdec-leituras .cc-most-un,
+    .ccdec-leituras .cc-most-val {
+      display: inline;
+      margin: 0;
+    }
+    .ccdec-leituras .cc-most-val { font-size: 15px; }
+
     .ccdec-campo {
       flex-direction: column;
       align-items: flex-start;
