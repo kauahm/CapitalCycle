@@ -70,3 +70,33 @@ node_modules/
 
 # build output
 dist/
+
+# ---------------------------------------------------------------------------
+# Material visual bruto — fica FORA do Git, no disco.
+#
+# Histórico: uma regra anterior (referencias/*.png) fazia o `git add .` engolir
+# os prints de referência em silêncio, e eles nunca chegavam ao repositório. A
+# correção na época foi parar de ignorá-los. A pasta referencias/ foi depois
+# substituída por CapitalCycle-Hero-Referencias/, e a decisão passou a ser
+# outra: material de consulta e de geração não entra no Git.
+#
+# O motivo é peso. O repositório já versiona vídeo, e um `git push` deste
+# projeto já falhou com `RPC failed; curl 7 Send failure` por causa disso
+# (ver CLAUDE.md). São ~35 MB que não são código e não são build.
+#
+# O que entra no Git é o ASSET FINAL, já otimizado, em public/media/ —
+# conforme docs/redesign/08-media-plan.md. Nunca o material bruto.
+#
+# Nada aqui é apagado: os arquivos continuam no disco de quem trabalha neles.
+# ---------------------------------------------------------------------------
+
+# Prints de referência (concorrentes, produtos Apple, survey) — ~25 MB
+CapitalCycle-Hero-Referencias/
+
+# Frames e composição-fonte da geração do vídeo da hero — ~6,7 MB
+FramesCeneHero/
+
+# Vídeo bruto da hero, 1920x1080 6s com áudio, 3,4 MB. Preservado no disco
+# e intocado. A versão cortada, sem áudio e reencodada será versionada em
+# public/media/ na Etapa 3b do roadmap.
+src/assets/video/ProductCapital.mp4

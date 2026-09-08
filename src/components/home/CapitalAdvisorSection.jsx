@@ -1,185 +1,216 @@
-import { memo, useRef, useState } from 'react';
-import { motion, useReducedMotion, useScroll, useSpring, useTransform } from 'framer-motion';
-import { ArrowUp, Sparkles } from 'lucide-react';
-import useTypewriter from '../../hooks/useTypewriter';
-import AmbientGlow from './AmbientGlow';
-import FloatingFigures from './FloatingFigures';
+import { memo, useLayoutEffect, useRef, useState } from 'react';
 
-const EASE = [0.16, 1, 0.3, 1];
+import useCircuitoScroll from './circuitoScroll';
+import ADVISOR_CSS from './advisorStyles';
+import { geometriaDoAdvisor } from './hero/circuitoGeometria';
+import { LEITURAS, codigo } from './estacoes';
 
-// Perguntas que rodam como placeholder animado da barra — cada uma
-// demonstra uma capacidade diferente do Capital Advisor (resumo,
-// economia, meta, fluxo de caixa).
-const PROMPTS = [
+/* =========================================================
+   CAPITAL ADVISOR — etapa 04 do circuito, DECIDIR.
+
+   Não é um chatbot nem uma demonstração de IA: é a etapa em que a
+   leitura organizada e analisada vira uma decisão. O circuito
+   chega do Produto na mesma prumada em que o gráfico terminou,
+   segue descendo por toda a seção, e de dentro dele sai o ramo
+   que vira o sublinhado do campo.
+
+   Saíram, por serem exatamente o que esta seção não pode ser: a
+   cápsula flutuante com desfoque e sombra, o ícone Sparkles, o
+   selo "Sessão ativa", o LED vermelho pulsando com "Analisando
+   seus dados em tempo real", o botão que balançava em laço, o
+   placeholder que digitava sozinho, o halo radial branco, os
+   150vh de pista com sticky e os dois `useTransform` que não
+   animavam nada.
+
+   O comportamento do campo é o que já existia e não foi
+   inventado: um input controlado de verdade, e um envio que ainda
+   não faz nada. A diferença é que a seção deixou de afirmar o
+   contrário.
+   ========================================================= */
+
+/* Perguntas de exemplo — o mesmo conteúdo que antes rodava como
+   placeholder animado. Agora uma delas é o placeholder estático do
+   campo e as outras viram texto de apoio: mesma informação, sem
+   animação decorativa.
+
+   O placeholder é a mais curta das quatro porque na faixa estreita
+   as demais passavam da largura do campo e apareciam cortadas. */
+const PERGUNTAS = [
   'Faça um resumo do meu mês financeiro.',
   'Quanto eu economizei este mês?',
   'Como posso juntar R$ 20 mil em 6 meses?',
   'Onde estou gastando mais do que deveria?',
 ];
 
+/* Fatia do percurso da seção em que o ramo horizontal é desenhado.
+   Trechos horizontais não têm extensão vertical para mapear, então
+   esta é uma decisão de ritmo — a única do motor — e vale igual em
+   qualquer largura. */
+const FATIA_DO_RAMO = 0.12;
+
 function CapitalAdvisorSection() {
-  const sectionRef = useRef(null);
-  const [focused, setFocused] = useState(false);
-  const [query, setQuery] = useState('');
-  const reduceMotion = useReducedMotion();
+  const faixaRef = useRef(null);
+  const inputRef = useRef(null);
 
-  // O placeholder animado some assim que o campo entra em uso — o input
-  // continua sendo um campo real, a animação nunca bloqueia a digitação.
-  const showPlaceholder = !focused && query.length === 0;
-  const typed = useTypewriter(PROMPTS, showPlaceholder && !reduceMotion);
-  const placeholder = reduceMotion ? PROMPTS[0] : typed;
+  const [pergunta, setPergunta] = useState('');
+  const [focado, setFocado] = useState(false);
+  const [geo, setGeo] = useState(() => geometriaDoAdvisor({ largura: 0, altura: 0, yCampo: 0 }));
 
-  // Progresso 0 → 1 enquanto a seção atravessa o runway de scroll
-  // (altura da section menos a altura da viewport, já que o conteúdo
-  // fica "grudado" com sticky). Suavizado com mola para o efeito de
-  // expansão do input parecer fluido, e não um "tick" direto do scroll.
-  const { scrollYProgress } = useScroll({ target: sectionRef, offset: ['start start', 'end end'] });
-  const progress = useSpring(scrollYProgress, { stiffness: 120, damping: 20, mass: 0.4 });
+  // Medição antes da pintura, como nas outras seções. Sem listener
+  // de scroll: o ResizeObserver só dispara quando a faixa ou o
+  // campo mudam de tamanho.
+  useLayoutEffect(() => {
+    const faixa = faixaRef.current;
+    const campo = inputRef.current;
+    if (!faixa || !campo) return undefined;
 
-  // ---- Sensibilidade do scroll ----
-  // Cada par [inicio, fim] abaixo é uma fração do progresso da seção
-  // (0 a 1). Diminuir o intervalo (ex.: [0, 0.25]) faz o efeito
-  // concluir mais rápido/cedo no scroll; aumentar ([0, 0.6]) estica o
-  // efeito por mais tempo. HERO_RANGE controla o fade+subida do texto,
-  // BAR_RANGE controla a expansão da barra flutuante.
-  // Com a seção em 150vh (runway de 50vh), o efeito termina em ~0.9 do
-  // progresso: restam ~5vh de respiro antes dos Planos, em vez do vão
-  // vazio que existia quando a seção media 280vh.
-  const HERO_RANGE = [0.25, 0.85];
-  const BAR_RANGE = [0.5, 0.9];
+    const arred = (v) => Math.round(v * 100) / 100;
 
-  const heroOpacity = useTransform(progress, HERO_RANGE, [1, 0]);
-  const heroY = useTransform(progress, HERO_RANGE, [0, -56]);
+    const medir = () => {
+      const largura = faixa.clientWidth;
+      const altura = faixa.clientHeight;
+      // Linha de base do INPUT, não do formulário: no mobile o botão
+      // desce para baixo do campo, e medindo o formulário o ramo ia
+      // parar embaixo do botão em vez de sublinhar o campo.
+      const yCampo = campo.getBoundingClientRect().bottom - faixa.getBoundingClientRect().top;
 
-  // A barra já nasce solida e legivel (nada de comecar "sumida"); o
-  // scroll so intensifica largura/altura/sombra por cima dessa base.
-  const barWidth = useTransform(progress, BAR_RANGE, ['86%', '100%']);
-  const barHeight = useTransform(progress, BAR_RANGE, ['3.75rem', '4.5rem']);
-  const barBg = useTransform(progress, BAR_RANGE, ['rgba(255,255,255,0.82)', 'rgba(255,255,255,0.94)']);
-  const barBorder = useTransform(progress, BAR_RANGE, ['rgba(255,255,255,0.7)', 'rgba(255,255,255,0.95)']);
-  const barShadow = useTransform(
-    progress,
-    BAR_RANGE,
-    ['0 12px 28px rgba(15,15,20,0.08)', '0 30px 64px rgba(15,15,20,0.18)']
-  );
+      setGeo((atual) => (atual.largura === arred(largura)
+        && atual.altura === arred(altura)
+        && atual.yCampo === arred(yCampo)
+        ? atual
+        : { ...geometriaDoAdvisor({ largura, altura, yCampo }), yCampo: arred(yCampo) }));
+    };
+
+    medir();
+    const ro = new ResizeObserver(medir);
+    ro.observe(faixa);
+    ro.observe(campo);
+
+    // O título reflui quando a Inter termina de carregar e desloca
+    // o campo; sem isto o ramo ficaria na posição antiga.
+    let vivo = true;
+    if (document.fonts && document.fonts.ready) {
+      document.fonts.ready.then(() => { if (vivo) medir(); }).catch(() => {});
+    }
+
+    return () => { vivo = false; ro.disconnect(); };
+  }, []);
+
+  /* Revelação pelo scroll. O eixo desce por toda a seção; o ramo
+     que vira o sublinhado começa exatamente na linha de base do
+     campo (yCampo medido) e ocupa uma fatia curta do percurso. */
+  useCircuitoScroll(faixaRef, () => {
+    const raiz = faixaRef.current;
+    if (!raiz || !geo.altura) return null;
+    const inicioDoRamo = (geo.yCampo || 0) / geo.altura;
+    return {
+      nome: 'advisor',
+      trechos: [
+        { el: raiz.querySelector('.ccdec-traco:not(.ccdec-sublinhado)'), de: 0, ate: 1 },
+        { el: raiz.querySelector('.ccdec-sublinhado'), de: inicioDoRamo, ate: inicioDoRamo + FATIA_DO_RAMO },
+      ],
+      binarios: [],
+      // 04 é alcançada quando o eixo chega à linha de base do campo,
+      // que é de onde o ramo sai. O eixo é uma vertical pura, então a
+      // fração de comprimento é exatamente a mesma fração de altura.
+      estacoes: [{ n: 4, trecho: 0, em: inicioDoRamo }],
+    };
+  }, [geo.largura, geo.altura, geo.yCampo]);
 
   return (
-    <section id="capital-advisor" ref={sectionRef} className="relative h-[150vh] bg-[#f4f5f7]">
-      <div className="sticky top-0 flex h-screen flex-col justify-center overflow-hidden">
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_15%,rgba(255,255,255,0.95),rgba(244,245,247,1)_62%)]" />
-        <AmbientGlow />
-        {/* Conteúdo alinhado à esquerda (max-w-3xl) — as figuras ficam
-            só na metade direita, bem longe do título e da barra. */}
-        <FloatingFigures variant="right" />
+    /* `cch` junto: esta seção é irmã do wrapper .cch em HomePage, não
+       filha dele, então --cc-faixa e a paleta (--cch-ink, --cch-muted,
+       --cch-purple-rec) não chegavam aqui — o traço saía sem cor e a
+       faixa sem largura. Herdar a classe resolve na própria seção, sem
+       mexer na estrutura da página nem duplicar a paleta. */
+    <section className="cch ccdec" id="capital-advisor">
+      <style>{ADVISOR_CSS}</style>
 
-        <div className="relative z-10 mx-auto w-full max-w-[1980px] px-6 sm:px-10 lg:px-16">
-          <motion.div style={{ opacity: heroOpacity, y: heroY }} className="max-w-3xl">
-            <div className="mb-8 flex flex-col gap-2">
-              <span className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-[0.12em] text-neutral-900">
-                <span className="h-1.5 w-1.5 rounded-full bg-primary" aria-hidden="true" />
-                Capital Advisor
-              </span>
-              <span className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-[0.12em] text-neutral-500">
-                <span className="h-1.5 w-1.5 rounded-full bg-primary/60" aria-hidden="true" />
-                Sessão ativa
-              </span>
-            </div>
-
-            <h2 className="text-[clamp(2.6rem,7vw,5.7rem)] font-black uppercase leading-[0.95] tracking-tight text-neutral-950">
-              <span className="block">Pergunte.</span>
-              <span className="block">Analise.</span>
-              <span className="block text-primary">Decida.</span>
-            </h2>
-          </motion.div>
-
-          {/* Barra de interação com a IA — o placeholder digita sozinho,
-              mas o campo continua totalmente utilizável. */}
-          <div className="mt-10 w-full max-w-3xl">
-            <motion.form
-              onSubmit={(e) => e.preventDefault()}
-              style={{
-                width: barWidth,
-                height: barHeight,
-                background: barBg,
-                borderColor: barBorder,
-                boxShadow: barShadow,
-              }}
-              className="flex items-center gap-3 rounded-full border px-5 backdrop-blur-md sm:gap-4 sm:px-7"
-            >
-              <Sparkles
-                size={17}
-                strokeWidth={2.2}
-                className="hidden flex-none text-primary sm:block"
-                aria-hidden="true"
-              />
-
-              <label htmlFor="capital-advisor-input" className="sr-only">
-                Pergunte ao Capital Advisor
-              </label>
-
-              <div className="relative flex h-full min-w-0 flex-1 items-center">
-                <input
-                  id="capital-advisor-input"
-                  type="text"
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  onFocus={() => setFocused(true)}
-                  onBlur={() => setFocused(false)}
-                  autoComplete="off"
-                  className="w-full bg-transparent text-sm text-neutral-800 outline-none sm:text-base"
-                />
-
-                {showPlaceholder && (
-                  <span
-                    aria-hidden="true"
-                    className="pointer-events-none absolute inset-y-0 left-0 right-0 flex items-center overflow-hidden whitespace-nowrap text-sm text-neutral-400 sm:text-base"
-                  >
-                    {placeholder}
-                    {!reduceMotion && (
-                      <motion.span
-                        className="ml-[3px] inline-block h-[1.05em] w-[1.5px] flex-none bg-neutral-400"
-                        animate={{ opacity: [1, 1, 0, 0] }}
-                        transition={{
-                          duration: 1.05,
-                          times: [0, 0.5, 0.5, 1],
-                          repeat: Infinity,
-                          ease: 'linear',
-                        }}
-                      />
-                    )}
-                  </span>
-                )}
-              </div>
-
-              <motion.button
-                type="submit"
-                aria-label="Enviar pergunta"
-                animate={focused ? { rotate: [0, -10, 8, 0], scale: [1, 1.1, 1] } : { rotate: 0, scale: 1 }}
-                transition={
-                  focused
-                    ? { duration: 1.2, repeat: Infinity, ease: EASE }
-                    : { duration: 0.4, ease: EASE }
-                }
-                whileTap={{ scale: 0.9 }}
-                className="flex h-10 w-10 flex-none items-center justify-center rounded-full bg-primary text-white shadow-lg shadow-primary/30 sm:h-11 sm:w-11"
-              >
-                <ArrowUp size={18} strokeWidth={2.4} />
-              </motion.button>
-            </motion.form>
-          </div>
-
-          <motion.span
-            style={{ opacity: heroOpacity }}
-            className="mt-6 flex items-center gap-2 text-xs font-medium text-neutral-400"
+      <div className={`ccdec-faixa${focado ? ' is-focado' : ''}`} ref={faixaRef}>
+        {geo.largura > 0 && geo.altura > 0 && (
+          <svg
+            width={geo.largura}
+            height={geo.altura}
+            viewBox={`0 0 ${geo.largura} ${geo.altura}`}
+            aria-hidden="true"
+            focusable="false"
           >
-            <motion.span
-              className="h-1.5 w-1.5 rounded-full bg-red-500"
-              animate={{ opacity: [1, 0.35, 1] }}
-              transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut' }}
-              aria-hidden="true"
+            {/* O eixo não desvia: segue reto para a seção seguinte. */}
+            <path className="ccdec-traco" d={geo.eixo} />
+            {/* O ramo sai dele e vira o sublinhado do campo. */}
+            <path className="ccdec-traco ccdec-sublinhado" d={geo.sublinhado} />
+          </svg>
+        )}
+
+        {/* Travado na largura do campo, que termina exatamente onde a
+            curva do ramo começa: assim nenhum texto da seção cruza o
+            eixo em nenhuma largura. */}
+        <div
+          className="ccdec-conteudo"
+          style={geo.larguraCampo > 0 ? { maxWidth: `${geo.larguraCampo}px` } : undefined}
+        >
+          <span className="cc-most ccdec-estacao">
+            <span className="cc-most-cod">{codigo(4)}</span>
+            <span className="cc-most-nome">{LEITURAS[4].nome}</span>
+            <span className="cc-most-un">Da leitura para a decisão</span>
+          </span>
+
+          {/* As duas leituras que a decisão tem diante de si. São
+              literalmente os dois números do painel da seção
+              anterior, o que torna verdadeira — e visível — a frase
+              do rodapé sobre serem os mesmos dados.
+
+              A sobra do mês fica de fora: ela é a leitura da estação
+              03 e já apareceu sobre o gráfico. Três números aqui
+              transformariam a decisão numa barra de métricas.
+
+              Texto tipográfico alinhado à direita, encostando na
+              prumada do eixo: sem card, fundo, borda, ícone ou
+              mini-gráfico. */}
+          <ul className="ccdec-leituras">
+            {LEITURAS[4].leituras.map((leitura) => (
+              <li className="cc-most" key={leitura.unidade}>
+                <span className="cc-most-un">{leitura.unidade}</span>
+                <span className="cc-most-val">{leitura.valor}</span>
+              </li>
+            ))}
+          </ul>
+
+          <h2 className="ccdec-titulo">
+            O que faz sentido fazer com esses números agora.
+          </h2>
+
+          {/* O envio continua sem efeito, como na implementação
+              anterior: nada de resposta simulada. */}
+          <form
+            className="ccdec-campo"
+            onSubmit={(e) => e.preventDefault()}
+            style={geo.larguraCampo > 0 ? { width: `${geo.larguraCampo}px` } : undefined}
+          >
+            <label className="sr-only" htmlFor="ccdec-pergunta">
+              Pergunte ao Capital Advisor
+            </label>
+            <input
+              id="ccdec-pergunta"
+              className="ccdec-input"
+              ref={inputRef}
+              type="text"
+              autoComplete="off"
+              placeholder={PERGUNTAS[1]}
+              value={pergunta}
+              onChange={(e) => setPergunta(e.target.value)}
+              onFocus={() => setFocado(true)}
+              onBlur={() => setFocado(false)}
             />
-            Analisando seus dados em tempo real
-          </motion.span>
+            <button className="ccdec-enviar" type="submit">
+              Perguntar
+            </button>
+          </form>
+
+          <p className="ccdec-rodape">
+            Sobre os seus próprios lançamentos, contas e metas — os mesmos dados
+            da tela anterior. Por exemplo: “{PERGUNTAS[0]}” ou “{PERGUNTAS[3]}”
+          </p>
         </div>
       </div>
     </section>

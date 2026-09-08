@@ -1,20 +1,28 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { ArrowLeftRight, BarChart3, Clock, ShieldCheck } from 'lucide-react';
 
-import heroVideo from '../assets/video/hero-cartao.mp4';
-import heroVideoLoop from '../assets/video/hero-cartao-loop.mp4';
-import heroVideoPoster from '../assets/video/hero-cartao-poster.png';
+import logoClara from '../assets/logo-topo.png';
+import logoEscura from '../assets/logo-black.png';
+
+import HeroSection from '../components/home/hero/HeroSection';
+import ProdutoSection from '../components/home/ProdutoSection';
 import CapitalAdvisorSection from '../components/home/CapitalAdvisorSection';
+import PassagemSection from '../components/home/PassagemSection';
 import PlanosSection from '../components/home/PlanosSection';
-import AmbientGlow from '../components/home/AmbientGlow';
-import FloatingFigures from '../components/home/FloatingFigures';
+import RetornoSection from '../components/home/RetornoSection';
 
 /* =========================================================
    HOME — Capital Cycle
-   Hero (vídeo do cartão) faz uma transição estilo "Apple"
-   (scroll pinado, fade + slide) até a seção de Recursos.
+
+   Sete estações de um circuito só, em seis seções que rolam
+   normalmente, uma depois da outra, com âncora nativa e
+   scroll-spy. Não há pista de rolagem própria, pin, sticky nem
+   crossfade entre camadas: o scroll controla uma única coisa, que
+   é quanto da linha do circuito já foi desenhado.
+
+   A navbar é fixa na página inteira e não pertence ao hero. Ela é
+   transparente enquanto nenhum conteúdo alcança a faixa dela, e
+   ganha um chão opaco a partir daí.
    ========================================================= */
 
 const PAGE_CSS = `
@@ -22,457 +30,331 @@ const PAGE_CSS = `
     --cch-ink: #131316;
     --cch-body: #3c3c40;
     --cch-muted: #6d6d72;
-    --cch-purple: #8b7cf6;
-    --cch-purple-btn: #7c62f2;
-    --cch-purple-btn-dark: #6b4ff0;
     --cch-purple-rec: #5358ee;
 
+    /* ---------- Faixa de conteúdo ----------
+       Prumada mestra da página: navbar, texto do Hero e ponta
+       esquerda do circuito nascem todos em x = 0 desta faixa.
+       É a coincidência dessas bordas que faz a página ler como
+       sistema, e por isso a medida vive aqui e não em cada seção. */
+    --cc-goteira: 20px;
+    --cc-faixa: min(1120px, 100% - var(--cc-goteira) * 2);
+
     position: relative;
-    min-height: 100vh;
     width: 100%;
-    overflow: hidden;
     isolation: isolate;
-    background-color: #d8d8d8;
+    background-color: #f4f5f7;
     font-family: 'Inter', 'Helvetica Neue', Helvetica, Arial, sans-serif;
     color: var(--cch-ink);
-    -webkit-font-smoothing: antialiased;
   }
   .cch *, .cch *::before, .cch *::after { box-sizing: border-box; }
 
-  /* ---------- Fundo (vídeo) ---------- */
-  .cch-video-bg {
-    position: absolute; inset: 0; z-index: 0; pointer-events: none;
-    width: 100%; height: 100%;
-    object-fit: cover; object-position: center 45%;
-    background: #d8d8d8;
-    opacity: 1;
-    transition: opacity 0.2s linear;
-  }
-  .cch-video-bg.cch-video-bg--loop {
-    opacity: 0;
-  }
-  .cch-video-bg.cch-video-bg--loop.is-active {
-    opacity: 1;
-  }
-  .cch-video-bg.cch-video-bg--hidden {
-    opacity: 0;
-  }
-  .cch-scrim {
-    position: absolute; inset: 0; z-index: 1; pointer-events: none;
-    background: linear-gradient(
-      92deg,
-      rgba(216,216,214,0.86) 0%,
-      rgba(216,216,214,0.62) 20%,
-      rgba(216,216,214,0.2) 40%,
-      rgba(216,216,214,0.12) 60%,
-      rgba(216,216,214,0.58) 80%,
-      rgba(216,216,214,0.8) 100%
-    );
-  }
-  .cch-scrim::after {
-    content: ''; position: absolute; inset: -20%;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)'/%3E%3C/svg%3E");
-    opacity: 0.08; mix-blend-mode: overlay;
+  /* A navbar é fixa: sem isto a âncora pousa a seção debaixo dela. */
+  .cch [id] { scroll-margin-top: 6rem; }
+
+  /* Antialiasing suavizado afina o traço; em texto escuro sobre
+     fundo claro isso deixa a leitura anêmica. Fica só no escuro. */
+  .cch { -webkit-font-smoothing: auto; }
+  .cch-nav--dark { -webkit-font-smoothing: antialiased; }
+
+  .cch ::selection { background: rgba(83, 88, 238, 0.22); color: var(--cch-ink); }
+
+  /* ---------- Mostrador de estação ----------
+     O átomo tipográfico da identidade, definido UMA vez e usado
+     pelas sete estações. Quatro níveis, nesta ordem:
+
+       código    01/07     o índice sobre o total do percurso
+       nome      ENTRAR    a etapa
+       unidade   CONTAS…   o que está sendo medido
+       valor     4         o dado, sempre tabular
+
+     Não há caixa, fundo, borda, divisor nem ícone: o que separa os
+     quatro níveis é escala, peso e cor — os mesmos três recursos
+     que separam o resto da página. As estações leves usam só os
+     três primeiros níveis mais o valor curto.
+
+     O código do estágio corrente é o único que fica índigo, pela
+     regra da página: índigo é estado corrente ou ação primária. */
+  .cch .cc-most { display: block; }
+
+  .cch .cc-most-cod,
+  .cch .cc-most-nome,
+  .cch .cc-most-un {
+    display: block;
+    margin: 0;
+    line-height: 1;
+    text-transform: uppercase;
+    font-weight: 500;
+    white-space: nowrap;
   }
 
-  /* ---------- Navbar ---------- */
+  .cch .cc-most-cod {
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    font-variant-numeric: tabular-nums;
+    color: var(--cch-muted);
+  }
+  .cch .cc-most-nome {
+    margin-top: 5px;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    color: var(--cch-ink);
+  }
+  /* Caixa alta é do CSS e não do conteúdo: o texto continua legível
+     para leitor de tela e o mesmo dado serve a qualquer estilo. */
+  .cch .cc-most-un {
+    margin-top: 13px;
+    font-size: 10px;
+    letter-spacing: 0.10em;
+    color: var(--cch-muted);
+  }
+  .cch .cc-most-val {
+    display: block;
+    margin: 5px 0 0;
+    /* Um valor monetário nunca quebra: partido em duas linhas ele
+       deixa de ser um número e vira duas. */
+    white-space: nowrap;
+    font-size: 18px;
+    font-weight: 500;
+    line-height: 1.15;
+    letter-spacing: -0.01em;
+    font-variant-numeric: tabular-nums;
+    color: var(--cch-ink);
+  }
+  /* Estação leve: o valor não é cabeçalho de seção, é legenda do
+     eixo. Mesmo átomo, um degrau abaixo. */
+  .cch .cc-most--leve .cc-most-val { font-size: 15px; }
+
+  /* Estágio corrente. Mudança de estado, sem transição e sem fade —
+     a marca troca quando o circuito alcança a estação seguinte. */
+  .cch .is-corrente .cc-most-cod { color: var(--cch-purple-rec); }
+
+  /* ---------- Navbar ----------
+     Vive dentro do pin do hero, flutuando sobre o vídeo. A variante
+     clara continua aqui porque as regras base são compartilhadas;
+     na prática só a escura é usada hoje. */
+  /* Fixa na página inteira, não presa ao hero. Ela morava dentro do
+     pin do hero e sumia junto com ele — o visitante ficava sem
+     navegação nenhuma da seção de produto até os Planos. */
+  /* Sem transição: a barra ganha o chão como MUDANÇA DE ESTADO, no
+     mesmo quadro. Animar background e backdrop-filter fazia todo
+     o conteúdo atrás da barra desfocar e lavar progressivamente
+     durante 350ms — um crossfade entre seções, que é exatamente o
+     que esta página não pode ter. */
+  .cch-nav-wrap {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 50;
+  }
+  /* .cch pinta #f4f5f7; sobre uma seção escura isso seria uma faixa
+     clara atravessando o topo. Dois nomes de classe para ganhar de
+     .cch por especificidade, não por ordem no arquivo. */
+  .cch.cch-nav-wrap { background: transparent; }
+
+  /* Chão OPACO, na cor exata da página, e sem desfoque.
+
+     Era translúcido a 78% com saturate(180%) blur(14px): o conteúdo
+     que passava por baixo continuava aparecendo — o CTA índigo do
+     Hero virava uma mancha colorida atrás do logo — e o desfoque
+     era o último resquício de glassmorphism da página, justamente a
+     estética que a auditoria mandou remover.
+
+     Opaco na cor do fundo, a barra não cria emenda visível: o que
+     marca que ela existe é o fio de 1px, na mesma família do traço
+     do circuito. */
+  .cch.cch-nav-wrap.is-clara {
+    background: #f4f5f7;
+    box-shadow: 0 1px 0 rgba(15, 18, 22, 0.06);
+  }
+
+  /* A navbar ocupa a faixa, não a viewport: o logo cai exatamente
+     na mesma prumada do texto do Hero e da ponta esquerda do
+     circuito. Altura fixa de 72px, com centralização vertical
+     real — antes o padding inferior era zero e a barra ficava
+     pendurada. */
   .cch-nav {
     position: relative; z-index: 20;
     display: flex; align-items: center; justify-content: space-between; gap: 1.5rem;
-    padding: 1.9rem 3.2rem 0;
-    max-width: 1980px; margin: 0 auto;
+    height: 72px;
+    width: var(--cc-faixa);
+    margin-inline: auto;
   }
 
-  .cch-logo-slot {
+  /* 32px e não os 20px da especificação: a marca é empilhada em
+     duas linhas ("CAPITAL / CYCLE") dentro de uma elipse, então a
+     altura útil de cada linha é ~28% do arquivo. A 20px cada linha
+     ficava com 5px de altura de caixa.
+
+     ---------- Alinhamento óptico ----------
+     Os dois PNGs têm 703x355 e a tinta começa em x=95, y=55, com
+     22px de folga embaixo. Encostar a CAIXA do arquivo na prumada
+     deixava a marca 8,6px recuada em relação ao texto do Hero e à
+     ponta do horizonte — a prumada mestra existia no código e não
+     na tela.
+
+     As compensações são frações da altura renderizada, não pixels
+     soltos: 95/355 na horizontal e (55-22)/2/355 na vertical. Se a
+     altura mudar, o alinhamento acompanha. A marca não foi
+     redesenhada nem redimensionada. */
+  .cch-logo {
+    --cch-logo-alt: 32px;
     flex: none;
-    /* Espaço reservado para a logo da marca */
-    min-width: 3rem; min-height: 2.5rem;
+    display: inline-flex; align-items: center;
+    overflow: visible;
+  }
+  .cch-logo img {
+    height: var(--cch-logo-alt); width: auto; display: block;
+    object-fit: contain;
+    margin-left: calc(var(--cch-logo-alt) * -0.2676);
+    margin-top: calc(var(--cch-logo-alt) * -0.0465);
   }
 
   .cch-nav-right {
-    display: flex; align-items: center; gap: 0.9rem;
+    display: flex; align-items: center; gap: 24px;
     margin-left: auto;
   }
 
+  /* Sem pílula de fundo e sem chip sólido no item ativo: eram dois
+     retângulos escuros disputando o canto direito com o botão de
+     entrar. O ativo agora é marcado por um fio de 1px na cor e na
+     espessura do circuito — o indicador de navegação passa a ser
+     um segmento do mesmo instrumento. */
   .cch-menu {
-    display: flex; align-items: center; gap: 0.3rem;
-    padding: 0.45rem;
-    border-radius: 14px;
-    background: rgba(0,0,0,0.13);
-    -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
+    display: flex; align-items: center; gap: 0.25rem;
+    padding: 0;
+    background: transparent;
   }
   .cch-menu a {
-    display: inline-flex; align-items: center; gap: 0.4rem;
-    padding: 0.55rem 1.5rem;
-    border: 0; background: transparent; cursor: pointer;
-    font-family: inherit; font-size: 0.93rem; font-weight: 700;
-    color: rgba(255,255,255,0.78); text-decoration: none;
-    border-radius: 9px; white-space: nowrap;
-    transition: background 0.2s ease, color 0.2s ease;
-  }
-  .cch-menu a:hover { background: rgba(255,255,255,0.16); color: #fff; }
-  .cch-menu .is-active { background: #38383b; color: #fff; }
-  .cch-menu .is-active:hover { background: #38383b; }
-
-  .cch-login {
-    display: inline-flex; align-items: center; justify-content: center;
-    padding: 0.82rem 1.9rem;
-    background: #0b0b0d; color: #fff;
-    font-family: inherit; font-size: 0.93rem; font-weight: 700;
-    border: 0; border-radius: 11px; cursor: pointer; text-decoration: none;
-    white-space: nowrap;
-    transition: transform 0.2s ease, background 0.2s ease;
-  }
-  .cch-login:hover { background: #000; transform: translateY(-1px); }
-
-  /* ---------- Conteúdo (Hero) ---------- */
-  .cch-inner {
-    position: relative; z-index: 10;
-    max-width: 1980px; margin: 0 auto;
-    padding: 7rem 3.2rem 2.5rem;
-    display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
-    align-items: center;
-    gap: 3rem;
-    min-height: calc(100vh - 6.5rem);
-  }
-
-  .cch-left { display: flex; flex-direction: column; }
-  .cch-title {
-    margin: 0;
-    font-size: clamp(2.8rem, 5.4vw, 7.4rem);
-    line-height: 1.04;
-    font-weight: 900;
-    letter-spacing: -0.03em;
-    text-transform: uppercase;
-    color: #131316;
-  }
-  .cch-title span { display: block; }
-  .cch-title .cch-accent { color: var(--cch-purple); }
-
-  .cch-lead {
-    margin: 2rem 0 0;
-    max-width: 28.6rem;
-    font-size: 1.1rem; line-height: 1.52; font-weight: 400;
-    color: var(--cch-body);
-  }
-  .cch-ctas { display: flex; flex-wrap: wrap; gap: 1.1rem; margin-top: 2.1rem; }
-  .cch-btn {
-    display: inline-flex; align-items: center; justify-content: center;
-    padding: 1.05rem 2.6rem; border: 0; border-radius: 12px;
-    font-family: inherit; font-size: 0.98rem; font-weight: 700;
-    cursor: pointer; text-decoration: none; white-space: nowrap;
-    transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
-  }
-  .cch-btn-primary {
-    background: linear-gradient(180deg, var(--cch-purple-btn) 0%, var(--cch-purple-btn-dark) 100%);
-    color: #fff;
-    box-shadow: 0 12px 28px rgba(108,79,240,0.26);
-  }
-  .cch-btn-primary:hover { transform: translateY(-2px); box-shadow: 0 16px 34px rgba(108,79,240,0.34); }
-  .cch-btn-ghost {
-    background: rgba(0,0,0,0.13); color: #fff;
-    -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
-  }
-  .cch-btn-ghost:hover { background: rgba(0,0,0,0.2); transform: translateY(-2px); }
-
-  /* ---------- Coluna direita (Hero) ---------- */
-  .cch-right {
-    display: flex; flex-direction: column; align-items: flex-end;
-    text-align: right;
-  }
-  .cch-stat + .cch-stat { margin-top: 2.4rem; }
-  .cch-stat-label {
-    display: flex; align-items: center; justify-content: flex-end; gap: 0.5rem;
-    font-size: 0.85rem; font-weight: 700; letter-spacing: 0.1em;
-    text-transform: uppercase; color: #2c2c30;
-  }
-  .cch-dot {
-    width: 7px; height: 7px; border-radius: 50%;
-    background: var(--cch-purple); flex: none;
-  }
-  .cch-stat-value {
-    display: block; margin-top: 0.6rem;
-    font-size: clamp(1.9rem, 2.7vw, 3rem);
-    font-weight: 800; letter-spacing: -0.03em; line-height: 1; color: #131316;
-  }
-
-  /* ---------- Scroll hint ---------- */
-  .cch-scroll {
-    position: absolute; left: 50%; bottom: 1rem; transform: translateX(-50%);
-    z-index: 15;
-    display: flex; flex-direction: column; align-items: center; gap: 0.6rem;
-    color: #4d4d52; text-align: center;
-    font-size: 0.9rem; line-height: 1.3;
-  }
-  .cch-mouse { animation: cch-float 2.4s ease-in-out infinite; }
-  @keyframes cch-float {
-    0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(5px); }
-  }
-
-  /* ---------- Recursos (2ª seção) ---------- */
-  .cch-recursos-layer {
-    background: none;
-  }
-  .cch-layer-bg {
-    position: absolute; inset: 0; z-index: 0; pointer-events: none;
-    background-color: #f4f5f7;
-  }
-  .cch-rec-inner {
-    position: relative; z-index: 10;
-    max-width: 1980px; margin: 0 auto;
-    min-height: calc(100vh - 6.5rem);
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
-    text-align: center;
-    padding: 7rem 3.2rem 3.2rem;
-  }
-  .cch-rec-eyebrow {
-    display: inline-flex; align-items: center; gap: 0.5rem;
-    font-size: 0.85rem; font-weight: 700; letter-spacing: 0.1em;
-    text-transform: uppercase; color: var(--cch-purple-rec);
-  }
-  .cch-dot--rec { background: var(--cch-purple-rec); }
-  .cch-rec-title {
-    margin: 1.4rem 0 0;
-    max-width: 46rem;
-    font-size: clamp(2.8rem, 5.4vw, 7.4rem);
-    line-height: 1.04;
-    font-weight: 900;
-    letter-spacing: -0.03em;
-    text-transform: uppercase;
-    color: var(--cch-ink);
-  }
-  .cch-rec-title span { display: block; }
-  .cch-rec-title .cch-accent-rec { color: var(--cch-purple-rec); }
-  .cch-rec-lead {
-    margin: 2rem 0 0;
-    max-width: 34rem;
-    font-size: 1.1rem; line-height: 1.52; font-weight: 400;
-    color: var(--cch-body);
-  }
-  .cch-rec-cta {
-    display: inline-flex; align-items: center; gap: 0.6rem;
-    margin-top: 2.3rem;
-    padding: 1.05rem 1.9rem 1.05rem 2.3rem;
-    background: #0f1216; color: #fff;
-    font-family: inherit; font-size: 0.98rem; font-weight: 700;
-    border-radius: 999px; text-decoration: none; white-space: nowrap;
-    transition: transform 0.2s ease, background 0.2s ease;
-  }
-  .cch-rec-cta:hover { background: #000; transform: translateY(-2px); }
-  .cch-rec-arrow { width: 18px; height: 18px; flex: none; }
-
-  /* ---------- Transição "Apple" (scroll pinado) ---------- */
-  .cch-story {
     position: relative;
-    height: 180vh;
+    display: inline-flex; align-items: center;
+    padding: 0.4rem 0.75rem;
+    border: 0; background: transparent; cursor: pointer;
+    font-family: inherit; font-size: 14px; font-weight: 500;
+    color: var(--cch-body); text-decoration: none;
+    white-space: nowrap;
+    transition: color 0.2s ease;
   }
-  .cch-pin {
-    position: sticky;
-    top: 0;
-    height: 100vh;
-    overflow: hidden;
-  }
-  .cch-nav-wrap {
-    position: absolute; top: 0; left: 0; right: 0; z-index: 30;
-  }
-  .cch-layers-viewport {
-    position: absolute; inset: 0; z-index: 0;
-  }
-  .cch-layer {
-    position: absolute; inset: 0;
-    pointer-events: none;
-  }
-  .cch-hero-layer { z-index: 1; }
-  .cch-recursos-layer { z-index: 2; }
-
-  .cch-story.cch-story--static { height: auto; }
-  .cch-story--static .cch-pin {
-    position: static; height: auto;
-  }
-  .cch-story--static .cch-nav-wrap { position: relative; }
-  .cch-story--static .cch-layers-viewport { position: static; }
-  .cch-story--static .cch-layer {
-    position: relative; inset: auto;
-    min-height: 100vh;
-    pointer-events: auto;
+  .cch-menu a:hover { color: var(--cch-ink); }
+  .cch-menu .is-active { color: var(--cch-ink); }
+  .cch-menu .is-active::after {
+    content: '';
+    position: absolute; left: 0.75rem; right: 0.75rem; bottom: 0;
+    height: 1px; background: var(--cch-muted);
   }
 
-  /* ---------- Responsivo ---------- */
+  /* Link de texto, não botão. O índigo é reservado para o CTA
+     primário do Hero: um único elemento saturado por viewport. */
+  .cch-login {
+    display: inline-flex; align-items: center;
+    padding: 0.4rem 0;
+    background: transparent; color: var(--cch-ink);
+    font-family: inherit; font-size: 14px; font-weight: 600;
+    border: 0; border-radius: 0; cursor: pointer; text-decoration: none;
+    white-space: nowrap;
+    transition: color 0.2s ease;
+  }
+  .cch-login:hover { color: #000; }
+
+  /* ---------- Navbar sobre seção escura ----------
+     Com o Hero claro, a variante escura serve apenas à seção de
+     Produto, que segue quase preta até ser redesenhada. */
+  .cch-nav--dark .cch-menu a { color: rgba(255, 255, 255, 0.72); }
+  .cch-nav--dark .cch-menu a:hover { color: #fff; }
+  .cch-nav--dark .cch-menu .is-active { color: #fff; }
+  .cch-nav--dark .cch-menu .is-active::after { background: rgba(255, 255, 255, 0.55); }
+  .cch-nav--dark .cch-login { color: #fff; }
+  .cch-nav--dark .cch-login:hover { color: rgba(255, 255, 255, 0.78); }
+
+
+  /* ---------- Foco visível ----------
+     Não havia nenhum estilo de foco na landing: quem navega por
+     teclado dependia do anel padrão do navegador, que some sobre
+     fundo escuro e não combina com nada. Um só sistema, na cor da
+     marca no claro e branco no escuro, sempre com afastamento para
+     não encostar na borda do próprio botão. */
+  .cch a:focus-visible,
+  .cch button:focus-visible {
+    outline: 2px solid var(--cch-purple-rec);
+    outline-offset: 3px;
+    border-radius: 6px;
+  }
+  .cch-nav--dark a:focus-visible,
+  .cch-nav--dark button:focus-visible {
+    outline-color: #ffffff;
+  }
+
+  /* ---------- Responsivo ----------
+     A goteira é o único valor responsivo da faixa: a partir de
+     768px ela abre de 20px para 48px, e a faixa continua limitada
+     a 1120px. A navbar acompanha sem regra própria, porque a
+     largura dela É a faixa. */
+  @media (min-width: 768px) {
+    .cch { --cc-goteira: 48px; }
+  }
   @media (max-width: 1280px) {
-    .cch-nav { padding: 1.6rem 1.75rem 0; }
-    .cch-inner { padding: 5.5rem 1.75rem 2rem; }
-    .cch-menu a { padding: 0.55rem 1rem; font-size: 0.88rem; }
+    .cch-menu a { padding: 0.4rem 0.6rem; }
   }
   @media (max-width: 980px) {
     .cch-menu { display: none; }
-    .cch-inner {
-      grid-template-columns: 1fr; gap: 2.5rem;
-      padding: 4.5rem 1.5rem 2.5rem;
-      min-height: 0;
-    }
-    .cch-right { align-items: flex-start; text-align: left; }
-    .cch-stat-label { justify-content: flex-start; }
-    .cch-scroll {
-      position: relative; left: auto; bottom: auto; transform: none;
-      margin: 1rem auto 2rem; width: max-content;
-    }
-    /* Em coluna única o vídeo fica só como textura ambiente,
-       sem "janela" central, para não brigar com o texto. */
-    .cch-video-bg { opacity: 0.4; filter: blur(1px); }
-    .cch-scrim { background: rgba(216,216,214,0.85); }
-    .cch-scrim::after { opacity: 0.14; }
-    .cch-rec-inner { min-height: 0; padding: 5rem 1.5rem 3rem; }
-  }
-  @media (max-width: 560px) {
-    .cch-nav { padding: 1.1rem 1.25rem 0; }
-    .cch-login { padding: 0.7rem 1.3rem; font-size: 0.88rem; }
-    .cch-lead { margin-top: 1.6rem; }
-    .cch-ctas { gap: 0.75rem; margin-top: 1.6rem; }
-    .cch-btn { flex: 1 1 auto; padding: 0.95rem 1.2rem; font-size: 0.92rem; }
-    .cch-stat + .cch-stat { margin-top: 2rem; }
-    .cch-rec-cta { padding: 0.9rem 1.6rem 0.9rem 2rem; }
   }
   @media (prefers-reduced-motion: reduce) {
-    .cch-mouse { animation: none; }
     .cch *, .cch *::before, .cch *::after { transition: none !important; }
   }
 
-  /* ---------- Recursos em destaque (cards) ---------- */
-  .cch-feats {
-    position: relative;
-    background: #f4f5f7;
-    padding: 5rem 3.2rem 6rem;
-  }
-  .cch-feats-inner {
-    max-width: 54rem; margin: 0 auto;
-    display: grid; grid-template-columns: 1fr 1fr;
-    gap: 1.15rem;
-  }
-  .cch-feat-card {
-    background: #fff;
-    border-radius: 1.4rem;
-    padding: 1.9rem;
-    box-shadow: 0 24px 48px rgba(19,19,22,0.05);
-    opacity: 0;
-    transform: translateY(40px);
-    transition: opacity 0.8s cubic-bezier(0.16,1,0.3,1), transform 0.8s cubic-bezier(0.16,1,0.3,1);
-    will-change: opacity, transform;
-  }
-  .cch-feat-card.is-in {
-    opacity: 1;
-    transform: translateY(0);
-  }
-  .cch-feat-card--dark {
-    background: #0f1216;
-  }
-  .cch-feat-icon {
-    display: inline-flex; align-items: center; justify-content: center;
-    width: 2.75rem; height: 2.75rem;
-    border-radius: 0.8rem;
-    background: rgba(83,88,238,0.12);
-    color: #5358ee;
-    margin-bottom: 1.25rem;
-  }
-  .cch-feat-icon svg { width: 1.15rem; height: 1.15rem; }
-  .cch-feat-card--dark .cch-feat-icon {
-    background: #5358ee;
-    color: #fff;
-  }
-  .cch-feat-title {
-    margin: 0 0 0.55rem;
-    font-size: 1.15rem;
-    font-weight: 800;
-    letter-spacing: -0.01em;
-    color: #131316;
-  }
-  .cch-feat-card--dark .cch-feat-title { color: #fff; }
-  .cch-feat-desc {
-    margin: 0;
-    max-width: 24rem;
-    font-size: 0.88rem;
-    line-height: 1.5;
-    color: #6d6d72;
-  }
-  .cch-feat-card--dark .cch-feat-desc { color: rgba(255,255,255,0.6); }
+  /* ---------- Revelação na volta do Login ----------
+     Chegando pela animação de voltar do Login, a tela já está coberta
+     de preto: aqui ela é revelada com um fade, em vez de a Home
+     aparecer num corte seco.
 
-  @media (max-width: 1280px) {
-    .cch-feats { padding: 4.5rem 1.75rem 5rem; }
+     Era um <motion.div> do framer-motion. A biblioteca inteira
+     (125 KB) estava no bundle da rota pública por causa DESTE fade de
+     500ms — e a Home é o único lugar da landing que a usava. Em CSS
+     é a mesma curva, a mesma duração e o mesmo resultado, com zero
+     JavaScript.
+
+     Fica FORA do escopo .cch de propósito: o elemento é irmão do
+     wrapper, não filho dele.
+
+     Com movimento reduzido a duração cai para 1ms em vez de a
+     animação ser desligada. Um "animation: none" nunca dispara o
+     evento animationend, e sem esse evento o estado "revealing"
+     jamais voltaria a ser falso — a tela ficaria preta para sempre. */
+  .cch-revelar {
+    position: fixed;
+    inset: 0;
+    z-index: 60;
+    background: #05070e;
+    pointer-events: none;
+    animation: cch-revelar 500ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
   }
-  @media (max-width: 900px) {
-    .cch-feats-inner { grid-template-columns: 1fr; gap: 1rem; }
-    .cch-feat-card { padding: 1.75rem; }
+
+  @keyframes cch-revelar {
+    from { opacity: 1; }
+    to   { opacity: 0; }
   }
+
   @media (prefers-reduced-motion: reduce) {
-    .cch-feat-card {
-      transition: none !important;
-      opacity: 1 !important;
-      transform: none !important;
-    }
+    .cch-revelar { animation-duration: 1ms; }
   }
+
 `;
 
-/* ---------- Ícones ---------- */
 
-function MouseIcon() {
-  return (
-    <svg className="cch-mouse" width="28" height="43" viewBox="0 0 38 58" fill="none"
-      stroke="currentColor" strokeWidth="2" aria-hidden="true">
-      <rect x="1.5" y="1.5" width="35" height="55" rx="17.5" />
-      <path d="M19 13v10" strokeLinecap="round" />
-    </svg>
-  );
-}
 
-function ArrowRightIcon() {
-  return (
-    <svg className="cch-rec-arrow" viewBox="0 0 24 24" fill="none"
-      stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M5 12h14" />
-      <path d="M13 6l6 6-6 6" />
-    </svg>
-  );
-}
-
-/* ---------- Cards de recursos em destaque ---------- */
-
-const FEATURE_CARDS = [
-  {
-    title: 'Dashboard Financeiro',
-    desc: 'Saldo consolidado de todas as contas com indicadores de fluxo em tempo real.',
-    Icon: BarChart3,
-  },
-  {
-    title: 'Transações Inteligentes',
-    desc: 'Registre entradas e saídas com categorias, filtros avançados e histórico completo.',
-    Icon: ArrowLeftRight,
-  },
-  {
-    title: 'Ciclos de Investimento',
-    desc: 'Metas de orçamento por período com progresso calculado automaticamente.',
-    Icon: Clock,
-  },
-  {
-    title: 'Capital Advisor',
-    desc: 'Análise dos seus dados financeiros em linguagem natural, direto no aplicativo.',
-    Icon: ShieldCheck,
-    dark: true,
-  },
-];
-
-/* ---------- Navegação (reutilizada no Hero e nos Recursos) ---------- */
+/* ---------- Navegação ---------- */
 
 const NAV_LINKS = [
   { id: 'inicio', label: 'Início' },
-  { id: 'recursos', label: 'Recursos' },
   { id: 'capital-advisor', label: 'Capital Advisor' },
   { id: 'planos', label: 'Planos' },
 ];
 
-function MainNav({ active = 'inicio', onNavigate }) {
+const NAV_IDS = NAV_LINKS.map((link) => link.id);
+
+function MainNav({ active = 'inicio', onNavigate, onDark = false }) {
   return (
-    <header className="cch-nav">
-      <div className="cch-logo-slot" aria-hidden="true" />
+    <header className={`cch-nav${onDark ? ' cch-nav--dark' : ''}`}>
+      <a className="cch-logo" href="#inicio" onClick={(e) => { e.preventDefault(); onNavigate('inicio'); }}>
+        <img src={onDark ? logoClara : logoEscura} alt="Capital Cycle" />
+      </a>
 
       <div className="cch-nav-right">
         <nav className="cch-menu" aria-label="Navegação principal">
@@ -499,159 +381,129 @@ function MainNav({ active = 'inicio', onNavigate }) {
   );
 }
 
-/* ---------- Scroll pinado (progresso 0 → 1) ---------- */
+/* ---------- Item de menu ativo ----------
+   Com as seções rolando normalmente, basta olhar qual delas já
+   cruzou a linha de leitura (35% da viewport). A versão anterior
+   deduzia isso do progresso do scroll pinado, que não existe mais. */
 
-const clamp01 = (value) => Math.min(1, Math.max(0, value));
-
-/* Mesma curva padronizada no resto do projeto */
-const EASE = [0.16, 1, 0.3, 1];
-
-function useScrollStory(ref, enabled) {
-  const [progress, setProgress] = useState(0);
+function useSecaoAtiva(ids) {
+  const [ativa, setAtiva] = useState(ids[0]);
 
   useEffect(() => {
-    if (!enabled) return;
-    const el = ref.current;
-    if (!el) return;
+    let frame = null;
 
-    let rafId = null;
-    let target = 0;
-    let current = 0;
-
-    const computeTarget = () => {
-      const rect = el.getBoundingClientRect();
-      const runway = el.offsetHeight - window.innerHeight;
-      target = runway > 0 ? clamp01(-rect.top / runway) : 0;
+    const medir = () => {
+      frame = null;
+      const linha = window.scrollY + window.innerHeight * 0.35;
+      let atual = ids[0];
+      ids.forEach((id) => {
+        const el = document.getElementById(id);
+        if (el && el.getBoundingClientRect().top + window.scrollY <= linha) atual = id;
+      });
+      setAtiva(atual);
     };
 
-    // O laço se encerra quando a interpolação alcança o alvo e só volta a
-    // rodar no próximo scroll. Antes ele girava para sempre, re-renderizando
-    // a página inteira a cada frame mesmo com tudo parado.
-    const tick = () => {
-      const delta = target - current;
-
-      if (Math.abs(delta) < 0.0006) {
-        current = target;
-        setProgress(current);
-        rafId = null;
-        return;
-      }
-
-      current += delta * 0.22;
-      setProgress(current);
-      rafId = requestAnimationFrame(tick);
+    const aoRolar = () => {
+      if (frame === null) frame = requestAnimationFrame(medir);
     };
 
-    const start = () => {
-      if (rafId === null) rafId = requestAnimationFrame(tick);
-    };
-
-    const onScroll = () => {
-      computeTarget();
-      start();
-    };
-
-    computeTarget();
-    current = target;
-    setProgress(current);
-
-    window.addEventListener('scroll', onScroll, { passive: true });
-    window.addEventListener('resize', onScroll);
+    medir();
+    window.addEventListener('scroll', aoRolar, { passive: true });
+    window.addEventListener('resize', aoRolar);
     return () => {
-      window.removeEventListener('scroll', onScroll);
-      window.removeEventListener('resize', onScroll);
-      if (rafId !== null) cancelAnimationFrame(rafId);
+      window.removeEventListener('scroll', aoRolar);
+      window.removeEventListener('resize', aoRolar);
+      if (frame !== null) cancelAnimationFrame(frame);
     };
-  }, [ref, enabled]);
+  }, [ids]);
 
-  return enabled ? progress : 1;
+  return ativa;
 }
 
-function usePinnedStoryEnabled() {
-  const [enabled, setEnabled] = useState(true);
+/* ---------- Tema da navbar ----------
+   A barra é transparente enquanto NÃO HÁ CONTEÚDO atrás dela: o
+   fundo dela já é o #f4f5f7 da página, e um chão ali seria uma
+   faixa visível sem função. Assim que algum conteúdo alcança a
+   faixa dos 72px, ela ganha o chão.
+
+   O gatilho anterior era outro — "o hero ainda cobre a barra?" — e
+   era a causa física da colisão entre o logo e o CTA. O hero tem
+   uma viewport inteira de altura, então continuava cobrindo a
+   barra por ~830px de rolagem; nesse intervalo o bloco de texto
+   já tinha subido para dentro dela, com a barra ainda transparente.
+   O logo e o botão "Criar conta" nascem na MESMA prumada mestra da
+   página, então os dois se sobrepunham por 46px — não era questão
+   de quem fica por cima, era conteúdo ocupando a faixa da barra.
+
+   A medida agora vem do DOM: o topo do bloco de conteúdo do hero.
+   Se a headline crescer, se a janela encolher ou se a coluna de
+   leitura mudar de altura, o limiar acompanha sozinho.
+
+   A variante escura deixou de ser acionada quando o Produto passou
+   a ser claro. O CSS dela continua no arquivo porque as seções
+   seguintes ainda não foram redesenhadas e podem voltar a precisar
+   dela; o gatilho é que não existe mais. */
+
+const ALTURA_NAV = 72;
+
+function useNavTema() {
+  const [tema, setTema] = useState('transparente');
 
   useEffect(() => {
-    const media = window.matchMedia('(min-width: 981px) and (prefers-reduced-motion: no-preference)');
-    const sync = () => setEnabled(media.matches);
-    sync();
-    media.addEventListener('change', sync);
-    return () => media.removeEventListener('change', sync);
+    let frame = null;
+
+    /* Verdadeiro enquanto todo o conteúdo do hero ainda está abaixo
+       da barra. `[data-cc-topo]` marca o bloco mais alto da seção;
+       sem ele, cai para a caixa da própria seção. */
+    const barraLivre = () => {
+      const hero = document.getElementById('inicio');
+      if (!hero) return false;
+      const conteudo = hero.querySelector('[data-cc-topo]') || hero;
+      return conteudo.getBoundingClientRect().top >= ALTURA_NAV;
+    };
+
+    const medir = () => {
+      frame = null;
+      setTema(barraLivre() ? 'transparente' : 'clara');
+    };
+
+    const aoRolar = () => {
+      if (frame === null) frame = requestAnimationFrame(medir);
+    };
+
+    medir();
+    window.addEventListener('scroll', aoRolar, { passive: true });
+    window.addEventListener('resize', aoRolar);
+    return () => {
+      window.removeEventListener('scroll', aoRolar);
+      window.removeEventListener('resize', aoRolar);
+      if (frame !== null) cancelAnimationFrame(frame);
+    };
   }, []);
 
-  return enabled;
-}
-
-/* ---------- Navegação por âncora com rolagem suave ----------
-   O Hero e os Recursos vivem dentro do mesmo bloco "pinado", então a
-   posição deles no documento não corresponde ao que aparece na tela: os
-   Recursos só ficam visíveis no fim do runway de scroll da história.
-   Por isso o destino é calculado, e não delegado ao salto nativo da âncora. */
-
-function useSmoothScrollTo(storyRef, pinnedEnabled) {
-  return useCallback((id) => {
-    const behavior = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-      ? 'auto'
-      : 'smooth';
-
-    const story = storyRef.current;
-    let top;
-
-    if (id === 'inicio') {
-      top = 0;
-    } else if (id === 'recursos' && pinnedEnabled && story) {
-      // Fim do runway = transição concluída, Recursos totalmente visível.
-      top = story.offsetTop + Math.max(0, story.offsetHeight - window.innerHeight);
-    } else {
-      const el = document.getElementById(id);
-      if (!el) return;
-      top = el.getBoundingClientRect().top + window.scrollY;
-    }
-
-    window.scrollTo({ top, behavior });
-  }, [storyRef, pinnedEnabled]);
-}
-
-/* ---------- Revela ao entrar na viewport (uma única vez) ---------- */
-
-function useRevealOnScroll(threshold = 0.18) {
-  const ref = useRef(null);
-  const [inView, setInView] = useState(false);
-
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    if (typeof IntersectionObserver === 'undefined') {
-      setInView(true);
-      return;
-    }
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0]?.isIntersecting) {
-          setInView(true);
-          observer.disconnect();
-        }
-      },
-      { threshold, rootMargin: '0px 0px -10% 0px' }
-    );
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [threshold]);
-
-  return [ref, inView];
+  return tema;
 }
 
 /* ---------- Componente ---------- */
 
 export default function HomePage() {
-  const videoRef = useRef(null);
-  const loopVideoRef = useRef(null);
-  const storyRef = useRef(null);
+  const activeNav = useSecaoAtiva(NAV_IDS);
+  const navTema = useNavTema();
 
-  const pinnedEnabled = usePinnedStoryEnabled();
-  const progress = useScrollStory(storyRef, pinnedEnabled);
-  const [featsRef, featsInView] = useRevealOnScroll();
-  const scrollToSection = useSmoothScrollTo(storyRef, pinnedEnabled);
+  const scrollToSection = useCallback((id) => {
+    const behavior = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+      ? 'auto'
+      : 'smooth';
+
+    if (id === 'inicio') {
+      window.scrollTo({ top: 0, behavior });
+      return;
+    }
+
+    const el = document.getElementById(id);
+    if (!el) return;
+    window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY, behavior });
+  }, []);
 
   // Chegando pela animação de voltar do Login, a tela já está coberta de
   // preto: aqui ela é revelada com um fade, em vez de a Home aparecer
@@ -659,10 +511,8 @@ export default function HomePage() {
   const location = useLocation();
   const [revealing, setRevealing] = useState(() => location.state?.from === 'login');
 
-  // A Home precisa abrir no topo. A história pinada é dirigida pelo scroll,
-  // então voltar (ou recarregar) com a página restaurada no meio dela deixa
-  // a tela num estado intermediário — camadas sobrepostas e a transição
-  // parada no meio, parecendo travada.
+  // A Home precisa abrir no topo — é o que garante que o número do hero
+  // seja visto parado antes de assentar, e não já no meio da rolagem.
   useEffect(() => {
     const anterior = window.history.scrollRestoration;
     if ('scrollRestoration' in window.history) {
@@ -676,215 +526,44 @@ export default function HomePage() {
     };
   }, []);
 
-  useEffect(() => {
-    const video = videoRef.current;
-    const loopVideo = loopVideoRef.current;
-    if (!video || !loopVideo) return;
-
-    const media = window.matchMedia('(prefers-reduced-motion: reduce)');
-
-    const handleEnded = () => {
-      const mid = loopVideo.duration ? loopVideo.duration / 2 : 0;
-      loopVideo.currentTime = mid;
-      loopVideo.play().catch(() => {});
-      video.classList.add('cch-video-bg--hidden');
-      loopVideo.classList.add('is-active');
-    };
-
-    const syncPlayback = () => {
-      if (media.matches) {
-        video.pause();
-        loopVideo.pause();
-      } else if (loopVideo.classList.contains('is-active')) {
-        loopVideo.play().catch(() => {});
-      } else {
-        video.play().catch(() => {});
-      }
-    };
-
-    syncPlayback();
-    video.addEventListener('ended', handleEnded);
-    media.addEventListener('change', syncPlayback);
-    return () => {
-      video.removeEventListener('ended', handleEnded);
-      media.removeEventListener('change', syncPlayback);
-    };
-  }, []);
-
-  /* Etapas escalonadas: 1) o texto/nav do Hero some, 2) o fundo troca
-     de cinza para branco, 3) o conteúdo dos Recursos aparece por cima
-     já num fundo quase branco — evita o efeito "cubo" de misturar tudo
-     de uma vez. */
-  const heroContentP = clamp01(progress / 0.45);
-  const bgCrossP = clamp01((progress - 0.15) / 0.45);
-  const recContentP = clamp01((progress - 0.5) / 0.5);
-
-  const heroContentStyle = pinnedEnabled ? {
-    opacity: 1 - heroContentP,
-    transform: `translateY(${-heroContentP * 46}px)`,
-    pointerEvents: heroContentP > 0.9 ? 'none' : 'auto',
-  } : undefined;
-
-  const recBgStyle = pinnedEnabled ? { opacity: bgCrossP } : undefined;
-
-  const recContentStyle = pinnedEnabled ? {
-    opacity: recContentP,
-    transform: `translateY(${(1 - recContentP) * 36}px)`,
-    pointerEvents: recContentP < 0.1 ? 'none' : 'auto',
-  } : undefined;
-
-  const activeNav = progress >= 0.5 ? 'recursos' : 'inicio';
-
   return (
     <>
       <style>{PAGE_CSS}</style>
 
       {revealing && (
-        <motion.div
-          className="pointer-events-none fixed inset-0 z-[60] bg-[#05070e]"
-          initial={{ opacity: 1 }}
-          animate={{ opacity: 0 }}
-          transition={{ duration: 0.5, ease: EASE }}
-          onAnimationComplete={() => setRevealing(false)}
+        <div
+          className="cch-revelar"
+          onAnimationEnd={() => setRevealing(false)}
           aria-hidden="true"
         />
       )}
 
-      <div ref={storyRef} className={`cch-story ${pinnedEnabled ? '' : 'cch-story--static'}`}>
-      <div className="cch-pin">
-        <div className="cch-nav-wrap">
-          <MainNav active={activeNav} onNavigate={scrollToSection} />
-        </div>
-
-        <div className="cch-layers-viewport">
-        <div className="cch cch-layer cch-hero-layer">
-          <video
-            ref={videoRef}
-            className="cch-video-bg"
-            src={heroVideo}
-            poster={heroVideoPoster}
-            autoPlay
-            muted
-            playsInline
-            preload="auto"
-            aria-hidden="true"
-          />
-          <video
-            ref={loopVideoRef}
-            className="cch-video-bg cch-video-bg--loop"
-            src={heroVideoLoop}
-            muted
-            loop
-            playsInline
-            preload="auto"
-            aria-hidden="true"
-          />
-          <div className="cch-scrim" aria-hidden="true" />
-
-          <div className="cch-inner" id="inicio" style={heroContentStyle}>
-            <div className="cch-left">
-              <h1 className="cch-title">
-                <span>Sua</span>
-                <span>Jornada</span>
-                <span className="cch-accent">Financeira</span>
-              </h1>
-
-              <p className="cch-lead">
-                Da primeira transação ao ciclo de investimento completo — controle
-                total do seu capital com inteligência artificial integrada.
-              </p>
-
-              <div className="cch-ctas">
-                <a className="cch-btn cch-btn-primary" href="/cadastro">Começar agora</a>
-                <Link className="cch-btn cch-btn-ghost" to="/login" state={{ from: 'home' }}>Já tenho conta</Link>
-              </div>
-            </div>
-
-            <div className="cch-right">
-              <div className="cch-stat">
-                <span className="cch-stat-label">
-                  <span className="cch-dot" aria-hidden="true" />
-                  Fluxo positivo
-                </span>
-                <span className="cch-stat-value">R$ 18k</span>
-              </div>
-
-              <div className="cch-stat">
-                <span className="cch-stat-label">Ciclos ativos</span>
-                <span className="cch-stat-value">14+</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="cch-scroll" style={heroContentStyle}>
-            <MouseIcon />
-            <span>Role para baixo</span>
-          </div>
-        </div>
-
-        <div className="cch cch-layer cch-recursos-layer">
-          {/* A atmosfera vive DENTRO do fundo dos Recursos para herdar o
-              mesmo crossfade — assim ela nunca aparece por cima do vídeo
-              do cartão enquanto a transição acontece. */}
-          <div className="cch-layer-bg" style={recBgStyle} aria-hidden="true">
-            <AmbientGlow />
-            <FloatingFigures variant="sides" />
-          </div>
-
-          <div className="cch-rec-inner" id="recursos" style={recContentStyle}>
-            <span className="cch-rec-eyebrow">
-              <span className="cch-dot cch-dot--rec" aria-hidden="true" />
-              Recursos
-            </span>
-
-            <h2 className="cch-rec-title">
-              <span>Gestão</span>
-              <span className="cch-accent-rec">Que evolui com você</span>
-            </h2>
-
-            <p className="cch-rec-lead">
-              Ferramentas profissionais para controle total do seu dinheiro — do
-              lançamento individual à inteligência financeira por IA.
-            </p>
-
-            <a
-              className="cch-rec-cta"
-              href="#planos"
-              onClick={(e) => {
-                e.preventDefault();
-                scrollToSection('planos');
-              }}
-            >
-              Ver planos
-              <ArrowRightIcon />
-            </a>
-          </div>
-        </div>
-        </div>
-      </div>
+      <div className={`cch cch-nav-wrap${navTema === 'clara' ? ' is-clara' : ''}`}>
+        <MainNav
+          active={activeNav}
+          onNavigate={scrollToSection}
+          onDark={navTema === 'escura'}
+        />
       </div>
 
-      <section className="cch-feats" ref={featsRef} aria-label="Recursos em destaque">
-        <div className="cch-feats-inner">
-          {FEATURE_CARDS.map(({ title, desc, Icon, dark }, i) => (
-            <article
-              key={title}
-              className={`cch-feat-card${dark ? ' cch-feat-card--dark' : ''}${featsInView ? ' is-in' : ''}`}
-              style={{ transitionDelay: `${i * 110}ms` }}
-            >
-              <span className="cch-feat-icon" aria-hidden="true">
-                <Icon size={19} strokeWidth={2.2} />
-              </span>
-              <h3 className="cch-feat-title">{title}</h3>
-              <p className="cch-feat-desc">{desc}</p>
-            </article>
-          ))}
-        </div>
-      </section>
+      <div className="cch">
+        <HeroSection />
+
+        <ProdutoSection />
+      </div>
 
       <CapitalAdvisorSection />
 
+      {/* Estações 05 e 06 do circuito. Não é uma seção de conteúdo:
+          é o trecho do eixo entre DECIDIR e os Planos. */}
+      <PassagemSection />
+
       <PlanosSection />
+
+      {/* Fechamento do circuito: a linha desce em E6, atravessa a
+          faixa e sobe em E0 — a mesma coluna em que ela começou a
+          descer no Hero. Não é footer e não tem conteúdo. */}
+      <RetornoSection />
     </>
   );
 }
