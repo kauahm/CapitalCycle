@@ -70,3 +70,6 @@ node_modules/
 
 # build output
 dist/
+
+# Skills/config locais do Claude Code (não fazem parte do produto)
+.claude/
