@@ -32,6 +32,11 @@ export default function CiclosInvestimento() {
   const [aporteData, setAporteData] = useState(hojeStr());
   const [salvandoAporte, setSalvandoAporte] = useState(false);
 
+  // Lock lógico do formulário de aporte — dedicado, separado do lock do
+  // formulário de ciclo/meta. `salvandoAporte` sozinho não basta: por depender
+  // de re-render, deixa passar um segundo clique disparado antes dele.
+  const aporteLockRef = useRef(false);
+
   const [formData, setFormData] = useState({
     nome: '',
     tipo: 'Orçamento', // Pode ser 'Orçamento' ou 'Meta'
@@ -161,6 +166,11 @@ export default function CiclosInvestimento() {
     const valorNumerico = parseFloat(aporteValor);
     if (Number.isNaN(valorNumerico) || valorNumerico <= 0) return;
 
+    // Lock adquirido só aqui: depois das duas saídas antecipadas (ciclo ausente
+    // e valor inválido), que não iniciam escrita nenhuma, e antes do addDoc.
+    // Daqui em diante todo caminho passa pelo finally.
+    if (aporteLockRef.current) return;
+    aporteLockRef.current = true;
     setSalvandoAporte(true);
     try {
       // Registro de destinação de dinheiro para a meta — nunca cria
@@ -176,6 +186,7 @@ export default function CiclosInvestimento() {
       console.error('Erro ao registrar aporte: ', error);
       alert('Erro ao registrar aporte: ' + error.message);
     } finally {
+      aporteLockRef.current = false;
       setSalvandoAporte(false);
     }
   };
