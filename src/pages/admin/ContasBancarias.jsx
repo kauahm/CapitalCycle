@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Plus, Landmark, Wallet, TrendingUp, Trash2, Pencil, X, Building2 } from 'lucide-react';
 import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, query, where } from 'firebase/firestore';
 import { db } from '../../services/firebase';
@@ -15,6 +15,11 @@ export default function ContasBancarias() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [upgradeOpen, setUpgradeOpen] = useState(false);
+
+  // Trava de submissão: o ref é o lock lógico (síncrono, fecha a janela entre
+  // dois cliques antes de qualquer re-render); o state é só o retorno visual.
+  const submitLockRef = useRef(false);
+  const [salvando, setSalvando] = useState(false);
 
   const [formData, setFormData] = useState({
     nome: '',
@@ -47,6 +52,14 @@ export default function ContasBancarias() {
       return;
     }
 
+    // Lock adquirido aqui de propósito: depois da saída antecipada do plano
+    // (que não inicia operação nenhuma) e imediatamente antes do try. Como não
+    // há instrução entre a aquisição e o try, todo caminho a partir daqui passa
+    // pelo finally e libera a trava.
+    if (submitLockRef.current) return;
+    submitLockRef.current = true;
+    setSalvando(true);
+
     try {
       const dados = {
         ...formData,
@@ -65,6 +78,9 @@ export default function ContasBancarias() {
       closeModal();
     } catch (error) {
       console.error("Erro ao salvar conta: ", error);
+    } finally {
+      submitLockRef.current = false;
+      setSalvando(false);
     }
   };
 
@@ -228,8 +244,12 @@ export default function ContasBancarias() {
                 <input required type="number" step="0.01" value={formData.saldo} onChange={e => setFormData({...formData, saldo: e.target.value})} className="w-full bg-[#070b14] border border-[#1e293b] rounded-xl px-4 py-3 text-white focus:border-indigo-500 outline-none" placeholder="0,00" />
               </div>
 
-              <button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3.5 rounded-xl transition-colors mt-4">
-                {editingId ? 'Salvar Alterações' : 'Salvar Conta'}
+              <button
+                type="submit"
+                disabled={salvando}
+                className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-bold py-3.5 rounded-xl transition-colors mt-4"
+              >
+                {salvando ? 'Salvando...' : (editingId ? 'Salvar Alterações' : 'Salvar Conta')}
               </button>
             </form>
           </div>

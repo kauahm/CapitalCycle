@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Plus, Target, Calendar, Trash2, Pencil, X, PieChart, TrendingUp, TrendingDown, PiggyBank, Clock } from 'lucide-react';
 import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, query, where } from 'firebase/firestore';
 import { db } from '../../services/firebase';
@@ -19,6 +19,12 @@ export default function CiclosInvestimento() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [upgradeOpen, setUpgradeOpen] = useState(false);
+
+  // Trava de submissão do formulário de ciclo/meta: o ref é o lock lógico
+  // (síncrono, fecha a janela entre dois cliques antes de qualquer re-render);
+  // o state é só o retorno visual.
+  const submitLockRef = useRef(false);
+  const [salvando, setSalvando] = useState(false);
 
   // Modal "Registrar aporte" — separado do modal de criar/editar ciclo
   const [aporteCiclo, setAporteCiclo] = useState(null); // ciclo alvo, ou null se fechado
@@ -81,6 +87,14 @@ export default function CiclosInvestimento() {
       return;
     }
 
+    // Lock adquirido aqui de propósito: depois da saída antecipada do plano
+    // (que não inicia operação nenhuma) e imediatamente antes do try. Como não
+    // há instrução entre a aquisição e o try, todo caminho a partir daqui passa
+    // pelo finally e libera a trava.
+    if (submitLockRef.current) return;
+    submitLockRef.current = true;
+    setSalvando(true);
+
     try {
       const dados = {
         ...formData,
@@ -99,6 +113,9 @@ export default function CiclosInvestimento() {
       closeModal();
     } catch (error) {
       console.error("Erro ao salvar ciclo: ", error);
+    } finally {
+      submitLockRef.current = false;
+      setSalvando(false);
     }
   };
 
@@ -400,8 +417,12 @@ export default function CiclosInvestimento() {
                 </div>
               </div>
 
-              <button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3.5 rounded-xl transition-colors mt-4">
-                {editingId ? 'Salvar Alterações' : `Salvar ${formData.tipo}`}
+              <button
+                type="submit"
+                disabled={salvando}
+                className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-bold py-3.5 rounded-xl transition-colors mt-4"
+              >
+                {salvando ? 'Salvando...' : (editingId ? 'Salvar Alterações' : `Salvar ${formData.tipo}`)}
               </button>
             </form>
           </div>

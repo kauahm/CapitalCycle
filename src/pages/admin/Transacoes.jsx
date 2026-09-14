@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Plus, ArrowUpCircle, ArrowDownCircle, Trash2, Pencil, Search, Filter, X } from 'lucide-react';
 import { collection, onSnapshot, deleteDoc, doc, query, where, runTransaction } from 'firebase/firestore';
 import { db } from '../../services/firebase';
@@ -17,6 +17,11 @@ export default function Transacoes() {
   const [editingId, setEditingId] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [upgradeOpen, setUpgradeOpen] = useState(false);
+
+  // Trava de submissão: o ref é o lock lógico (síncrono, fecha a janela entre
+  // dois cliques antes de qualquer re-render); o state é só o retorno visual.
+  const submitLockRef = useRef(false);
+  const [salvando, setSalvando] = useState(false);
 
   // Estados do formulário
   const [formData, setFormData] = useState({
@@ -78,6 +83,14 @@ export default function Transacoes() {
 
     const valorNumerico = parseFloat(formData.valor);
     const novaContaRef = doc(db, 'accounts', formData.conta_id);
+
+    // Lock adquirido aqui de propósito: depois da saída antecipada do plano
+    // (que não inicia operação nenhuma) e imediatamente antes do try. Como não
+    // há instrução entre a aquisição e o try, todo caminho a partir daqui passa
+    // pelo finally e libera a trava.
+    if (submitLockRef.current) return;
+    submitLockRef.current = true;
+    setSalvando(true);
 
     try {
       if (editingId) {
@@ -155,6 +168,9 @@ export default function Transacoes() {
     } catch (error) {
       console.error("Erro ao salvar transação: ", error);
       alert("Erro ao salvar transação: " + error.message);
+    } finally {
+      submitLockRef.current = false;
+      setSalvando(false);
     }
   };
 
@@ -373,8 +389,12 @@ export default function Transacoes() {
                 </div>
               </div>
 
-              <button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3.5 rounded-xl transition-colors mt-4">
-                {editingId ? 'Salvar Alterações' : 'Salvar Transação'}
+              <button
+                type="submit"
+                disabled={salvando}
+                className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-bold py-3.5 rounded-xl transition-colors mt-4"
+              >
+                {salvando ? 'Salvando...' : (editingId ? 'Salvar Alterações' : 'Salvar Transação')}
               </button>
             </form>
           </div>
