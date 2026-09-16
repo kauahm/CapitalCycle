@@ -216,28 +216,6 @@ export default function ContasBancarias() {
             return (
               <div key={conta.id} className={`bg-[#101623] border border-[#1e293b] p-6 rounded-3xl relative overflow-hidden group transition-all duration-300 ${Estilo.border}`}>
                 
-                {/* Botões Editar/Excluir (Aparecem no Hover) */}
-                <div className="absolute top-4 right-4 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button 
-                    onClick={() => handleEdit(conta)}
-                    className="text-slate-600 hover:text-indigo-400 bg-[#070b14] p-2 rounded-lg"
-                    title="Editar Conta"
-                  >
-                    <Pencil size={16} />
-                  </button>
-                  {/* Continua clicável quando há histórico: o clique explica o
-                      bloqueio, em vez de não fazer nada. */}
-                  <button
-                    onClick={() => handleDelete(conta.id)}
-                    className={`bg-[#070b14] p-2 rounded-lg ${temHistorico ? 'text-slate-700 cursor-not-allowed' : 'text-slate-600 hover:text-rose-400'}`}
-                    title={temHistorico
-                      ? `Não é possível excluir: ${vinculados} ${vinculados === 1 ? 'lançamento vinculado' : 'lançamentos vinculados'}`
-                      : 'Excluir Conta'}
-                  >
-                    <Trash2 size={16} />
-                  </button>
-                </div>
-
                 <div className="flex items-center gap-4 mb-6">
                   <div className={`p-4 rounded-2xl ${Estilo.bg} ${Estilo.cor}`}>
                     <Icone size={28} />
@@ -258,6 +236,32 @@ export default function ContasBancarias() {
                       {vinculados} {vinculados === 1 ? 'lançamento' : 'lançamentos'}
                     </p>
                   )}
+                </div>
+
+                {/* Ações. No mobile ficam no rodapé, em fluxo normal: como o
+                    card é estreito, mantê-las flutuando no topo direito as
+                    faria cobrir o nome da conta. A partir de md voltam para
+                    o canto superior direito, discretas até o hover ou o foco
+                    por teclado — exatamente a composição anterior. */}
+                <div className="relative z-10 mt-5 flex items-center justify-end gap-2 md:mt-0 md:absolute md:top-4 md:right-4 md:opacity-0 md:transition-opacity md:group-hover:opacity-100 md:group-focus-within:opacity-100">
+                  <button
+                    onClick={() => handleEdit(conta)}
+                    className="text-slate-600 hover:text-indigo-400 bg-[#070b14] p-2 rounded-lg"
+                    title="Editar Conta"
+                  >
+                    <Pencil size={16} />
+                  </button>
+                  {/* Continua clicável quando há histórico: o clique explica o
+                      bloqueio, em vez de não fazer nada. */}
+                  <button
+                    onClick={() => handleDelete(conta.id)}
+                    className={`bg-[#070b14] p-2 rounded-lg ${temHistorico ? 'text-slate-700 cursor-not-allowed' : 'text-slate-600 hover:text-rose-400'}`}
+                    title={temHistorico
+                      ? `Não é possível excluir: ${vinculados} ${vinculados === 1 ? 'lançamento vinculado' : 'lançamentos vinculados'}`
+                      : 'Excluir Conta'}
+                  >
+                    <Trash2 size={16} />
+                  </button>
                 </div>
                 
                 {/* Efeito visual decorativo no fundo do card */}
