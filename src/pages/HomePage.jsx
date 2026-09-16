@@ -1,20 +1,27 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowLeftRight, BarChart3, Clock, ShieldCheck } from 'lucide-react';
 
-import heroVideo from '../assets/video/hero-cartao.mp4';
-import heroVideoLoop from '../assets/video/hero-cartao-loop.mp4';
-import heroVideoPoster from '../assets/video/hero-cartao-poster.png';
+import LandingHero from '../components/landing/LandingHero';
 import CapitalAdvisorSection from '../components/home/CapitalAdvisorSection';
 import PlanosSection from '../components/home/PlanosSection';
 import AmbientGlow from '../components/home/AmbientGlow';
 import FloatingFigures from '../components/home/FloatingFigures';
+import '../styles/landing-hero.css';
 
 /* =========================================================
    HOME — Capital Cycle
-   Hero (vídeo do cartão) faz uma transição estilo "Apple"
-   (scroll pinado, fade + slide) até a seção de Recursos.
+
+   A primeira dobra é <LandingHero />: o frame F1 do Designer,
+   estático. A Hero antiga (vídeo do cartão + transição pinada
+   até os Recursos) foi desligada — os Recursos agora entram
+   como seção normal, logo abaixo.
+
+   O CSS abaixo ainda atende Recursos e os cards em destaque.
+   A parte dele que servia à Hero antiga ficou sem uso e será
+   limpa quando a seção de Recursos for redesenhada; não é
+   escopo desta fase.
    ========================================================= */
 
 const PAGE_CSS = `
@@ -414,16 +421,6 @@ const PAGE_CSS = `
 
 /* ---------- Ícones ---------- */
 
-function MouseIcon() {
-  return (
-    <svg className="cch-mouse" width="28" height="43" viewBox="0 0 38 58" fill="none"
-      stroke="currentColor" strokeWidth="2" aria-hidden="true">
-      <rect x="1.5" y="1.5" width="35" height="55" rx="17.5" />
-      <path d="M19 13v10" strokeLinecap="round" />
-    </svg>
-  );
-}
-
 function ArrowRightIcon() {
   return (
     <svg className="cch-rec-arrow" viewBox="0 0 24 24" fill="none"
@@ -460,155 +457,29 @@ const FEATURE_CARDS = [
   },
 ];
 
-/* ---------- Navegação (reutilizada no Hero e nos Recursos) ---------- */
-
-const NAV_LINKS = [
-  { id: 'inicio', label: 'Início' },
-  { id: 'recursos', label: 'Recursos' },
-  { id: 'capital-advisor', label: 'Capital Advisor' },
-  { id: 'planos', label: 'Planos' },
-];
-
-function MainNav({ active = 'inicio', onNavigate }) {
-  return (
-    <header className="cch-nav">
-      <div className="cch-logo-slot" aria-hidden="true" />
-
-      <div className="cch-nav-right">
-        <nav className="cch-menu" aria-label="Navegação principal">
-          {NAV_LINKS.map(({ id, label }) => (
-            <a
-              key={id}
-              href={`#${id}`}
-              className={active === id ? 'is-active' : undefined}
-              onClick={(e) => {
-                e.preventDefault();
-                onNavigate(id);
-              }}
-            >
-              {label}
-            </a>
-          ))}
-        </nav>
-
-        {/* `from: 'home'` liga a transição de encolhimento do Login.
-            Sem esse state (URL digitada direto) a página abre estática. */}
-        <Link className="cch-login" to="/login" state={{ from: 'home' }}>Entrar</Link>
-      </div>
-    </header>
-  );
-}
-
-/* ---------- Scroll pinado (progresso 0 → 1) ---------- */
-
-const clamp01 = (value) => Math.min(1, Math.max(0, value));
-
 /* Mesma curva padronizada no resto do projeto */
 const EASE = [0.16, 1, 0.3, 1];
 
-function useScrollStory(ref, enabled) {
-  const [progress, setProgress] = useState(0);
-
-  useEffect(() => {
-    if (!enabled) return;
-    const el = ref.current;
-    if (!el) return;
-
-    let rafId = null;
-    let target = 0;
-    let current = 0;
-
-    const computeTarget = () => {
-      const rect = el.getBoundingClientRect();
-      const runway = el.offsetHeight - window.innerHeight;
-      target = runway > 0 ? clamp01(-rect.top / runway) : 0;
-    };
-
-    // O laço se encerra quando a interpolação alcança o alvo e só volta a
-    // rodar no próximo scroll. Antes ele girava para sempre, re-renderizando
-    // a página inteira a cada frame mesmo com tudo parado.
-    const tick = () => {
-      const delta = target - current;
-
-      if (Math.abs(delta) < 0.0006) {
-        current = target;
-        setProgress(current);
-        rafId = null;
-        return;
-      }
-
-      current += delta * 0.22;
-      setProgress(current);
-      rafId = requestAnimationFrame(tick);
-    };
-
-    const start = () => {
-      if (rafId === null) rafId = requestAnimationFrame(tick);
-    };
-
-    const onScroll = () => {
-      computeTarget();
-      start();
-    };
-
-    computeTarget();
-    current = target;
-    setProgress(current);
-
-    window.addEventListener('scroll', onScroll, { passive: true });
-    window.addEventListener('resize', onScroll);
-    return () => {
-      window.removeEventListener('scroll', onScroll);
-      window.removeEventListener('resize', onScroll);
-      if (rafId !== null) cancelAnimationFrame(rafId);
-    };
-  }, [ref, enabled]);
-
-  return enabled ? progress : 1;
-}
-
-function usePinnedStoryEnabled() {
-  const [enabled, setEnabled] = useState(true);
-
-  useEffect(() => {
-    const media = window.matchMedia('(min-width: 981px) and (prefers-reduced-motion: no-preference)');
-    const sync = () => setEnabled(media.matches);
-    sync();
-    media.addEventListener('change', sync);
-    return () => media.removeEventListener('change', sync);
-  }, []);
-
-  return enabled;
-}
-
 /* ---------- Navegação por âncora com rolagem suave ----------
-   O Hero e os Recursos vivem dentro do mesmo bloco "pinado", então a
-   posição deles no documento não corresponde ao que aparece na tela: os
-   Recursos só ficam visíveis no fim do runway de scroll da história.
-   Por isso o destino é calculado, e não delegado ao salto nativo da âncora. */
+   Sem o bloco pinado, cada seção está onde o documento diz que está, então
+   o destino é a própria posição do elemento. */
 
-function useSmoothScrollTo(storyRef, pinnedEnabled) {
+function useSmoothScrollTo() {
   return useCallback((id) => {
     const behavior = window.matchMedia('(prefers-reduced-motion: reduce)').matches
       ? 'auto'
       : 'smooth';
 
-    const story = storyRef.current;
-    let top;
-
     if (id === 'inicio') {
-      top = 0;
-    } else if (id === 'recursos' && pinnedEnabled && story) {
-      // Fim do runway = transição concluída, Recursos totalmente visível.
-      top = story.offsetTop + Math.max(0, story.offsetHeight - window.innerHeight);
-    } else {
-      const el = document.getElementById(id);
-      if (!el) return;
-      top = el.getBoundingClientRect().top + window.scrollY;
+      window.scrollTo({ top: 0, behavior });
+      return;
     }
 
-    window.scrollTo({ top, behavior });
-  }, [storyRef, pinnedEnabled]);
+    const el = document.getElementById(id);
+    if (!el) return;
+
+    window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY, behavior });
+  }, []);
 }
 
 /* ---------- Revela ao entrar na viewport (uma única vez) ---------- */
@@ -644,14 +515,8 @@ function useRevealOnScroll(threshold = 0.18) {
 /* ---------- Componente ---------- */
 
 export default function HomePage() {
-  const videoRef = useRef(null);
-  const loopVideoRef = useRef(null);
-  const storyRef = useRef(null);
-
-  const pinnedEnabled = usePinnedStoryEnabled();
-  const progress = useScrollStory(storyRef, pinnedEnabled);
   const [featsRef, featsInView] = useRevealOnScroll();
-  const scrollToSection = useSmoothScrollTo(storyRef, pinnedEnabled);
+  const scrollToSection = useSmoothScrollTo();
 
   // Chegando pela animação de voltar do Login, a tela já está coberta de
   // preto: aqui ela é revelada com um fade, em vez de a Home aparecer
@@ -659,10 +524,9 @@ export default function HomePage() {
   const location = useLocation();
   const [revealing, setRevealing] = useState(() => location.state?.from === 'login');
 
-  // A Home precisa abrir no topo. A história pinada é dirigida pelo scroll,
-  // então voltar (ou recarregar) com a página restaurada no meio dela deixa
-  // a tela num estado intermediário — camadas sobrepostas e a transição
-  // parada no meio, parecendo travada.
+  // A Home precisa abrir no topo: o F1 é o estado inicial da landing, e
+  // restaurar o scroll no meio da página faria a primeira dobra nunca ser
+  // vista.
   useEffect(() => {
     const anterior = window.history.scrollRestoration;
     if ('scrollRestoration' in window.history) {
@@ -675,65 +539,6 @@ export default function HomePage() {
       }
     };
   }, []);
-
-  useEffect(() => {
-    const video = videoRef.current;
-    const loopVideo = loopVideoRef.current;
-    if (!video || !loopVideo) return;
-
-    const media = window.matchMedia('(prefers-reduced-motion: reduce)');
-
-    const handleEnded = () => {
-      const mid = loopVideo.duration ? loopVideo.duration / 2 : 0;
-      loopVideo.currentTime = mid;
-      loopVideo.play().catch(() => {});
-      video.classList.add('cch-video-bg--hidden');
-      loopVideo.classList.add('is-active');
-    };
-
-    const syncPlayback = () => {
-      if (media.matches) {
-        video.pause();
-        loopVideo.pause();
-      } else if (loopVideo.classList.contains('is-active')) {
-        loopVideo.play().catch(() => {});
-      } else {
-        video.play().catch(() => {});
-      }
-    };
-
-    syncPlayback();
-    video.addEventListener('ended', handleEnded);
-    media.addEventListener('change', syncPlayback);
-    return () => {
-      video.removeEventListener('ended', handleEnded);
-      media.removeEventListener('change', syncPlayback);
-    };
-  }, []);
-
-  /* Etapas escalonadas: 1) o texto/nav do Hero some, 2) o fundo troca
-     de cinza para branco, 3) o conteúdo dos Recursos aparece por cima
-     já num fundo quase branco — evita o efeito "cubo" de misturar tudo
-     de uma vez. */
-  const heroContentP = clamp01(progress / 0.45);
-  const bgCrossP = clamp01((progress - 0.15) / 0.45);
-  const recContentP = clamp01((progress - 0.5) / 0.5);
-
-  const heroContentStyle = pinnedEnabled ? {
-    opacity: 1 - heroContentP,
-    transform: `translateY(${-heroContentP * 46}px)`,
-    pointerEvents: heroContentP > 0.9 ? 'none' : 'auto',
-  } : undefined;
-
-  const recBgStyle = pinnedEnabled ? { opacity: bgCrossP } : undefined;
-
-  const recContentStyle = pinnedEnabled ? {
-    opacity: recContentP,
-    transform: `translateY(${(1 - recContentP) * 36}px)`,
-    pointerEvents: recContentP < 0.1 ? 'none' : 'auto',
-  } : undefined;
-
-  const activeNav = progress >= 0.5 ? 'recursos' : 'inicio';
 
   return (
     <>
@@ -750,88 +555,21 @@ export default function HomePage() {
         />
       )}
 
-      <div ref={storyRef} className={`cch-story ${pinnedEnabled ? '' : 'cch-story--static'}`}>
+      <LandingHero />
+
+      {/* Recursos deixou de ser a segunda camada de um crossfade pinado e
+          virou uma seção comum. O showcase novo do Designer é escopo de
+          outra fase — aqui a seção continua como estava, só que estática. */}
+      <div className="cch-story cch-story--static">
       <div className="cch-pin">
-        <div className="cch-nav-wrap">
-          <MainNav active={activeNav} onNavigate={scrollToSection} />
-        </div>
-
         <div className="cch-layers-viewport">
-        <div className="cch cch-layer cch-hero-layer">
-          <video
-            ref={videoRef}
-            className="cch-video-bg"
-            src={heroVideo}
-            poster={heroVideoPoster}
-            autoPlay
-            muted
-            playsInline
-            preload="auto"
-            aria-hidden="true"
-          />
-          <video
-            ref={loopVideoRef}
-            className="cch-video-bg cch-video-bg--loop"
-            src={heroVideoLoop}
-            muted
-            loop
-            playsInline
-            preload="auto"
-            aria-hidden="true"
-          />
-          <div className="cch-scrim" aria-hidden="true" />
-
-          <div className="cch-inner" id="inicio" style={heroContentStyle}>
-            <div className="cch-left">
-              <h1 className="cch-title">
-                <span>Sua</span>
-                <span>Jornada</span>
-                <span className="cch-accent">Financeira</span>
-              </h1>
-
-              <p className="cch-lead">
-                Da primeira transação ao ciclo de investimento completo — controle
-                total do seu capital com inteligência artificial integrada.
-              </p>
-
-              <div className="cch-ctas">
-                <a className="cch-btn cch-btn-primary" href="/cadastro">Começar agora</a>
-                <Link className="cch-btn cch-btn-ghost" to="/login" state={{ from: 'home' }}>Já tenho conta</Link>
-              </div>
-            </div>
-
-            <div className="cch-right">
-              <div className="cch-stat">
-                <span className="cch-stat-label">
-                  <span className="cch-dot" aria-hidden="true" />
-                  Fluxo positivo
-                </span>
-                <span className="cch-stat-value">R$ 18k</span>
-              </div>
-
-              <div className="cch-stat">
-                <span className="cch-stat-label">Ciclos ativos</span>
-                <span className="cch-stat-value">14+</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="cch-scroll" style={heroContentStyle}>
-            <MouseIcon />
-            <span>Role para baixo</span>
-          </div>
-        </div>
-
         <div className="cch cch-layer cch-recursos-layer">
-          {/* A atmosfera vive DENTRO do fundo dos Recursos para herdar o
-              mesmo crossfade — assim ela nunca aparece por cima do vídeo
-              do cartão enquanto a transição acontece. */}
-          <div className="cch-layer-bg" style={recBgStyle} aria-hidden="true">
+          <div className="cch-layer-bg" aria-hidden="true">
             <AmbientGlow />
             <FloatingFigures variant="sides" />
           </div>
 
-          <div className="cch-rec-inner" id="recursos" style={recContentStyle}>
+          <div className="cch-rec-inner" id="recursos">
             <span className="cch-rec-eyebrow">
               <span className="cch-dot cch-dot--rec" aria-hidden="true" />
               Recursos
