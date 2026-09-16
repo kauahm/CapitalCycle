@@ -14,7 +14,6 @@ export default function Topbar({ onMenuClick }) {
     if (path.includes('contas')) return 'Contas';
     if (path.includes('ciclos')) return 'Ciclos e Metas';
     if (path.includes('analise-ia')) return 'Capital Advisor';
-    if (path.includes('mercado')) return 'Mercado';
     if (path.includes('perfil')) return 'Meu Perfil';
     return 'CapitalCycle';
   };

@@ -14,7 +14,6 @@ const ContasBancarias = lazy(() => import('./pages/admin/ContasBancarias'));
 const CiclosInvestimento = lazy(() => import('./pages/admin/CiclosInvestimento'));
 const OrcamentoCategoria = lazy(() => import('./pages/admin/OrcamentoCategoria'));
 const AnaliseIA = lazy(() => import('./pages/admin/AnaliseIA'));
-const Mercado = lazy(() => import('./pages/admin/Mercado'));
 const Perfil = lazy(() => import('./pages/admin/Perfil'));
 
 function RouteLoading() {
@@ -76,7 +75,6 @@ export default function App() {
             <Route path="ciclos" element={<Suspense fallback={<RouteLoading />}><CiclosInvestimento /></Suspense>} />
             <Route path="orcamento" element={<Suspense fallback={<RouteLoading />}><OrcamentoCategoria /></Suspense>} />
             <Route path="analise-ia" element={<Suspense fallback={<RouteLoading />}><AnaliseIA /></Suspense>} />
-            <Route path="mercado" element={<Suspense fallback={<RouteLoading />}><Mercado /></Suspense>} />
             <Route path="perfil" element={<Suspense fallback={<RouteLoading />}><Perfil /></Suspense>} />
           </Route>
 
