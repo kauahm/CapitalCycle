@@ -16,6 +16,10 @@ const OrcamentoCategoria = lazy(() => import('./pages/admin/OrcamentoCategoria')
 const AnaliseIA = lazy(() => import('./pages/admin/AnaliseIA'));
 const Perfil = lazy(() => import('./pages/admin/Perfil'));
 
+// Páginas públicas de texto — raramente abertas, então ficam fora do bundle inicial
+const Termos = lazy(() => import('./pages/legal/Termos'));
+const Privacidade = lazy(() => import('./pages/legal/Privacidade'));
+
 function RouteLoading() {
   return (
     <div className="h-[80vh] flex items-center justify-center text-slate-400">
@@ -59,6 +63,10 @@ export default function App() {
 
           {/* Tela de pagamento do cadastro — só acessível se houver dados de cadastro no state */}
           <Route path="/pagamento" element={<Payment />} />
+
+          {/* Páginas legais — públicas, sem exigir login, e declaradas antes do wildcard */}
+          <Route path="/termos" element={<Suspense fallback={<RouteLoading />}><Termos /></Suspense>} />
+          <Route path="/privacidade" element={<Suspense fallback={<RouteLoading />}><Privacidade /></Suspense>} />
 
           {/* Rotas Protegidas do Sistema Financeiro */}
           <Route

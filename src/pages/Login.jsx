@@ -353,6 +353,19 @@ export default function Login() {
             <GoogleIcon />
             Continuar com Google
           </motion.button>
+
+          {/* Links legais — abrem em nova aba para não interromper o acesso */}
+          <motion.p variants={formItem} className="mt-6 text-center text-[0.78rem] leading-relaxed text-slate-400">
+            Ao continuar, você concorda com os{' '}
+            <a href="/termos" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+              Termos de Uso
+            </a>
+            {' '}e a{' '}
+            <a href="/privacidade" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+              Política de Privacidade
+            </a>
+            .
+          </motion.p>
         </motion.div>
       </div>
 
