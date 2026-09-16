@@ -1,9 +1,16 @@
 # 07 — Auditoria do Capital Cycle atual
 
 Branch: `feat/hero-designer` · base `ad37205` · data: 2026-09-16
+**Revisado em 2026-09-16** após a leitura do bundle do Designer.
 
 Tudo aqui é **[CÓDIGO]** salvo marcação em contrário. Nenhuma auditoria
 anterior (`docs/01-auditoria-landing.md`) foi reutilizada como verdade.
+
+> ⚠️ **Revisão importante.** A recomendação original de §2.4 e §4 deste
+> documento — extrair uma `DashboardView` pura compartilhada entre app e
+> landing — **foi revogada** depois de comparar a Dashboard real com
+> `CapitalCycleDashboard.dc.html`. Ver §2.5 abaixo e
+> `04-gap-analysis.md` §4.3.
 
 ---
 
@@ -140,9 +147,38 @@ Ambos dependem de **Router** e de **Auth**. `Topbar` renderiza
 |---|---|
 | Dá para montar `DashboardFinanceiro` na Hero? | **Não.** |
 | Dá para montar `DashboardLayout` na Hero? | **Não** — scroll interno + `fixed` + Auth. |
-| O JSX de apresentação é extraível? | **Sim**, com refactor de separação. |
-| Isso altera o sistema funcional? | Extrair a view e fazer `DashboardFinanceiro` consumi-la **mexe** num arquivo protegido por §8. **[PENDENTE de decisão sua]** — ver §4. |
-| Quão equivalente é ao Designer? | **Indeterminado** — depende de ler `CapitalCycleDashboard.dc.html`. |
+| O JSX de apresentação é extraível? | Tecnicamente sim — mas **não vale a pena**, ver §2.5. |
+| Quão equivalente é ao Designer? | **Parcialmente** — mesma família, composição diferente. Ver `04-gap-analysis.md` §4. |
+
+---
+
+## 2.5 Revisão: por que `DashboardView` compartilhada foi descartada
+
+Com `CapitalCycleDashboard.dc.html` em mãos, a comparação (detalhada em
+`04-gap-analysis.md` §4) mostra que o Designer **não** desenhou a Dashboard
+real com outro tema. Desenhou uma peça editorial diferente:
+
+| | Designer | App real |
+|---|---|---|
+| Blocos no corpo | **4** | **8** |
+| KPIs | grid de 3 cards iguais | saldo hero em `6xl` + 2 números menores |
+| Itens da sidebar | 8 (com "Mercado") | 7 (removido em `5750b7f`) |
+| Layout | alturas fixas (19/132/268/153px) | fluido, `space-y-10` |
+| Largura | 1180px absolutos | fluido |
+
+Um componente único servindo os dois exigiria props de variante que trocam
+**layout**, não só estilo — ou seja, dois componentes disfarçados de um. Pior:
+qualquer bloco novo no painel (fase 2 do gerente) quebraria a fidelidade da
+landing sem ninguém perceber, que é exatamente o tipo de divergência silenciosa
+que o `CLAUDE.md` existe para evitar.
+
+**Arquitetura adotada no lugar:** `DashboardPreview` novo, em
+`src/components/landing/product/`, fiel ao `.dc.html`, com dados fictícios e
+zero imports de Firebase/Auth/Router.
+
+**Efeito colateral bem-vindo:** `src/pages/admin/DashboardFinanceiro.jsx`
+**não precisa ser tocado**. O conflito com §8 do briefing desaparece, e a
+decisão D1 deixa de existir.
 
 ---
 
@@ -217,12 +253,16 @@ coexistem — **[PENDENTE]** decidir se `CapitalAdvisorSection` e
 
 ## 4. Decisões que dependem de você
 
-1. **Extrair uma `DashboardView` pura** significa editar
-   `src/pages/admin/DashboardFinanceiro.jsx`, que §8 do briefing protege.
-   Preciso da sua autorização explícita para tocar nele — ou da instrução de
-   duplicar o JSX num componente novo (duplicação = risco de divergência
-   visual futura entre app e landing).
+1. ~~**Extrair uma `DashboardView` pura**~~ — **resolvida sem você**. A
+   comparação com o Designer (§2.5) descartou o compartilhamento.
+   `DashboardFinanceiro.jsx` fica intocado.
 2. **Tirar `AuthProvider` do caminho crítico** da landing mexe em `App.jsx` e
    no comportamento de auth do sistema inteiro. É a única forma de atingir o
    "ZERO Firebase" de §11. Autorizar?
 3. **`DashboardMockup.jsx` e `MobileNav.jsx`**: apago, ou prefere manter?
+4. **Divergências Designer × app na sidebar** (`02-copy-oficial.md` C5-C7):
+   o Designer tem "Mercado" (removido do app), diz "Contas e Caixas" onde o
+   app diz "Contas", e não tem botão "Sair". Como isso só afeta a **preview
+   da landing**, minha recomendação é reproduzir o Designer **menos**
+   "Mercado" — ressuscitar visualmente uma área removida do produto seria
+   propaganda enganosa. Confirma?
