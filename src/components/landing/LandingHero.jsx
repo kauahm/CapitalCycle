@@ -1,15 +1,19 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { Link } from 'react-router-dom';
 
 import ProductStage from './product/ProductStage';
+import useHeroScrollStory from './useHeroScrollStory';
 
 /* ==========================================================================
-   LandingHero — frame F1 ("HERO INICIAL") do Hero Scroll Storyboard
+   LandingHero — Hero Scroll Storyboard, F1 → F5
 
-   Composição ESTÁTICA, alvo 1440 × 900. Não há scroll storytelling aqui:
-   ao carregar `/`, a tela já aparece no estado F1 e fica nele. Nenhuma
-   timeline, nenhum listener de scroll, nenhum rAF — a narrativa é assunto
-   da H2.
+   Alvo 1440 × 900. Ao carregar `/`, a tela abre em F1 ("HERO INICIAL");
+   a rolagem conduz a mesma composição até F5 ("DENTRO DO CAPITAL
+   CYCLE"). A narrativa em si está em `useHeroScrollStory` — aqui só mora
+   a estrutura, montada uma única vez.
+
+   Com `prefers-reduced-motion: reduce` nenhuma timeline é criada e a
+   Hero fica no F1 estático, que é exatamente o que o CSS já descreve.
 
    A ordem do DOM difere da prancha num ponto, de propósito. No Designer o
    glow é o primeiro filho (fundo) e a Dashboard é o último (topo). Aqui o
@@ -32,9 +36,16 @@ const LINKS_NAV = [
 ];
 
 export default function LandingHero() {
+  const rootRef = useRef(null);
+  const stageRef = useRef(null);
+
+  // A narrativa F1 → F5 vive fora do React: o GSAP escreve direto nestes
+  // nós. O componente só monta a estrutura — e monta uma única vez.
+  useHeroScrollStory(rootRef);
+
   return (
-    <section className="cc-hero" id="inicio">
-      <ProductStage />
+    <section className="cc-hero" id="inicio" ref={rootRef}>
+      <ProductStage ref={stageRef} />
 
       <header className="cc-hero__nav">
         <div className="cc-hero__logo">

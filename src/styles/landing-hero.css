@@ -51,29 +51,35 @@
 /* --------------------------------------------------------------------------
    ProductStage — palco da Dashboard
 
-   `perspective` mora no pai e NÃO é transformado além do centramento.
+   A âncora é um ponto sem dimensão em (50%, 522px): sem transform, sem
+   perspective e com `z-index: auto`, de propósito. Qualquer uma dessas
+   três coisas criaria contexto de empilhamento e prenderia o glow e a
+   Dashboard na mesma camada — e a prancha precisa de um de cada lado do
+   texto (ver ProductStage.jsx). Assim os dois filhos se empilham direto
+   na Hero: glow embaixo do texto, Dashboard em cima.
+
    `transform-origin: 50% 0` faz a Dashboard crescer para baixo, ancorada
    pelo topo: é o que permite que ela "suba" enquanto cresce sem o centro
-   escapar, na H2.
+   escapar.
    -------------------------------------------------------------------------- */
 .cc-stage {
   position: absolute;
   left: 50%;
   top: 522px;
-  transform: translateX(-50%);
-  perspective: 2400px;
-  z-index: 1;
+  width: 0;
+  height: 0;
 }
 
 /* −440px do topo da Dashboard: offset constante nos quatro frames em que o
-   glow existe. Ele anda junto com o palco, não tem trajetória própria. */
+   glow existe. Anda junto com o palco, sem trajetória própria, e sem herdar
+   escala — na prancha ele mede 1300×760 em todos eles. */
 .cc-stage__glow {
   position: absolute;
-  left: 50%;
+  left: -650px;
   top: -440px;
   width: 1300px;
   height: 760px;
-  transform: translateX(-50%);
+  z-index: 1;
   background: radial-gradient(
     ellipse 50% 46% at 50% 50%,
     rgba(124, 92, 255, 0.45),
@@ -82,9 +88,23 @@
   );
   opacity: 1;
   pointer-events: none;
+  will-change: transform;
 }
 
-/* A camada que a H2 vai animar. */
+/* A perspectiva mora no pai da camada animada e sobe junto com ela, então
+   o ponto de fuga acompanha a Dashboard — como na prancha, onde o wrapper
+   com `perspective` é que muda de `top`. −591px centra os 1182px do frame
+   (1180 do conteúdo + 1px de borda de cada lado). */
+.cc-stage__persp {
+  position: absolute;
+  left: -591px;
+  top: 0;
+  z-index: 3;
+  perspective: 2400px;
+  will-change: transform;
+}
+
+/* A camada que a H2 anima. */
 .cc-stage__frame {
   transform: rotateX(6deg) scale(0.86);
   transform-origin: 50% 0;
@@ -92,6 +112,8 @@
   overflow: hidden;
   border: 1px solid rgba(255, 255, 255, 0.09);
   box-shadow: 0 50px 130px rgba(0, 0, 0, 0.62);
+  will-change: transform;
+  backface-visibility: hidden;
 }
 
 /* --------------------------------------------------------------------------
