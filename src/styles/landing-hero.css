@@ -25,8 +25,20 @@
 .cc-hero,
 .cc-hero *,
 .cc-hero *::before,
-.cc-hero *::after {
+.cc-hero *::after,
+.cc-recursos,
+.cc-recursos *,
+.cc-recursos *::before,
+.cc-recursos *::after {
   box-sizing: content-box;
+}
+
+/* Invólucro dos dois atos. Não recebe pin nem transform — é só a régua
+   estável que os três ScrollTriggers usam para medir. O pin-spacer que o
+   GSAP cria entra aqui dentro, então a altura deste bloco no documento é
+   900px + os dois runways. */
+.cc-hero-story {
+  position: relative;
 }
 
 /* --------------------------------------------------------------------------
@@ -564,4 +576,400 @@
   font-weight: 700;
   letter-spacing: -0.02em;
   margin-top: 8px;
+}
+
+/* ==========================================================================
+   ATO 2 — Dashboard → Recursos
+   Transcrição de `Dashboard to Recursos.dc.html` + `RecursosPanel.dc.html`.
+   ========================================================================== */
+
+/* O plano inferior do bloco rígido.
+
+   O `top` é a soma de duas coisas que já existem: o topo estrutural do
+   palco (522px) e a altura com que a Dashboard renderiza no F5
+   (740 × 1,2203 = 903,022px). Escrito como conta única e explícita, de
+   propósito — é o que faz a borda de baixo da Dashboard e a borda de cima
+   daqui serem a MESMA coordenada em qualquer progresso, sem duas fórmulas
+   independentes que precisem bater no subpixel.
+
+   Em repouso isso deixa o painel em 1425px, muito abaixo do fold de 900px;
+   ele só entra em cena quando o segundo ato o traz para cima. */
+.cc-recursos {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(522px + 740px * 1.2203);
+  height: 900px;
+  z-index: 0;
+  overflow: hidden;
+  background: linear-gradient(180deg, #f6f5f3 0%, #efedea 100%);
+  font-family: Outfit, sans-serif;
+  /* Declarados aqui, e não herdados da Hero, porque no modo sem movimento
+     este painel é renderizado FORA dela — e aí voltaria a pegar o
+     `line-height: 1.5` do Tailwind. */
+  line-height: normal;
+  -webkit-font-smoothing: auto;
+  -moz-osx-font-smoothing: auto;
+  will-change: transform;
+}
+
+/* Sem movimento: o painel deixa de ser o plano de baixo de um bloco que
+   translada e vira uma seção comum, logo abaixo da Hero. */
+.cc-recursos--estatico {
+  position: relative;
+  top: 0;
+  will-change: auto;
+}
+
+.cc-recursos__eyebrow {
+  position: absolute;
+  left: 120px;
+  top: 132px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.24em;
+  color: #5b52f0;
+}
+
+.cc-recursos__ponto {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #5b52f0;
+}
+
+.cc-recursos__titulo {
+  position: absolute;
+  left: 120px;
+  top: 160px;
+  margin: 0;
+  font-family: 'Playfair Display', serif;
+  font-size: 52px;
+  font-weight: 700;
+  line-height: 1.08;
+  letter-spacing: -0.026em;
+  color: #14141a;
+}
+
+.cc-recursos__realce {
+  color: #5b52f0;
+}
+
+.cc-recursos__sub {
+  position: absolute;
+  left: 120px;
+  top: 250px;
+  margin: 0;
+  max-width: 620px;
+  font-size: 17px;
+  line-height: 1.62;
+  color: #5a5a63;
+  font-weight: 300;
+}
+
+.cc-recursos__trilho {
+  position: absolute;
+  left: 120px;
+  top: 364px;
+}
+
+/* ---------- Navbar clara ---------- */
+.cc-hero__nav-clara {
+  opacity: 0;
+  z-index: 4;
+}
+
+.cc-hero__nav-clara .cc-hero__logo {
+  color: #14141a;
+}
+
+.cc-hero__nav-clara .cc-hero__menu-link {
+  color: #76767e;
+  font-weight: 400;
+}
+
+.cc-hero__nav-clara .cc-hero__menu-link--ativo {
+  color: #14141a;
+  font-weight: 500;
+}
+
+.cc-hero__nav-clara .cc-hero__entrar {
+  background: #14141a;
+  border: none;
+  color: #ffffff;
+  padding: 10px 25px;
+}
+
+/* ==========================================================================
+   RecursosTrack — 2164 × 480 (4 × 520 + 3 × 28)
+   Estático nesta fase: o percurso horizontal é a fase seguinte.
+   ========================================================================== */
+.ccr-track {
+  width: 2164px;
+  height: 480px;
+  display: flex;
+  gap: 28px;
+}
+
+.ccr-card {
+  width: 520px;
+  height: 480px;
+  flex: none;
+  /* A prancha declara border-box card a card, contra o content-box que a
+     landing usa no resto. Mantido igual para o padding de 40px não somar
+     aos 520px. */
+  box-sizing: border-box;
+  border-radius: 20px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  padding: 40px 40px 0;
+  background: #fbfaf9;
+  border: 1px solid #e6e4e0;
+  box-shadow: 0 12px 34px rgba(20, 20, 26, 0.05);
+}
+
+.ccr-card *,
+.ccr-card *::before,
+.ccr-card *::after {
+  box-sizing: border-box;
+}
+
+.ccr-card--escuro {
+  background: #14141a;
+  border: none;
+  box-shadow: 0 20px 52px rgba(20, 20, 26, 0.22);
+}
+
+.ccr-card__icone {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: #ecebfd;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+}
+
+.ccr-card__icone--escuro {
+  background: #5b52f0;
+}
+
+.ccr-card__titulo {
+  margin: 24px 0 0;
+  font-size: 27px;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  color: #14141a;
+}
+
+.ccr-card--escuro .ccr-card__titulo {
+  color: #ffffff;
+}
+
+.ccr-card__descricao {
+  margin: 14px 0 0;
+  font-size: 16px;
+  line-height: 1.6;
+  color: #5a5a63;
+  font-weight: 300;
+}
+
+.ccr-card--escuro .ccr-card__descricao {
+  color: #9a9aa6;
+}
+
+.ccr-card__demo {
+  margin: 32px -40px 0;
+  flex: 1;
+  border-top: 1px solid #e8e6e2;
+  background: #f2f0ed;
+  display: flex;
+  flex-direction: column;
+}
+
+.ccr-card--escuro .ccr-card__demo {
+  border-top: 1px solid #24242c;
+  background: #101016;
+}
+
+/* ---------- Demo 1: KPIs + barras ---------- */
+.ccr-demo-kpis {
+  padding: 24px 40px;
+  gap: 18px;
+}
+
+.ccr-demo-kpis__linha {
+  display: flex;
+  gap: 11px;
+}
+
+.ccr-kpi {
+  flex: 1;
+  background: #faf9f7;
+  border: 1px solid #e6e4e0;
+  border-radius: 10px;
+  padding: 13px 14px;
+}
+
+.ccr-kpi__rotulo {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  color: #63636c;
+}
+
+.ccr-kpi__valor {
+  font-size: 17px;
+  font-weight: 700;
+  color: #14141a;
+  margin-top: 6px;
+  letter-spacing: -0.02em;
+}
+
+.ccr-kpi__valor--verde {
+  color: #15803d;
+}
+
+.ccr-demo-kpis__barras {
+  flex: 1;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+}
+
+.ccr-demo-kpis__barra {
+  width: 58px;
+  border-radius: 5px;
+}
+
+/* ---------- Demo 2: lançamentos ---------- */
+.ccr-demo-lancamentos {
+  padding: 14px 40px;
+  justify-content: center;
+}
+
+.ccr-lancamento {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 0;
+  border-bottom: 1px solid #e4e2de;
+}
+
+.ccr-lancamento:last-child {
+  border-bottom: none;
+}
+
+.ccr-lancamento__nome {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  font-size: 13.5px;
+  color: #3c3c44;
+}
+
+.ccr-ponto {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #b4b0a8;
+  flex: none;
+}
+
+.ccr-ponto--entrada {
+  background: #15803d;
+}
+
+.ccr-ponto--roxo {
+  width: 6px;
+  height: 6px;
+  background: #5b52f0;
+}
+
+.ccr-lancamento__valor {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #14141a;
+}
+
+.ccr-lancamento__valor--entrada {
+  color: #15803d;
+}
+
+/* ---------- Demo 3: metas ---------- */
+.ccr-demo-metas {
+  padding: 24px 40px;
+  justify-content: center;
+  gap: 24px;
+}
+
+.ccr-meta__linha {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 10px;
+}
+
+.ccr-meta__nome {
+  font-size: 13.5px;
+  color: #3c3c44;
+}
+
+.ccr-meta__pct {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  color: #63636c;
+}
+
+.ccr-meta__trilho {
+  height: 6px;
+  border-radius: 999px;
+  background: #e0ddd8;
+  overflow: hidden;
+}
+
+.ccr-meta__preenchido {
+  height: 6px;
+  background: #5b52f0;
+  border-radius: 999px;
+}
+
+/* ---------- Demo 4: Capital Advisor ---------- */
+.ccr-demo-advisor {
+  padding: 24px 40px;
+  justify-content: center;
+  gap: 14px;
+}
+
+.ccr-demo-advisor__eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9.5px;
+  letter-spacing: 0.18em;
+  color: #9a9aa6;
+}
+
+.ccr-demo-advisor__balao {
+  background: #1a1a22;
+  border-radius: 14px;
+  padding: 20px 22px;
+  font-size: 15px;
+  line-height: 1.62;
+  color: #e2e2e8;
+  font-weight: 300;
+}
+
+.ccr-demo-advisor__rodape {
+  font-size: 13px;
+  color: #9a9aa6;
+  font-weight: 300;
+  padding-left: 2px;
 }

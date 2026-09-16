@@ -1,7 +1,9 @@
 import React, { useRef } from 'react';
 import { Link } from 'react-router-dom';
+import { useReducedMotion } from 'framer-motion';
 
 import ProductStage from './product/ProductStage';
+import RecursosPanel from './recursos/RecursosPanel';
 import useHeroScrollStory from './useHeroScrollStory';
 
 /* ==========================================================================
@@ -35,16 +37,48 @@ const LINKS_NAV = [
   { rotulo: 'Planos', href: '#planos' },
 ];
 
+/* A variante clara marca "Recursos" como item ativo, e não "Início" — é
+   onde a narrativa chega no fim do segundo ato. */
+const LINKS_NAV_CLARA = LINKS_NAV.map((l) => ({
+  ...l,
+  ativo: l.rotulo === 'Recursos',
+}));
+
 export default function LandingHero() {
+  const storyRef = useRef(null);
   const rootRef = useRef(null);
   const stageRef = useRef(null);
+  const recursosRef = useRef(null);
+  // Exposto desde já para a fase seguinte animar este mesmo trilho.
+  const trackRef = useRef(null);
 
-  // A narrativa F1 → F5 vive fora do React: o GSAP escreve direto nestes
-  // nós. O componente só monta a estrutura — e monta uma única vez.
-  useHeroScrollStory(rootRef);
+  // A narrativa vive fora do React: o GSAP escreve direto nestes nós. O
+  // componente só monta a estrutura — e monta uma única vez.
+  useHeroScrollStory(storyRef, rootRef);
+
+  /* Sem movimento, nenhuma timeline roda — e aí o painel de Recursos, que
+     descansa em 1425px dentro de uma Hero de 900px com `overflow: hidden`,
+     ficaria inalcançável. Então nesse modo ele sai de dentro da Hero e vira
+     uma seção comum logo abaixo dela: a mesma composição, sem narrativa,
+     mas legível e acessível. */
+  const semMovimento = useReducedMotion();
+
+  const painel = (
+    <RecursosPanel
+      ref={recursosRef}
+      trackRef={trackRef}
+      estatico={semMovimento}
+    />
+  );
 
   return (
+    <div className="cc-hero-story" ref={storyRef}>
     <section className="cc-hero" id="inicio" ref={rootRef}>
+      {/* Plano inferior do bloco rígido. Declarado antes do palco, como na
+          prancha: Recursos vem por baixo, a Dashboard por cima. Em repouso
+          ele fica fora do fold e só entra quando o segundo ato começa. */}
+      {!semMovimento && painel}
+
       <ProductStage ref={stageRef} />
 
       <header className="cc-hero__nav">
@@ -86,6 +120,35 @@ export default function LandingHero() {
         </p>
       </div>
 
+      {/* Navbar clara. É um nó à parte da escura, não a mesma trocando de
+          cor: a prancha desenha as duas com pesos, cores e botão Entrar
+          diferentes. Nasce em opacity 0 e só entra entre D4 e D5, quando a
+          Dashboard já saiu quase toda. */}
+      <header className="cc-hero__nav cc-hero__nav-clara" aria-hidden="true">
+        <div className="cc-hero__logo">
+          CAPITAL
+          <br />
+          CYCLE
+        </div>
+
+        <nav className="cc-hero__menu">
+          {LINKS_NAV_CLARA.map(({ rotulo, href, ativo }) => (
+            <a
+              key={rotulo}
+              href={href}
+              tabIndex={-1}
+              className={`cc-hero__menu-link${ativo ? ' cc-hero__menu-link--ativo' : ''}`}
+            >
+              {rotulo}
+            </a>
+          ))}
+        </nav>
+
+        <Link className="cc-hero__entrar" to="/login" state={{ from: 'home' }} tabIndex={-1}>
+          Entrar
+        </Link>
+      </header>
+
       <div className="cc-hero__ctas">
         <a className="cc-hero__cta cc-hero__cta--primario" href="/cadastro">
           Começar agora
@@ -99,5 +162,8 @@ export default function LandingHero() {
         </Link>
       </div>
     </section>
+
+    {semMovimento && painel}
+    </div>
   );
 }
