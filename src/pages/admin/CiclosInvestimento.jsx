@@ -249,15 +249,6 @@ export default function CiclosInvestimento() {
 
               return (
                 <div key={ciclo.id} className="bg-[#101623] border border-[#1e293b] p-6 rounded-2xl relative overflow-hidden group hover:border-indigo-500/30 transition-colors">
-                  <div className="absolute top-4 right-4 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button onClick={() => handleEdit(ciclo)} className="text-slate-600 hover:text-indigo-400 bg-[#070b14] p-2 rounded-lg" title="Editar">
-                      <Pencil size={16} />
-                    </button>
-                    <button onClick={() => handleDelete(ciclo.id)} className="text-slate-600 hover:text-rose-400 bg-[#070b14] p-2 rounded-lg" title="Excluir">
-                      <Trash2 size={16} />
-                    </button>
-                  </div>
-
                   <div className="flex items-center gap-3 mb-4">
                     <div className="p-3 rounded-xl bg-emerald-500/10 text-emerald-400">
                       <PieChart size={20} />
@@ -283,6 +274,19 @@ export default function CiclosInvestimento() {
                     </div>
                     <p className="text-xs text-slate-500 text-right">Alvo: {formatarMoeda(ciclo.orcamento)}</p>
                   </div>
+
+                  {/* Ações no rodapé no mobile: flutuando no topo direito elas
+                      cobririam o nome do ciclo — medido, 64px de colisão a
+                      320px. A partir de md voltam ao canto superior direito,
+                      discretas até o hover ou o foco por teclado. */}
+                  <div className="relative z-10 mt-5 flex items-center justify-end gap-2 md:mt-0 md:absolute md:top-4 md:right-4 md:opacity-0 md:transition-opacity md:group-hover:opacity-100 md:group-focus-within:opacity-100">
+                    <button onClick={() => handleEdit(ciclo)} className="text-slate-600 hover:text-indigo-400 bg-[#070b14] p-2 rounded-lg" title="Editar">
+                      <Pencil size={16} />
+                    </button>
+                    <button onClick={() => handleDelete(ciclo.id)} className="text-slate-600 hover:text-rose-400 bg-[#070b14] p-2 rounded-lg" title="Excluir">
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
                 </div>
               );
             }
@@ -303,15 +307,6 @@ export default function CiclosInvestimento() {
 
             return (
               <div key={ciclo.id} className="bg-[#101623] border border-[#1e293b] p-6 rounded-2xl relative overflow-hidden group hover:border-indigo-500/30 transition-colors">
-                <div className="absolute top-4 right-4 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button onClick={() => handleEdit(ciclo)} className="text-slate-600 hover:text-indigo-400 bg-[#070b14] p-2 rounded-lg" title="Editar">
-                    <Pencil size={16} />
-                  </button>
-                  <button onClick={() => handleDelete(ciclo.id)} className="text-slate-600 hover:text-rose-400 bg-[#070b14] p-2 rounded-lg" title="Excluir">
-                    <Trash2 size={16} />
-                  </button>
-                </div>
-
                 <div className="flex items-center gap-3 mb-4">
                   <div className="p-3 rounded-xl bg-indigo-500/10 text-indigo-400">
                     <Target size={20} />
@@ -422,6 +417,18 @@ export default function CiclosInvestimento() {
                     className="w-full mt-3 flex items-center justify-center gap-2 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/30 text-indigo-300 text-xs font-bold py-2.5 rounded-xl transition-colors"
                   >
                     <PiggyBank size={14} /> Registrar aporte
+                  </button>
+                </div>
+
+                {/* Mesmo princípio do card de Orçamento: no mobile as ações
+                    entram no fluxo, no rodapé, para não cobrir o nome nem o
+                    bloco de ritmo; de md em diante voltam a flutuar no canto. */}
+                <div className="relative z-10 mt-5 flex items-center justify-end gap-2 md:mt-0 md:absolute md:top-4 md:right-4 md:opacity-0 md:transition-opacity md:group-hover:opacity-100 md:group-focus-within:opacity-100">
+                  <button onClick={() => handleEdit(ciclo)} className="text-slate-600 hover:text-indigo-400 bg-[#070b14] p-2 rounded-lg" title="Editar">
+                    <Pencil size={16} />
+                  </button>
+                  <button onClick={() => handleDelete(ciclo.id)} className="text-slate-600 hover:text-rose-400 bg-[#070b14] p-2 rounded-lg" title="Excluir">
+                    <Trash2 size={16} />
                   </button>
                 </div>
               </div>
