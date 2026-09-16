@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Playfair+Display:wght@700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+body { margin: 0; background: #0e0e12; }
+a { color: #4f7dff; }
+a:hover { color: #7a9bff; }
+</style>
+</helmet>
+<div style="background:#0e0e12;padding:56px 48px 72px;display:flex;flex-direction:column;align-items:center;gap:14px;font-family:Outfit,sans-serif;">
+
+  <div style="width:1440px;display:flex;flex-direction:column;gap:8px;margin-bottom:22px;">
+    <div style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.16em;color:#6b6b78;text-transform:uppercase;">Capital Cycle · Seção Recursos</div>
+    <div style="font-family:'Playfair Display',serif;font-size:40px;color:#f5f5f7;letter-spacing:-0.02em;">Showcase horizontal</div>
+    <div style="font-size:14.5px;color:#8e8e9a;font-weight:300;max-width:680px;line-height:1.55;">Dois momentos numa seção só: a introdução editorial e a faixa de quatro painéis que atravessa a tela enquanto o scroll continua vertical. Os cards são um único objeto — só o deslocamento X muda entre os frames.</div>
+  </div>
+
+  <!-- ============ FRAME 1 ============ -->
+  <div style="display:flex;flex-direction:column;gap:12px;">
+    <div style="display:flex;align-items:baseline;gap:14px;font-family:'JetBrains Mono',monospace;">
+      <span style="font-size:12px;color:#5b52f0;letter-spacing:0.12em;">FRAME 1</span>
+      <span style="font-size:12px;color:#f5f5f7;letter-spacing:0.04em;">MOMENTO 1 — INTRODUÇÃO</span>
+      <span style="font-size:11px;color:#6b6b78;margin-left:auto;">antes do pin</span>
+    </div>
+    <div style="width:1440px;height:900px;position:relative;overflow:hidden;border:1px solid #1c1c24;background:linear-gradient(180deg,#f6f5f3 0%,#efedea 100%);">
+      <div style="position:absolute;top:0;left:0;right:0;height:82px;display:flex;align-items:center;padding:0 48px;">
+        <div style="font-size:15px;font-weight:700;letter-spacing:0.06em;line-height:1.18;color:#14141a;">CAPITAL<br>CYCLE</div>
+        <div style="display:flex;gap:38px;margin:0 auto;font-size:14.5px;">
+          <span style="color:#76767e;font-weight:400;">Início</span>
+          <span style="color:#14141a;font-weight:500;">Recursos</span>
+          <span style="color:#76767e;font-weight:400;">Capital Advisor</span>
+          <span style="color:#76767e;font-weight:400;">Planos</span>
+        </div>
+        <div style="background:#14141a;border-radius:999px;padding:10px 25px;font-size:14px;color:#ffffff;font-weight:500;">Entrar</div>
+      </div>
+      <div style="position:absolute;top:206px;left:0;right:0;display:flex;flex-direction:column;align-items:center;">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div style="width:6px;height:6px;border-radius:50%;background:#5b52f0;"></div>
+          <div style="font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:500;letter-spacing:0.24em;color:#5b52f0;">RECURSOS</div>
+        </div>
+        <div style="margin-top:34px;font-family:'Playfair Display',serif;font-size:88px;line-height:0.99;letter-spacing:-0.028em;color:#14141a;text-align:center;">Gestão que <span style="color:#5b52f0;">evolui</span><br>com você.</div>
+        <div style="margin-top:38px;max-width:620px;text-align:center;font-size:18px;line-height:1.62;color:#5a5a63;font-weight:300;">Ferramentas profissionais para controle total do seu dinheiro — do lançamento individual à inteligência financeira por IA.</div>
+        <div style="margin-top:44px;display:flex;align-items:center;gap:12px;background:#14141a;color:#ffffff;font-size:15px;font-weight:500;padding:15px 32px;border-radius:10px;">
+          <span>Conhecer os recursos</span>
+          <span style="font-size:15px;">↓</span>
+        </div>
+      </div>
+      <div style="position:absolute;left:120px;top:864px;">
+        <dc-import name="RecursosTrack" hint-size="2164px,480px"></dc-import>
+      </div>
+    </div>
+    <sc-if value="{{ showCaptions }}" hint-placeholder-val="{{ true }}">
+      <div style="width:1440px;font-size:13.5px;color:#8e8e9a;font-weight:300;line-height:1.5;padding-top:2px;">Leitura centrada, respiro alto. A faixa de painéis já assoma 36px no rodapé — o usuário vê que há algo, não o que é.</div>
+    </sc-if>
+  </div>
+
+  <!-- ============ FRAME 2 ============ -->
+  <div style="display:flex;flex-direction:column;gap:12px;margin-top:42px;">
+    <div style="display:flex;align-items:baseline;gap:14px;font-family:'JetBrains Mono',monospace;">
+      <span style="font-size:12px;color:#5b52f0;letter-spacing:0.12em;">FRAME 2</span>
+      <span style="font-size:12px;color:#f5f5f7;letter-spacing:0.04em;">PIN ENGATA — TRILHO EM 0%</span>
+      <span style="font-size:11px;color:#6b6b78;margin-left:auto;">trilho 0%</span>
+    </div>
+    <div style="width:1440px;height:900px;position:relative;overflow:hidden;border:1px solid #1c1c24;background:linear-gradient(180deg,#f6f5f3 0%,#efedea 100%);">
+      <div style="position:absolute;top:0;left:0;right:0;height:82px;display:flex;align-items:center;padding:0 48px;">
+        <div style="font-size:15px;font-weight:700;letter-spacing:0.06em;line-height:1.18;color:#14141a;">CAPITAL<br>CYCLE</div>
+        <div style="display:flex;gap:38px;margin:0 auto;font-size:14.5px;">
+          <span style="color:#76767e;font-weight:400;">Início</span>
+          <span style="color:#14141a;font-weight:500;">Recursos</span>
+          <span style="color:#76767e;font-weight:400;">Capital Advisor</span>
+          <span style="color:#76767e;font-weight:400;">Planos</span>
+        </div>
+        <div style="background:#14141a;border-radius:999px;padding:10px 25px;font-size:14px;color:#ffffff;font-weight:500;">Entrar</div>
+      </div>
+      <div style="position:absolute;left:120px;top:142px;">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div style="width:6px;height:6px;border-radius:50%;background:#5b52f0;"></div>
+          <div style="font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:500;letter-spacing:0.24em;color:#5b52f0;">RECURSOS</div>
+        </div>
+        <div style="margin-top:20px;font-family:'Playfair Display',serif;font-size:46px;line-height:1.06;letter-spacing:-0.025em;color:#14141a;">Gestão que <span style="color:#5b52f0;">evolui</span> com você.</div>
+      </div>
+      <div style="position:absolute;left:1140px;top:196px;width:180px;">
+        <div style="height:1px;background:#d8d5cf;"></div>
+        <div style="height:1px;width:0px;background:#14141a;margin-top:-1px;"></div>
+      </div>
+      <div style="position:absolute;left:120px;top:330px;">
+        <dc-import name="RecursosTrack" hint-size="2164px,480px"></dc-import>
+      </div>
+    </div>
+    <sc-if value="{{ showCaptions }}" hint-placeholder-val="{{ true }}">
+      <div style="width:1440px;font-size:13.5px;color:#8e8e9a;font-weight:300;line-height:1.5;padding-top:2px;">O lockup encolhe de 88px para 46px e ancora à esquerda, abrindo o eixo de leitura horizontal. Subtítulo e CTA saíram; a hairline à direita marca o progresso do trilho.</div>
+    </sc-if>
+  </div>
+
+  <!-- ============ FRAME 3 ============ -->
+  <div style="display:flex;flex-direction:column;gap:12px;margin-top:42px;">
+    <div style="display:flex;align-items:baseline;gap:14px;font-family:'JetBrains Mono',monospace;">
+      <span style="font-size:12px;color:#5b52f0;letter-spacing:0.12em;">FRAME 3</span>
+      <span style="font-size:12px;color:#f5f5f7;letter-spacing:0.04em;">TRILHO EM CURSO</span>
+      <span style="font-size:11px;color:#6b6b78;margin-left:auto;">trilho ~55%</span>
+    </div>
+    <div style="width:1440px;height:900px;position:relative;overflow:hidden;border:1px solid #1c1c24;background:linear-gradient(180deg,#f6f5f3 0%,#efedea 100%);">
+      <div style="position:absolute;top:0;left:0;right:0;height:82px;display:flex;align-items:center;padding:0 48px;">
+        <div style="font-size:15px;font-weight:700;letter-spacing:0.06em;line-height:1.18;color:#14141a;">CAPITAL<br>CYCLE</div>
+        <div style="display:flex;gap:38px;margin:0 auto;font-size:14.5px;">
+          <span style="color:#76767e;font-weight:400;">Início</span>
+          <span style="color:#14141a;font-weight:500;">Recursos</span>
+          <span style="color:#76767e;font-weight:400;">Capital Advisor</span>
+          <span style="color:#76767e;font-weight:400;">Planos</span>
+        </div>
+        <div style="background:#14141a;border-radius:999px;padding:10px 25px;font-size:14px;color:#ffffff;font-weight:500;">Entrar</div>
+      </div>
+      <div style="position:absolute;left:120px;top:142px;">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div style="width:6px;height:6px;border-radius:50%;background:#5b52f0;"></div>
+          <div style="font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:500;letter-spacing:0.24em;color:#5b52f0;">RECURSOS</div>
+        </div>
+        <div style="margin-top:20px;font-family:'Playfair Display',serif;font-size:46px;line-height:1.06;letter-spacing:-0.025em;color:#14141a;">Gestão que <span style="color:#5b52f0;">evolui</span> com você.</div>
+      </div>
+      <div style="position:absolute;left:1140px;top:196px;width:180px;">
+        <div style="height:1px;background:#d8d5cf;"></div>
+        <div style="height:1px;width:99px;background:#14141a;margin-top:-1px;"></div>
+      </div>
+      <div style="position:absolute;left:-362px;top:330px;">
+        <dc-import name="RecursosTrack" hint-size="2164px,480px"></dc-import>
+      </div>
+    </div>
+    <sc-if value="{{ showCaptions }}" hint-placeholder-val="{{ true }}">
+      <div style="width:1440px;font-size:13.5px;color:#8e8e9a;font-weight:300;line-height:1.5;padding-top:2px;">Trilho em −362px. Sempre dois painéis inteiros e um terceiro cortado pela borda: é o corte que diz que há mais, sem setas nem bolinhas.</div>
+    </sc-if>
+  </div>
+
+  <!-- ============ FRAME 4 ============ -->
+  <div style="display:flex;flex-direction:column;gap:12px;margin-top:42px;">
+    <div style="display:flex;align-items:baseline;gap:14px;font-family:'JetBrains Mono',monospace;">
+      <span style="font-size:12px;color:#5b52f0;letter-spacing:0.12em;">FRAME 4</span>
+      <span style="font-size:12px;color:#f5f5f7;letter-spacing:0.04em;">CLÍMAX — CAPITAL ADVISOR</span>
+      <span style="font-size:11px;color:#6b6b78;margin-left:auto;">trilho 100% · pin solta</span>
+    </div>
+    <div style="width:1440px;height:900px;position:relative;overflow:hidden;border:1px solid #1c1c24;background:linear-gradient(180deg,#f6f5f3 0%,#efedea 100%);">
+      <div style="position:absolute;top:0;left:0;right:0;height:82px;display:flex;align-items:center;padding:0 48px;">
+        <div style="font-size:15px;font-weight:700;letter-spacing:0.06em;line-height:1.18;color:#14141a;">CAPITAL<br>CYCLE</div>
+        <div style="display:flex;gap:38px;margin:0 auto;font-size:14.5px;">
+          <span style="color:#76767e;font-weight:400;">Início</span>
+          <span style="color:#14141a;font-weight:500;">Recursos</span>
+          <span style="color:#76767e;font-weight:400;">Capital Advisor</span>
+          <span style="color:#76767e;font-weight:400;">Planos</span>
+        </div>
+        <div style="background:#14141a;border-radius:999px;padding:10px 25px;font-size:14px;color:#ffffff;font-weight:500;">Entrar</div>
+      </div>
+      <div style="position:absolute;left:120px;top:142px;">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div style="width:6px;height:6px;border-radius:50%;background:#5b52f0;"></div>
+          <div style="font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:500;letter-spacing:0.24em;color:#5b52f0;">RECURSOS</div>
+        </div>
+        <div style="margin-top:20px;font-family:'Playfair Display',serif;font-size:46px;line-height:1.06;letter-spacing:-0.025em;color:#14141a;">Gestão que <span style="color:#5b52f0;">evolui</span> com você.</div>
+      </div>
+      <div style="position:absolute;left:1140px;top:196px;width:180px;">
+        <div style="height:1px;background:#d8d5cf;"></div>
+        <div style="height:1px;width:180px;background:#14141a;margin-top:-1px;"></div>
+      </div>
+      <div style="position:absolute;left:-844px;top:330px;">
+        <dc-import name="RecursosTrack" hint-size="2164px,480px"></dc-import>
+      </div>
+    </div>
+    <sc-if value="{{ showCaptions }}" hint-placeholder-val="{{ true }}">
+      <div style="width:1440px;font-size:13.5px;color:#8e8e9a;font-weight:300;line-height:1.5;padding-top:2px;">Fim do trilho: o painel escuro do Capital Advisor fecha a sequência alinhado à margem direita. O pin solta e a página volta a rolar normalmente.</div>
+    </sc-if>
+  </div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;showCaptions&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Prancha&quot;}}">
+class Component extends DCLogic {
+  renderVals() {
+    return { showCaptions: this.props.showCaptions ?? true };
+  }
+}
+</script>
+</body>
+</html>
