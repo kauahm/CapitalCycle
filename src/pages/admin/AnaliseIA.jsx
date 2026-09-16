@@ -54,6 +54,10 @@ export default function AnaliseIA() {
 
   const [input, setInput]         = useState('');
   const [isTyping, setIsTyping]   = useState(false);
+  // Lock lógico do envio: `isTyping` é estado do React e só fecha a porta
+  // depois do re-render, deixando passar um segundo clique disparado antes
+  // disso — o que geraria duas consultas e duas cotas.
+  const sendLockRef = useRef(false);
   const [error, setError]         = useState(null);
   // Aviso de sincronização da cota — separado de `error` de propósito: a
   // resposta do Advisor foi entregue, só a gravação do contador falhou.
@@ -122,6 +126,14 @@ export default function AnaliseIA() {
       return;
     }
 
+    // Lock adquirido aqui: depois das saídas antecipadas, que não iniciam
+    // consulta nenhuma, e antes da primeira mudança de estado do envio — se
+    // viesse só antes do try, o segundo clique já teria inserido a mensagem
+    // do usuário no chat duas vezes. Daqui até o fim, todo caminho passa
+    // pelo finally.
+    if (sendLockRef.current) return;
+    sendLockRef.current = true;
+
     const userMsg = { id: Date.now(), role: 'user', text: input.trim() };
     const updated = [...messages, userMsg];
     setMessages(updated);
@@ -188,6 +200,7 @@ export default function AnaliseIA() {
         setError(e.message);
       }
     } finally {
+      sendLockRef.current = false;
       setIsTyping(false);
     }
   };
