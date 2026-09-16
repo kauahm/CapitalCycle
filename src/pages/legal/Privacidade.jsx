@@ -92,12 +92,19 @@ export default function Privacidade() {
 
       <Secao numero="7" titulo="Exclusão da conta">
         <p>
-          A exclusão da conta remove seus dados de cadastro e financeiros — contas,
+          A exclusão fica em <strong>Meu Perfil</strong> e pode ser feita por você a
+          qualquer momento. Antes de apagar qualquer coisa, pedimos que você digite o
+          e-mail da conta e confirme sua identidade — pela senha atual ou pela janela do
+          Google, conforme a forma como você entra.
+        </p>
+        <p>
+          A exclusão remove seus dados de cadastro e financeiros — contas,
           lançamentos, ciclos, metas, aportes e limites por categoria — e é
           irreversível.
         </p>
         <p>
-          <strong>Exceção:</strong> os registros técnicos das operações de pagamento são
+          <strong>Exceção:</strong> os registros técnicos das operações de pagamento
+          simuladas são
           mantidos como histórico da operação, porque o sistema os trata como imutáveis
           desde a criação. Eles contêm plano, método, valor e identificador da
           transação, e não incluem dados de cartão.
@@ -107,7 +114,7 @@ export default function Privacidade() {
       <Secao numero="8" titulo="Seus direitos">
         <p>
           Você pode, a qualquer momento, consultar os dados que cadastrou e corrigi-los
-          pelas telas do sistema, além de solicitar a exclusão da conta. Para dúvidas
+          pelas telas do sistema, além de excluir sua conta em Meu Perfil. Para dúvidas
           sobre o tratamento dos dados, use o contato indicado nos Termos de Uso.
         </p>
       </Secao>

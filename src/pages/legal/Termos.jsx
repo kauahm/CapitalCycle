@@ -93,12 +93,16 @@ export default function Termos() {
 
       <Secao numero="8" titulo="Exclusão da conta">
         <p>
-          A exclusão da conta remove seus dados financeiros do sistema e é
-          irreversível.
+          Você pode excluir sua conta quando quiser, em <strong>Meu Perfil</strong>. Para
+          confirmar que é você, pedimos sua senha atual — ou, em contas do Google, uma
+          confirmação na janela do próprio Google.
         </p>
         <p>
-          Os registros técnicos das operações de pagamento são mantidos como histórico
-          da operação, conforme descrito na Política de Privacidade.
+          A exclusão remove seus dados financeiros do sistema e é irreversível.
+        </p>
+        <p>
+          Os registros técnicos das operações de pagamento simuladas são mantidos como
+          histórico da operação, conforme descrito na Política de Privacidade.
         </p>
       </Secao>
 
