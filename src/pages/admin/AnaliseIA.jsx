@@ -55,6 +55,9 @@ export default function AnaliseIA() {
   const [input, setInput]         = useState('');
   const [isTyping, setIsTyping]   = useState(false);
   const [error, setError]         = useState(null);
+  // Aviso de sincronização da cota — separado de `error` de propósito: a
+  // resposta do Advisor foi entregue, só a gravação do contador falhou.
+  const [avisoCota, setAvisoCota] = useState(null);
 
   // Configuração de infraestrutura: só o .env decide, e nada disso aparece
   // para o usuário final.
@@ -83,9 +86,26 @@ export default function AnaliseIA() {
         const uso = snap.exists() ? (snap.data().iaUso?.[mesKey] || 0) : 0;
         if (active) setUsoMes(uso);
       })
-      .catch(() => {});
+      .catch((err) => {
+        // Falhar aqui deixa o contador em zero e pode liberar consultas além
+        // da cota — não pode passar despercebido, mesmo sem afetar a tela.
+        console.error('[Capital Advisor] Falha ao carregar o contador de consultas:', err?.code || err?.message);
+      });
     return () => { active = false; };
   }, [currentUser, mesKey]);
+
+  // Debita 1 consulta da cota. Só é chamada depois que a resposta do Advisor
+  // já está na tela, então nada aqui pode descartá-la: a falha de gravação é
+  // tratada aqui dentro e nunca escapa para o catch que trata a IA.
+  const registrarConsulta = async (novoUso) => {
+    setUsoMes(novoUso);
+    try {
+      await updateDoc(doc(db, 'usuarios', currentUser.uid), { [`iaUso.${mesKey}`]: novoUso });
+    } catch (err) {
+      console.error('[Capital Advisor] Falha ao sincronizar o contador de consultas:', err?.code || err?.message);
+      setAvisoCota('Não foi possível sincronizar o contador de consultas. Tente recarregar a página mais tarde.');
+    }
+  };
 
   const handleSend = async (e) => {
     e.preventDefault();
@@ -108,13 +128,7 @@ export default function AnaliseIA() {
     setInput('');
     setIsTyping(true);
     setError(null);
-
-    // Consome 1 consulta da cota (persistido no próprio doc do usuário)
-    if (limiteIA != null) {
-      const novoUso = usoMes + 1;
-      setUsoMes(novoUso);
-      updateDoc(doc(db, 'usuarios', currentUser.uid), { [`iaUso.${mesKey}`]: novoUso }).catch(() => {});
-    }
+    setAvisoCota(null);
 
     try {
       const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
@@ -145,11 +159,23 @@ export default function AnaliseIA() {
       }
 
       const data = await res.json();
-      const aiText =
-        data?.candidates?.[0]?.content?.parts?.[0]?.text ||
-        'Não consegui gerar uma resposta. Tente novamente.';
+      const aiText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+
+      // HTTP 200 não basta: sem texto utilizável não houve consulta respondida,
+      // então isso é falha e não pode debitar cota.
+      if (!aiText || !aiText.trim()) {
+        console.error('[Capital Advisor] Resposta sem texto utilizável no payload.');
+        throw new Error('Não foi possível falar com o Capital Advisor agora. Tente novamente em alguns instantes.');
+      }
 
       setMessages(prev => [...prev, { id: Date.now() + 1, role: 'ai', text: aiText }]);
+
+      // Daqui em diante a resposta já está entregue. Só agora a consulta é
+      // contabilizada — e só quando o plano tem limite (Adulto é ilimitado e
+      // não precisa de contador persistido).
+      if (limiteIA != null) {
+        await registrarConsulta(usoMes + 1);
+      }
 
     } catch (e) {
       // Os throws acima já trazem texto de produto. O que sobra aqui é falha
@@ -249,6 +275,16 @@ export default function AnaliseIA() {
             <div className="flex gap-3 items-start bg-rose-500/10 border border-rose-500/20 rounded-2xl p-4">
               <AlertTriangle size={15} className="text-rose-400 mt-0.5 shrink-0" />
               <p className="text-rose-300 text-xs leading-relaxed">{error}</p>
+            </div>
+          )}
+
+          {/* Aviso próprio: a resposta acima continua válida, só o contador
+              não foi sincronizado. Tom âmbar para não se confundir com falha
+              do Advisor. */}
+          {avisoCota && (
+            <div className="flex gap-3 items-start bg-amber-500/10 border border-amber-500/20 rounded-2xl p-4">
+              <AlertTriangle size={15} className="text-amber-400 mt-0.5 shrink-0" />
+              <p className="text-amber-300 text-xs leading-relaxed">{avisoCota}</p>
             </div>
           )}
 
