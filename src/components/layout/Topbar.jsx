@@ -11,7 +11,7 @@ export default function Topbar({ onMenuClick }) {
     const path = location.pathname;
     if (path.includes('dashboard')) return 'Dashboard';
     if (path.includes('transacoes')) return 'Transações';
-    if (path.includes('contas')) return 'Contas e Caixas';
+    if (path.includes('contas')) return 'Contas';
     if (path.includes('ciclos')) return 'Ciclos e Metas';
     if (path.includes('analise-ia')) return 'Capital Advisor';
     if (path.includes('mercado')) return 'Mercado';

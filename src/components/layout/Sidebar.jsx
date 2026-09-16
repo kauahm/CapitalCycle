@@ -23,7 +23,7 @@ export default function Sidebar({ isMobileMenuOpen, setIsMobileMenuOpen }) {
   const menuItems = [
     { icon: LayoutDashboard, label: 'Dashboard', path: '/capital/dashboard' },
     { icon: Receipt, label: 'Transações', path: '/capital/transacoes' },
-    { icon: Landmark, label: 'Contas e Caixas', path: '/capital/contas' },
+    { icon: Landmark, label: 'Contas', path: '/capital/contas' },
     { icon: PieChart, label: 'Ciclos e Metas', path: '/capital/ciclos' },
     { icon: Wallet, label: 'Orçamento por Categoria', path: '/capital/orcamento' },
     { icon: Sparkles, label: 'Capital Advisor (IA)', path: '/capital/analise-ia' },

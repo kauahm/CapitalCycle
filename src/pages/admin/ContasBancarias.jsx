@@ -28,7 +28,20 @@ export default function ContasBancarias() {
     saldo: ''
   });
 
-  const tiposConta = ['Corrente', 'Poupança', 'Investimentos', 'Carteira Física'];
+  // Uma conta representa ONDE o patrimônio está. O valor gravado no Firestore
+  // é preservado como está — inclusive 'Carteira Física', que só ganhou rótulo
+  // novo — para não precisar migrar nenhum documento existente.
+  const tiposConta = [
+    { valor: 'Corrente',         rotulo: 'Conta corrente' },
+    { valor: 'Poupança',         rotulo: 'Poupança' },
+    { valor: 'Carteira Digital', rotulo: 'Carteira digital' },
+    { valor: 'Carteira Física',  rotulo: 'Dinheiro' },
+    { valor: 'Investimentos',    rotulo: 'Investimentos' },
+  ];
+
+  // Tipos gravados antes desta mudança que não estejam na lista continuam
+  // aparecendo com o próprio valor, em vez de sumir da tela.
+  const rotuloTipo = (valor) => tiposConta.find((t) => t.valor === valor)?.rotulo || valor;
 
   const planId = userProfile?.plan || 'jovem';
   const limiteContas = getLimits(planId).contas;
@@ -111,6 +124,8 @@ export default function ContasBancarias() {
   const getEstiloConta = (tipo) => {
     switch(tipo) {
       case 'Investimentos': return { icon: TrendingUp, cor: 'text-indigo-400', bg: 'bg-indigo-500/10', border: 'hover:border-indigo-500/50' };
+      case 'Carteira Digital': return { icon: Wallet, cor: 'text-sky-400', bg: 'bg-sky-500/10', border: 'hover:border-sky-500/50' };
+      // 'Carteira Física' é o valor gravado para o que hoje se chama Dinheiro.
       case 'Carteira Física': return { icon: Wallet, cor: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'hover:border-emerald-500/50' };
       case 'Poupança': return { icon: Building2, cor: 'text-amber-400', bg: 'bg-amber-500/10', border: 'hover:border-amber-500/50' };
       default: return { icon: Landmark, cor: 'text-slate-200', bg: 'bg-slate-700/30', border: 'hover:border-slate-500/50' };
@@ -126,7 +141,7 @@ export default function ContasBancarias() {
       
       {/* HEADER */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <p className="text-sm text-slate-400">Gerencie de onde o dinheiro sai e para onde vai.</p>
+        <p className="text-sm text-slate-400">Cadastre onde o seu dinheiro está: conta, poupança, carteira digital, dinheiro ou investimentos.</p>
         
         <div className="flex items-center gap-4">
           <div className="text-right hidden sm:block mr-4">
@@ -190,7 +205,9 @@ export default function ContasBancarias() {
                   </div>
                   <div>
                     <h3 className="text-lg font-bold text-white">{conta.nome}</h3>
-                    <p className="text-sm text-slate-400">{conta.banco} • {conta.tipo}</p>
+                    <p className="text-sm text-slate-400">
+                      {[conta.banco, rotuloTipo(conta.tipo)].filter(Boolean).join(' • ')}
+                    </p>
                   </div>
                 </div>
 
@@ -228,13 +245,14 @@ export default function ContasBancarias() {
               
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-medium text-slate-400 mb-1">Instituição/Banco</label>
-                  <input required type="text" value={formData.banco} onChange={e => setFormData({...formData, banco: e.target.value})} className="w-full bg-[#070b14] border border-[#1e293b] rounded-xl px-4 py-3 text-white focus:border-indigo-500 outline-none" placeholder="Ex: Nubank" />
+                  {/* Opcional: dinheiro em espécie não tem instituição. */}
+                  <label className="block text-xs font-medium text-slate-400 mb-1">Instituição</label>
+                  <input type="text" value={formData.banco} onChange={e => setFormData({...formData, banco: e.target.value})} className="w-full bg-[#070b14] border border-[#1e293b] rounded-xl px-4 py-3 text-white focus:border-indigo-500 outline-none" placeholder="Opcional" />
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-slate-400 mb-1">Tipo de Conta</label>
                   <select required value={formData.tipo} onChange={e => setFormData({...formData, tipo: e.target.value})} className="w-full bg-[#070b14] border border-[#1e293b] rounded-xl px-4 py-3 text-white focus:border-indigo-500 outline-none">
-                    {tiposConta.map(tipo => <option key={tipo} value={tipo}>{tipo}</option>)}
+                    {tiposConta.map(({ valor, rotulo }) => <option key={valor} value={valor}>{rotulo}</option>)}
                   </select>
                 </div>
               </div>
