@@ -11,6 +11,8 @@ import { useAuth } from '../../hooks/useAuth';
 export default function ContasBancarias() {
   const { currentUser, userProfile } = useAuth();
   const [contas, setContas] = useState([]);
+  // { [conta_id]: quantidade } — usado para proteger o histórico na exclusão.
+  const [lancamentosPorConta, setLancamentosPorConta] = useState({});
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
@@ -53,7 +55,25 @@ export default function ContasBancarias() {
       setContas(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
       setLoading(false);
     });
-    return () => unsub();
+
+    // Transações do usuário, só para saber quantas estão vinculadas a cada
+    // conta. Filtro por uid apenas — a mesma forma de query já usada nas
+    // outras páginas, que não exige índice composto. A contagem por conta é
+    // feita no cliente.
+    const qTransacoes = query(collection(db, 'transactions'), where('uid', '==', currentUser.uid));
+    const unsubTransacoes = onSnapshot(qTransacoes, (snapshot) => {
+      const porConta = {};
+      snapshot.docs.forEach((d) => {
+        const contaId = d.data().conta_id;
+        if (contaId) porConta[contaId] = (porConta[contaId] || 0) + 1;
+      });
+      setLancamentosPorConta(porConta);
+    });
+
+    return () => {
+      unsub();
+      unsubTransacoes();
+    };
   }, [currentUser]);
 
   const handleSubmit = async (e) => {
@@ -115,7 +135,20 @@ export default function ContasBancarias() {
   };
 
   const handleDelete = async (id) => {
-    if (window.confirm("Atenção: Excluir esta conta NÃO exclui as transações vinculadas a ela. Deseja continuar?")) {
+    // Conta com histórico não é excluída: apagar as transações destruiria o
+    // histórico financeiro, e deixá-las para trás as tornaria órfãs. Editar a
+    // conta existente é o caminho para trocar instituição, nome ou tipo.
+    const vinculados = lancamentosPorConta[id] || 0;
+    if (vinculados > 0) {
+      window.alert(
+        `Esta conta possui ${vinculados} ${vinculados === 1 ? 'lançamento vinculado' : 'lançamentos vinculados'} ` +
+        `e não pode ser excluída, para preservar seu histórico.\n\n` +
+        `Se precisar alterar a instituição ou o tipo, edite a conta existente.`
+      );
+      return;
+    }
+
+    if (window.confirm('Deseja realmente excluir esta conta?')) {
       await deleteDoc(doc(db, 'accounts', id));
     }
   };
@@ -177,6 +210,8 @@ export default function ContasBancarias() {
           {contas.map((conta) => {
             const Estilo = getEstiloConta(conta.tipo);
             const Icone = Estilo.icon;
+            const vinculados = lancamentosPorConta[conta.id] || 0;
+            const temHistorico = vinculados > 0;
 
             return (
               <div key={conta.id} className={`bg-[#101623] border border-[#1e293b] p-6 rounded-3xl relative overflow-hidden group transition-all duration-300 ${Estilo.border}`}>
@@ -190,10 +225,14 @@ export default function ContasBancarias() {
                   >
                     <Pencil size={16} />
                   </button>
-                  <button 
+                  {/* Continua clicável quando há histórico: o clique explica o
+                      bloqueio, em vez de não fazer nada. */}
+                  <button
                     onClick={() => handleDelete(conta.id)}
-                    className="text-slate-600 hover:text-rose-400 bg-[#070b14] p-2 rounded-lg"
-                    title="Excluir Conta"
+                    className={`bg-[#070b14] p-2 rounded-lg ${temHistorico ? 'text-slate-700 cursor-not-allowed' : 'text-slate-600 hover:text-rose-400'}`}
+                    title={temHistorico
+                      ? `Não é possível excluir: ${vinculados} ${vinculados === 1 ? 'lançamento vinculado' : 'lançamentos vinculados'}`
+                      : 'Excluir Conta'}
                   >
                     <Trash2 size={16} />
                   </button>
@@ -214,6 +253,11 @@ export default function ContasBancarias() {
                 <div className="mt-4">
                   <p className="text-xs text-slate-500 font-medium uppercase tracking-wider mb-1">Saldo Atual</p>
                   <CurrencyValue value={conta.saldo} size="3xl" className={`font-black ${Estilo.cor}`} />
+                  {temHistorico && (
+                    <p className="text-xs text-slate-500 mt-2">
+                      {vinculados} {vinculados === 1 ? 'lançamento' : 'lançamentos'}
+                    </p>
+                  )}
                 </div>
                 
                 {/* Efeito visual decorativo no fundo do card */}
