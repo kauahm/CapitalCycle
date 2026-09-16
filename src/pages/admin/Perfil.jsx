@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  User, Mail, Crown, Lock, ShieldCheck, Eye, EyeOff, X, ArrowRight, AlertTriangle, Wallet, Check,
+  User, Mail, Crown, Lock, ShieldCheck, Eye, EyeOff, X, ArrowRight, AlertTriangle, Wallet, Check, Camera,
 } from 'lucide-react';
 import { updatePassword, reauthenticateWithCredential, EmailAuthProvider } from 'firebase/auth';
 import { useAuth } from '../../hooks/useAuth';
 import { getPlan } from '../../components/ui/plans';
 import Toast from '../../components/ui/Toast';
+import Avatar from '../../components/ui/Avatar';
+import { prepararFotoPerfil, mensagemErroFoto, TIPOS_ACEITOS } from '../../utils/imagemPerfil';
 
 // Mapa de erros do Firebase Authentication para mensagens amigáveis
 function passwordErrorMessage(code) {
@@ -43,7 +45,6 @@ export default function Perfil() {
 
   const nome = userProfile?.nome || 'Usuário';
   const email = currentUser?.email || userProfile?.email || '';
-  const inicial = nome.trim().charAt(0).toUpperCase();
   const membroDesde = formatCreatedAt(userProfile?.createdAt);
 
   // Só dá para trocar senha em contas que possuem senha (não vale para Google).
@@ -66,6 +67,33 @@ export default function Perfil() {
   const [editandoRenda, setEditandoRenda] = useState(false);
   const [rendaInput, setRendaInput] = useState(String(userProfile?.renda_mensal ?? ''));
   const [salvandoRenda, setSalvandoRenda] = useState(false);
+
+  // ── Foto de perfil ───────────────────────────────
+  const [salvandoFoto, setSalvandoFoto] = useState(false);
+
+  const handleEscolherFoto = async (e) => {
+    const file = e.target.files?.[0];
+    // Limpa o input já: escolher o mesmo arquivo de novo depois de um erro
+    // não dispara change se o valor continuar lá.
+    e.target.value = '';
+    if (!file || salvandoFoto) return;
+
+    setSalvandoFoto(true);
+    try {
+      const { dataUrl } = await prepararFotoPerfil(file);
+      // Só o campo da foto é enviado: updateUserProfile grava com merge, então
+      // nome, plano, renda e aceite dos termos ficam intocados.
+      await updateUserProfile({ fotoPerfil: dataUrl });
+      setToast({ show: true, message: 'Foto de perfil atualizada.', type: 'success' });
+    } catch (erro) {
+      // Se a gravação falhar, nada foi alterado no perfil — o avatar anterior
+      // continua na tela.
+      console.error('[Perfil] Falha ao atualizar a foto:', erro?.code || erro?.message);
+      setToast({ show: true, message: mensagemErroFoto(erro?.message), type: 'error' });
+    } finally {
+      setSalvandoFoto(false);
+    }
+  };
 
   const abrirEdicaoRenda = () => {
     setRendaInput(String(userProfile?.renda_mensal ?? ''));
@@ -143,12 +171,38 @@ export default function Perfil() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-center">
           {/* Nome + avatar */}
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-2xl bg-indigo-600 text-white flex items-center justify-center text-lg font-bold uppercase shrink-0">
-              {inicial}
-            </div>
+            <Avatar
+              fotoPerfil={userProfile?.fotoPerfil}
+              photoURL={currentUser?.photoURL}
+              nome={nome}
+              className="w-12 h-12 rounded-2xl shrink-0"
+              textoClassName="bg-indigo-600 text-white text-lg font-bold"
+            />
             <div className="min-w-0">
               <p className="text-xs text-slate-500 uppercase tracking-wider font-semibold mb-1">Nome</p>
               <p className="text-white font-bold truncate">{nome}</p>
+
+              {/* Input escondido + label como botão: mantém o controle nativo
+                  acessível por teclado sem o visual padrão do navegador. */}
+              <input
+                id="foto-perfil"
+                type="file"
+                accept={TIPOS_ACEITOS.join(',')}
+                onChange={handleEscolherFoto}
+                disabled={salvandoFoto}
+                className="sr-only"
+              />
+              <label
+                htmlFor="foto-perfil"
+                className={`mt-1.5 inline-flex items-center gap-1.5 text-xs font-medium transition-colors ${
+                  salvandoFoto
+                    ? 'text-slate-500 cursor-not-allowed'
+                    : 'text-indigo-400 hover:text-indigo-300 cursor-pointer'
+                }`}
+              >
+                <Camera size={13} />
+                {salvandoFoto ? 'Salvando...' : 'Alterar foto'}
+              </label>
             </div>
           </div>
 
