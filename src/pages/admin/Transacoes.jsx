@@ -284,14 +284,17 @@ export default function Transacoes() {
           </div>
         ) : (
           <div className="divide-y divide-[#1e293b]">
+            {/* No mobile a linha quebra em duas: sem isso, os botões de ação
+                ficam fora da área visível do card e são cortados pelo
+                overflow-hidden. A partir de md volta a ser uma linha só. */}
             {transacoesFiltradas.map((t) => (
-              <div key={t.id} className="p-4 md:p-5 flex items-center justify-between hover:bg-[#151d2d] transition-colors group">
-                
-                <div className="flex items-center gap-4">
-                  <div className={`p-3 rounded-2xl ${t.tipo === 'entrada' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400'}`}>
+              <div key={t.id} className="p-4 md:p-5 flex flex-wrap md:flex-nowrap items-center justify-between gap-3 md:gap-0 hover:bg-[#151d2d] transition-colors group">
+
+                <div className="flex items-center gap-4 min-w-0">
+                  <div className={`p-3 rounded-2xl shrink-0 ${t.tipo === 'entrada' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400'}`}>
                     {t.tipo === 'entrada' ? <ArrowUpCircle size={24} /> : <ArrowDownCircle size={24} />}
                   </div>
-                  <div>
+                  <div className="min-w-0">
                     <h4 className="text-white font-medium">{t.descricao}</h4>
                     <div className="flex items-center gap-2 text-xs text-slate-400 mt-1">
                       <span className="bg-[#1e293b] px-2 py-0.5 rounded-md">{t.categoria}</span>
@@ -301,20 +304,20 @@ export default function Transacoes() {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-4 shrink-0 ml-auto">
                   <span className={`font-bold whitespace-nowrap ${t.tipo === 'entrada' ? 'text-emerald-400' : 'text-white'}`}>
                     {t.tipo === 'entrada' ? '+ ' : '- '}{formatarMoeda(t.valor)}
                   </span>
-                  <button 
+                  <button
                     onClick={() => handleEdit(t)}
-                    className="text-slate-600 hover:text-indigo-400 opacity-0 group-hover:opacity-100 transition-all p-2"
+                    className="text-slate-600 hover:text-indigo-400 opacity-100 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100 transition-all p-2"
                     title="Editar"
                   >
                     <Pencil size={18} />
                   </button>
-                  <button 
+                  <button
                     onClick={() => handleDelete(t.id)}
-                    className="text-slate-600 hover:text-rose-400 opacity-0 group-hover:opacity-100 transition-all p-2"
+                    className="text-slate-600 hover:text-rose-400 opacity-100 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100 transition-all p-2"
                     title="Excluir"
                   >
                     <Trash2 size={18} />
