@@ -82,7 +82,7 @@ function PlanoCard({ plan, selecionado, onEscolher }) {
       {/* Preço */}
       <div className="mt-5 flex items-baseline gap-2">
         <span className={`text-xl font-bold ${destaque ? 'text-white' : 'text-slate-950'}`}>R$</span>
-        <span className={`text-[2.4rem] font-extrabold tracking-tight ${destaque ? 'text-white' : 'text-slate-950'}`}>
+        <span className={`text-[2.4rem] font-bold tracking-tight ${destaque ? 'text-white' : 'text-slate-950'}`}>
           {plan.price}
         </span>
         <span className={`text-base ${destaque ? 'text-slate-400' : 'text-slate-500'}`}>{plan.period}</span>
@@ -208,7 +208,7 @@ export default function Register() {
      usado no passo 2. */
   if (step === 1) {
     return (
-      <div className="min-h-screen bg-white px-6 py-10 sm:px-10">
+      <div className="font-plex min-h-screen bg-white px-6 py-10 sm:px-10">
         <div className="mx-auto w-full max-w-[66rem]">
 
           {/* Cabeçalho: voltar + marca */}
@@ -222,7 +222,7 @@ export default function Register() {
               <ArrowLeft size={20} />
             </button>
 
-            <span className="text-[1.65rem] font-extrabold tracking-tight text-slate-950">
+            <span className="text-[1.65rem] font-bold tracking-tight text-slate-950">
               CapitalCycle
             </span>
           </div>
@@ -237,7 +237,7 @@ export default function Register() {
           </div>
 
           {/* Título */}
-          <h1 className="mt-9 text-center text-[3rem] font-extrabold leading-tight tracking-tight text-slate-950">
+          <h1 className="mt-9 text-center text-[3rem] font-bold leading-tight tracking-tight text-slate-950">
             Escolha seu plano
           </h1>
           <p className="mt-2 text-center text-lg text-slate-500">
@@ -263,7 +263,7 @@ export default function Register() {
   }
 
   return (
-    <div className="grid min-h-screen bg-white lg:grid-cols-[54fr_46fr]">
+    <div className="font-plex grid min-h-screen bg-white lg:grid-cols-[54fr_46fr]">
 
       {/* ── Coluna Esquerda: formulário ── */}
       <div className="flex flex-col justify-center px-8 py-10 sm:px-12 lg:px-14">
@@ -288,7 +288,7 @@ export default function Register() {
             Trocar plano
           </button>
 
-          <h1 className="mt-4 text-[2.15rem] font-extrabold leading-none tracking-tight text-slate-950">
+          <h1 className="mt-4 text-[2.15rem] font-bold leading-none tracking-tight text-slate-950">
             CapitalCycle
           </h1>
           <p className="mt-2.5 text-[0.9rem] text-slate-500">
@@ -445,7 +445,7 @@ export default function Register() {
 
             <div className="mt-4 flex items-baseline gap-1.5">
               <span className="text-lg font-bold text-slate-950">R$</span>
-              <span className="text-[2rem] font-extrabold tracking-tight text-slate-950">
+              <span className="text-[2rem] font-bold tracking-tight text-slate-950">
                 {chosenPlan.price}
               </span>
               <span className="text-[0.9rem] text-slate-500">{chosenPlan.period}</span>
