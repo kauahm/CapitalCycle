@@ -92,6 +92,14 @@ export default function CiclosInvestimento() {
       return;
     }
 
+    // Um período que termina antes de começar não tem dias restantes válidos e
+    // tornaria todo o cálculo de ritmo sem sentido. O input também recebe `min`,
+    // mas a checagem aqui cobre quem digitar a data à mão.
+    if (formData.inicio && formData.fim && formData.fim < formData.inicio) {
+      window.alert('A data final não pode ser anterior à data de início.');
+      return;
+    }
+
     // Lock adquirido aqui de propósito: depois da saída antecipada do plano
     // (que não inicia operação nenhuma) e imediatamente antes do try. Como não
     // há instrução entre a aquisição e o try, todo caminho a partir daqui passa
@@ -283,6 +291,16 @@ export default function CiclosInvestimento() {
             const aportes = aportesMap[ciclo.id] || [];
             const p = calcularProgressoMeta(ciclo, aportes);
 
+            // Períodos maiores que o horizonte vêm como null e ficam de fora:
+            // não faz sentido dizer quanto guardar por mês quando faltam 6 dias.
+            const equivalentes = p.equivalentes
+              ? [
+                  ['Por semana', p.equivalentes.porSemana],
+                  ['Por mês', p.equivalentes.porMes],
+                  ['Por ano', p.equivalentes.porAno],
+                ].filter(([, valor]) => valor != null)
+              : [];
+
             return (
               <div key={ciclo.id} className="bg-[#101623] border border-[#1e293b] p-6 rounded-2xl relative overflow-hidden group hover:border-indigo-500/30 transition-colors">
                 <div className="absolute top-4 right-4 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -330,17 +348,44 @@ export default function CiclosInvestimento() {
                       Faltam <span className="text-white font-semibold">{formatarMoeda(p.valorRestante)}</span>
                       {p.prazoEncerrado
                         ? ' · prazo encerrado'
-                        : p.diasRestantes != null && ` · ${p.diasRestantes} dia(s) restante(s)`}
+                        : p.diasRestantes != null
+                          ? ` · ${p.diasRestantes} dia(s) restante(s)`
+                          : ' · sem prazo definido'}
                     </p>
                   )}
 
                   {/* Ritmo: só mostra necessário/atual quando faz sentido calcular */}
-                  {!p.concluida && !p.prazoEncerrado && p.ritmoNecessario != null && (
+                  {!p.concluida && !p.prazoEncerrado && p.equivalentes && (
                     <div className="pt-2 border-t border-[#1e293b] mt-2 space-y-1">
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="text-slate-500 flex items-center gap-1"><Clock size={12} /> Ritmo necessário</span>
-                        <span className="text-slate-300 font-medium">{formatarMoeda(p.ritmoNecessario)}/dia</span>
-                      </div>
+                      {p.equivalentes.hoje != null ? (
+                        /* Último dia do prazo: todo o restante precisa entrar hoje. */
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-slate-500 flex items-center gap-1"><Clock size={12} /> Guardar hoje</span>
+                          <span className="text-amber-400 font-semibold">{formatarMoeda(p.equivalentes.hoje)}</span>
+                        </div>
+                      ) : (
+                        <>
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="text-slate-500 flex items-center gap-1"><Clock size={12} /> Ritmo necessário</span>
+                            <span className="text-slate-300 font-medium">{formatarMoeda(p.equivalentes.porDia)}/dia</span>
+                          </div>
+
+                          {equivalentes.length > 0 && (
+                            <div className="flex flex-wrap gap-x-4 gap-y-1">
+                              {equivalentes.map(([rotulo, valor]) => (
+                                <span key={rotulo} className="text-xs text-slate-500">
+                                  {rotulo}{' '}
+                                  <span className="text-slate-300 font-medium">{formatarMoeda(valor)}</span>
+                                </span>
+                              ))}
+                            </div>
+                          )}
+
+                          {p.equivalentes.horizonte === 'menos-de-uma-semana' && (
+                            <p className="text-xs text-slate-600">Menos de 1 semana restante</p>
+                          )}
+                        </>
+                      )}
                       {p.temAporte ? (
                         p.ritmoAtual > 0 ? (
                           <>
@@ -424,7 +469,9 @@ export default function CiclosInvestimento() {
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-slate-400 mb-1">Data Final</label>
-                  <input required type="date" value={formData.fim} onChange={e => setFormData({...formData, fim: e.target.value})} className="w-full bg-[#070b14] border border-[#1e293b] rounded-xl px-4 py-3 text-white focus:border-indigo-500 outline-none [color-scheme:dark]" />
+                  {/* `min` impede escolher uma data anterior ao início já no
+                      seletor do navegador, antes mesmo do submit. */}
+                  <input required type="date" min={formData.inicio || undefined} value={formData.fim} onChange={e => setFormData({...formData, fim: e.target.value})} className="w-full bg-[#070b14] border border-[#1e293b] rounded-xl px-4 py-3 text-white focus:border-indigo-500 outline-none [color-scheme:dark]" />
                 </div>
               </div>
 

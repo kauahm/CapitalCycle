@@ -76,7 +76,48 @@ export function calcularProgressoMeta(ciclo, aportes = []) {
     if (bruto > 0) atrasoDias = bruto;
   }
 
+  const concluida = valorMeta > 0 && valorAcumulado >= valorMeta;
+
+  // ── Quanto guardar por período ────────────────────────────────────────
+  // Responde "quanto preciso guardar em cada período que ainda resta", e não
+  // "quanto é o valor diário multiplicado por 7/30/365": com 3 dias pela
+  // frente não existe uma semana inteira para distribuir. Por isso cada
+  // equivalente divide o restante pelo número de períodos que cabem no
+  // horizonte, arredondado para cima.
+  //
+  // Períodos maiores que o horizonte ficam em null e não devem ser exibidos.
+  // Usa 7/30/365 de propósito: a conta precisa ser explicável, e o desvio
+  // frente ao calendário real não muda nenhuma decisão financeira aqui.
+  let equivalentes = null;
+  if (!prazoEncerrado && !concluida && valorMeta > 0 && valorRestante > 0 && diasRestantes != null) {
+    if (diasRestantes === 0) {
+      // O prazo é hoje e ainda falta dinheiro: tudo precisa entrar hoje.
+      // Sem esta ramificação a divisão por zero deixava o bloco sumir da tela
+      // justamente no último dia.
+      equivalentes = {
+        hoje: valorRestante,
+        porDia: null, porSemana: null, porMes: null, porAno: null,
+        horizonte: 'hoje',
+      };
+    } else {
+      const porPeriodo = (dias) => valorRestante / Math.max(Math.ceil(diasRestantes / dias), 1);
+      equivalentes = {
+        hoje: null,
+        porDia: valorRestante / Math.max(diasRestantes, 1),
+        porSemana: diasRestantes >= 7 ? porPeriodo(7) : null,
+        porMes: diasRestantes >= 30 ? porPeriodo(30) : null,
+        porAno: diasRestantes >= 365 ? porPeriodo(365) : null,
+        horizonte:
+          diasRestantes < 7 ? 'menos-de-uma-semana'
+          : diasRestantes < 30 ? 'menos-de-um-mes'
+          : diasRestantes < 365 ? 'menos-de-um-ano'
+          : 'um-ano-ou-mais',
+      };
+    }
+  }
+
   return {
+    equivalentes,
     valorMeta,
     valorAcumulado,
     valorRestante,
@@ -90,6 +131,6 @@ export function calcularProgressoMeta(ciclo, aportes = []) {
     dataPrevista,
     diasParaConcluir,
     atrasoDias,
-    concluida: valorMeta > 0 && valorAcumulado >= valorMeta,
+    concluida,
   };
 }
