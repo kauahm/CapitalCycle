@@ -157,6 +157,11 @@ export default function Register() {
   const [confirmPassword, setConfirmPassword] = useState(location.state?.password ?? '');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  // Aceite dos termos: controlado para que o submit possa barrar a continuação
+  // com a mesma mensagem das outras validações, em vez de depender só do
+  // balão nativo do `required`. A gravação em si é feita quando a conta
+  // nasce de fato, não aqui.
+  const [aceitouTermos, setAceitouTermos] = useState(false);
 
   // Esta tela não cria a conta: ela só coleta os dados e encaminha para o
   // pagamento, que é quem chama o cadastro no fim do fluxo.
@@ -186,6 +191,14 @@ export default function Register() {
     }
     if (password.length < 6) {
       setToast({ show: true, message: 'A senha deve ter pelo menos 6 caracteres.', type: 'error' });
+      return;
+    }
+    if (!aceitouTermos) {
+      setToast({
+        show: true,
+        message: 'Você precisa aceitar os Termos de Uso e a Política de Privacidade para continuar.',
+        type: 'error',
+      });
       return;
     }
 
@@ -397,14 +410,21 @@ export default function Register() {
               <input
                 id="terms"
                 type="checkbox"
-                required
+                checked={aceitouTermos}
+                onChange={(e) => setAceitouTermos(e.target.checked)}
                 className="mt-0.5 h-4 w-4 flex-none cursor-pointer rounded border-slate-300 accent-primary"
               />
               <label htmlFor="terms" className="cursor-pointer text-[0.85rem] leading-relaxed text-slate-600">
-                Concordo com os{' '}
-                <a href="#" className="text-primary hover:underline">Termos de Uso</a>
+                Li e aceito os{' '}
+                {/* Nova aba de propósito: sair da página perderia os dados já
+                    digitados, que vivem apenas no estado da rota. */}
+                <a href="/termos" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+                  Termos de Uso
+                </a>
                 {' '}e a{' '}
-                <a href="#" className="text-primary hover:underline">Política de Privacidade</a>
+                <a href="/privacidade" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+                  Política de Privacidade
+                </a>
               </label>
             </div>
 
