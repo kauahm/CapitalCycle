@@ -2,22 +2,15 @@ import { useLayoutEffect } from 'react';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 
-import { HERO_KEYFRAMES, HERO_RUNWAY_VH, HERO_SEGMENTO } from './heroKeyframes';
-import {
-  RECURSOS_FUNDO,
-  RECURSOS_KEYFRAMES,
-  RECURSOS_RUNWAY_VH,
-} from './recursosKeyframes';
-import { SHOWCASE_KEYFRAMES, SHOWCASE_RUNWAY_VH } from './showcaseKeyframes';
+import { HERO_KEYFRAMES, HERO_SEGMENTO } from './heroKeyframes';
+import { RECURSOS_FUNDO, RECURSOS_KEYFRAMES } from './recursosKeyframes';
+import { SHOWCASE_KEYFRAMES } from './showcaseKeyframes';
+import { duracaoDoPin, runwayHero, runwayRecursos, runwayShowcase } from './landingRunways';
 
 /* Registro idempotente. Em dev o Vite reexecuta o módulo a cada HMR, e
    registrar o mesmo plugin duas vezes é inofensivo, mas o guard deixa
    explícito que só existe um registro. */
 gsap.registerPlugin(ScrollTrigger);
-
-const runwayHero = () => window.innerHeight * (HERO_RUNWAY_VH / 100);
-const runwayRecursos = () => window.innerHeight * (RECURSOS_RUNWAY_VH / 100);
-const runwayShowcase = () => window.innerHeight * (SHOWCASE_RUNWAY_VH / 100);
 
 /* ==========================================================================
    useHeroScrollStory — os três atos da landing
@@ -130,12 +123,16 @@ export default function useHeroScrollStory(storyRef, rootRef) {
          durante o segundo ato a Dashboard ainda está em cena, saindo. Dois
          pins encostados criariam dois pin-spacers e uma emenda para o
          scroll atravessar — exatamente o salto que o briefing proíbe.
-         Então o pin é um só, cobrindo os dois runways, e as timelines é
-         que são separadas, cada uma com o seu trecho de rolagem. */
+         Então o pin é um só, cobrindo os três runways, e as timelines é
+         que são separadas, cada uma com o seu trecho de rolagem.
+
+         O pin dura um pouco mais que a narrativa: `duracaoDoPin` inclui o
+         respiro final, em que nada anima e o clímax fica parado para ser
+         lido antes de a página voltar a rolar. */
       const pin = ScrollTrigger.create({
         trigger: story,
         start: 'top top',
-        end: () => `+=${runwayHero() + runwayRecursos() + runwayShowcase()}`,
+        end: () => `+=${duracaoDoPin()}`,
         pin: root,
         pinSpacing: true,
         anticipatePin: 1,

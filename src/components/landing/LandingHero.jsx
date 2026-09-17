@@ -5,6 +5,7 @@ import { useReducedMotion } from 'framer-motion';
 import ProductStage from './product/ProductStage';
 import RecursosPanel from './recursos/RecursosPanel';
 import useHeroScrollStory from './useHeroScrollStory';
+import { scrollDaSecaoRecursos } from './landingRunways';
 
 /* ==========================================================================
    LandingHero — Hero Scroll Storyboard, F1 → F5
@@ -63,6 +64,26 @@ export default function LandingHero() {
      mas legível e acessível. */
   const semMovimento = useReducedMotion();
 
+  /* "Recursos" não é um nó que o navegador possa procurar: a seção vive
+     dentro da narrativa pinada, e o elemento dela fica preso na viewport
+     o tempo todo. Então o destino é um ponto do runway, calculado a
+     partir dos mesmos valores que montam as timelines.
+
+     Os outros três links continuam sendo âncoras de verdade — `#inicio`
+     é o topo e as duas seções seguintes estão abaixo do pin, onde o
+     documento volta a ser documento. */
+  const irPara = (e, href) => {
+    if (href !== '#recursos') return;
+    e.preventDefault();
+    const suave = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    window.scrollTo({
+      top: semMovimento
+        ? (document.querySelector('.cc-recursos')?.getBoundingClientRect().top ?? 0) + window.scrollY
+        : scrollDaSecaoRecursos(storyRef.current),
+      behavior: suave ? 'smooth' : 'auto',
+    });
+  };
+
   const painel = (
     <RecursosPanel
       ref={recursosRef}
@@ -93,6 +114,7 @@ export default function LandingHero() {
             <a
               key={rotulo}
               href={href}
+              onClick={(e) => irPara(e, href)}
               className={`cc-hero__menu-link${ativo ? ' cc-hero__menu-link--ativo' : ''}`}
             >
               {rotulo}
@@ -137,6 +159,7 @@ export default function LandingHero() {
               key={rotulo}
               href={href}
               tabIndex={-1}
+              onClick={(e) => irPara(e, href)}
               className={`cc-hero__menu-link${ativo ? ' cc-hero__menu-link--ativo' : ''}`}
             >
               {rotulo}

@@ -23,6 +23,7 @@ import RecursosTrack from './RecursosTrack';
 const RecursosPanel = forwardRef(function RecursosPanel({ trackRef, estatico }, ref) {
   return (
     <section
+      id="recursos"
       className={`cc-recursos${estatico ? ' cc-recursos--estatico' : ''}`}
       ref={ref}
       aria-label="Recursos"
