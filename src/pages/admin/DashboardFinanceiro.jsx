@@ -186,6 +186,13 @@ export default function DashboardFinanceiro() {
               ? `Sobrou ${formatarMoeda(Math.abs(diferencaMes))} este mês`
               : `Faltaram ${formatarMoeda(Math.abs(diferencaMes))} este mês`}
           </div>
+          {/* Total gasto no mês — reaproveita totalSaidasMes, já derivado das
+              mesmas transações. Tom neutro (slate) de propósito: o julgamento
+              de bom/ruim é da linha acima; aqui é só o fato. Sempre visível,
+              inclusive em R$ 0,00, para o bloco não mudar de altura entre meses. */}
+          <p className="mt-1.5 text-sm text-slate-500">
+            Foram gastos {formatarMoeda(totalSaidasMes)} este mês
+          </p>
         </div>
 
         <div className="flex gap-10 shrink-0">

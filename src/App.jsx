@@ -14,8 +14,11 @@ const ContasBancarias = lazy(() => import('./pages/admin/ContasBancarias'));
 const CiclosInvestimento = lazy(() => import('./pages/admin/CiclosInvestimento'));
 const OrcamentoCategoria = lazy(() => import('./pages/admin/OrcamentoCategoria'));
 const AnaliseIA = lazy(() => import('./pages/admin/AnaliseIA'));
-const Mercado = lazy(() => import('./pages/admin/Mercado'));
 const Perfil = lazy(() => import('./pages/admin/Perfil'));
+
+// Páginas públicas de texto — raramente abertas, então ficam fora do bundle inicial
+const Termos = lazy(() => import('./pages/legal/Termos'));
+const Privacidade = lazy(() => import('./pages/legal/Privacidade'));
 
 function RouteLoading() {
   return (
@@ -61,6 +64,10 @@ export default function App() {
           {/* Tela de pagamento do cadastro — só acessível se houver dados de cadastro no state */}
           <Route path="/pagamento" element={<Payment />} />
 
+          {/* Páginas legais — públicas, sem exigir login, e declaradas antes do wildcard */}
+          <Route path="/termos" element={<Suspense fallback={<RouteLoading />}><Termos /></Suspense>} />
+          <Route path="/privacidade" element={<Suspense fallback={<RouteLoading />}><Privacidade /></Suspense>} />
+
           {/* Rotas Protegidas do Sistema Financeiro */}
           <Route
             path="/capital"
@@ -76,7 +83,6 @@ export default function App() {
             <Route path="ciclos" element={<Suspense fallback={<RouteLoading />}><CiclosInvestimento /></Suspense>} />
             <Route path="orcamento" element={<Suspense fallback={<RouteLoading />}><OrcamentoCategoria /></Suspense>} />
             <Route path="analise-ia" element={<Suspense fallback={<RouteLoading />}><AnaliseIA /></Suspense>} />
-            <Route path="mercado" element={<Suspense fallback={<RouteLoading />}><Mercado /></Suspense>} />
             <Route path="perfil" element={<Suspense fallback={<RouteLoading />}><Perfil /></Suspense>} />
           </Route>
 

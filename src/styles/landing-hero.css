@@ -1,0 +1,1280 @@
+/* ==========================================================================
+   landing-hero.css — frame F1 do Hero Scroll Storyboard
+
+   Todos os números aqui foram transcritos de
+   `referencia/designer/Hero Scroll Storyboard.dc.html` (frame 1) e
+   `referencia/designer/CapitalCycleDashboard.dc.html`. Antes de mexer em
+   qualquer offset, consulte a prancha — não ajuste no olho.
+
+   Alvo deste gate: 1440 × 900. Sem clamp, sem media query: a
+   responsividade é fase posterior.
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   Neutralização do preflight do Tailwind
+
+   As pranchas do Designer rodam num documento sem reset: `content-box` e
+   `line-height: normal`, os defaults do navegador. O Tailwind força
+   `border-box` em tudo e `line-height: 1.5` na raiz, e isso desloca a
+   composição de verdade — a sidebar de 214px com padding 14px vira 214
+   em vez de 243, os CTAs ganham 3px de altura, a faixa de renda encolhe.
+
+   Por isso o subtree da landing volta ao default do navegador. É o que
+   torna a comparação pixel a pixel honesta.
+   -------------------------------------------------------------------------- */
+.cc-hero,
+.cc-hero *,
+.cc-hero *::before,
+.cc-hero *::after,
+.cc-recursos,
+.cc-recursos *,
+.cc-recursos *::before,
+.cc-recursos *::after {
+  box-sizing: content-box;
+}
+
+/* Invólucro dos dois atos. Não recebe pin nem transform — é só a régua
+   estável que os três ScrollTriggers usam para medir. O pin-spacer que o
+   GSAP cria entra aqui dentro, então a altura deste bloco no documento é
+   900px + os dois runways. */
+.cc-hero-story {
+  position: relative;
+}
+
+/* --------------------------------------------------------------------------
+   Frame
+   -------------------------------------------------------------------------- */
+.cc-hero {
+  position: relative;
+  width: 100%;
+  /* 100dvh, e nao 100vh: a barra de endereco do mobile muda a altura da
+     viewport durante a rolagem, e com `vh` a composicao pularia a cada
+     aparicao dela. Em 1440x900 resolve exatamente para os 900px. */
+  height: 100dvh;
+  overflow: hidden;
+  background: #07070b;
+  color: #f5f5f7;
+  font-family: Outfit, sans-serif;
+  line-height: normal;
+  /* O <body> do app pede `antialiased`; a prancha renderiza no default do
+     navegador. Sem isso o texto do Hero sai visivelmente mais leve que a
+     referência. */
+  -webkit-font-smoothing: auto;
+  -moz-osx-font-smoothing: auto;
+}
+
+/* --------------------------------------------------------------------------
+   ProductStage — palco da Dashboard
+
+   A âncora é um ponto sem dimensão em (50%, 522px): sem transform, sem
+   perspective e com `z-index: auto`, de propósito. Qualquer uma dessas
+   três coisas criaria contexto de empilhamento e prenderia o glow e a
+   Dashboard na mesma camada — e a prancha precisa de um de cada lado do
+   texto (ver ProductStage.jsx). Assim os dois filhos se empilham direto
+   na Hero: glow embaixo do texto, Dashboard em cima.
+
+   `transform-origin: 50% 0` faz a Dashboard crescer para baixo, ancorada
+   pelo topo: é o que permite que ela "suba" enquanto cresce sem o centro
+   escapar.
+   -------------------------------------------------------------------------- */
+.cc-stage {
+  position: absolute;
+  left: 50%;
+  top: calc(522 / 900 * 100%);
+  width: 0;
+  height: 0;
+}
+
+/* −440px do topo da Dashboard: offset constante nos quatro frames em que o
+   glow existe. Anda junto com o palco, sem trajetória própria, e sem herdar
+   escala — na prancha ele mede 1300×760 em todos eles. */
+.cc-stage__glow {
+  position: absolute;
+  left: -650px;
+  top: -440px;
+  width: 1300px;
+  height: 760px;
+  z-index: 1;
+  background: radial-gradient(
+    ellipse 50% 46% at 50% 50%,
+    rgba(124, 92, 255, 0.45),
+    rgba(124, 92, 255, 0.1) 52%,
+    rgba(124, 92, 255, 0) 72%
+  );
+  opacity: 1;
+  pointer-events: none;
+  will-change: transform;
+}
+
+/* A perspectiva mora no pai da camada animada e sobe junto com ela, então
+   o ponto de fuga acompanha a Dashboard — como na prancha, onde o wrapper
+   com `perspective` é que muda de `top`. −591px centra os 1182px do frame
+   (1180 do conteúdo + 1px de borda de cada lado). */
+.cc-stage__persp {
+  position: absolute;
+  left: -591px;
+  top: 0;
+  z-index: 3;
+  perspective: 2400px;
+  will-change: transform;
+}
+
+/* A camada que a H2 anima. */
+.cc-stage__frame {
+  transform: rotateX(6deg) scale(0.86);
+  transform-origin: 50% 0;
+  border-radius: 19px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  box-shadow: 0 50px 130px rgba(0, 0, 0, 0.62);
+  will-change: transform;
+  backface-visibility: hidden;
+}
+
+/* --------------------------------------------------------------------------
+   Navbar — variante escura
+   -------------------------------------------------------------------------- */
+.cc-hero__nav {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  /* Encolhe com a viewport, mas nao abaixo do que cabe o logo. */
+  height: clamp(58px, calc(82 / 900 * 100%), 82px);
+  display: flex;
+  align-items: center;
+  padding: 0 clamp(20px, calc(48 / 1440 * 100%), 48px);
+  z-index: 2;
+}
+
+.cc-hero__logo {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  line-height: 1.18;
+  color: #ffffff;
+}
+
+.cc-hero__menu {
+  display: flex;
+  gap: 38px;
+  margin: 0 auto;
+  font-size: 14.5px;
+}
+
+.cc-hero__menu-link {
+  color: #9a9aa6;
+  font-weight: 400;
+  text-decoration: none;
+}
+
+.cc-hero__menu-link--ativo {
+  color: #ffffff;
+  font-weight: 500;
+}
+
+.cc-hero__entrar {
+  border: 1px solid #35353f;
+  border-radius: 999px;
+  padding: 9px 24px;
+  font-size: 14px;
+  color: #f5f5f7;
+  font-weight: 500;
+  text-decoration: none;
+}
+
+/* --------------------------------------------------------------------------
+   H1, subtítulo e CTAs
+   -------------------------------------------------------------------------- */
+.cc-hero__headline-wrap {
+  position: absolute;
+  top: calc(128 / 900 * 100%);
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  z-index: 2;
+}
+
+.cc-hero__headline {
+  margin: 0;
+  font-family: 'Playfair Display', serif;
+  /* 86/1440 = 5.972vw. O teto trava o crescimento acima de 1440 e o piso
+     segura a legibilidade no mobile. Em 1440 da os 86px do Designer. */
+  font-size: clamp(38px, 5.972vw, 86px);
+  font-weight: 700;
+  line-height: 0.99;
+  letter-spacing: -0.025em;
+  color: #ffffff;
+  text-align: center;
+}
+
+.cc-hero__sub-wrap {
+  position: absolute;
+  top: calc(322 / 900 * 100%);
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
+  z-index: 2;
+}
+
+.cc-hero__sub {
+  margin: 0;
+  max-width: min(610px, 86%);
+  text-align: center;
+  font-size: clamp(14.5px, 1.181vw, 17px);
+  line-height: 1.55;
+  color: #a5a5b0;
+  font-weight: 300;
+}
+
+.cc-hero__ctas {
+  position: absolute;
+  top: calc(398 / 900 * 100%);
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
+  gap: 14px;
+  z-index: 2;
+}
+
+.cc-hero__cta {
+  font-size: clamp(13.5px, 1.042vw, 15px);
+  font-weight: 500;
+  padding: 14px clamp(18px, 1.944vw, 28px);
+  border-radius: 10px;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.cc-hero__cta--primario {
+  background: #5b52f0;
+  color: #ffffff;
+}
+
+.cc-hero__cta--secundario {
+  background: rgba(255, 255, 255, 0.1);
+  color: #e5e5ea;
+}
+
+/* ==========================================================================
+   DashboardPreview — 1180 × 740
+   Transcrição de CapitalCycleDashboard.dc.html.
+   ========================================================================== */
+.ccp {
+  width: 1180px;
+  height: 740px;
+  display: flex;
+  background: #0b0b11;
+  color: #f5f5f7;
+  font-family: Outfit, sans-serif;
+  line-height: normal;
+  overflow: hidden;
+}
+
+/* ---------- Sidebar ---------- */
+.ccp__sidebar {
+  width: 214px;
+  flex: none;
+  background: #08080d;
+  border-right: 1px solid #17171f;
+  padding: 24px 14px;
+  display: flex;
+  flex-direction: column;
+}
+
+.ccp__logo {
+  font-size: 14.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  line-height: 1.18;
+  color: #ffffff;
+  padding: 0 10px;
+  margin-bottom: 26px;
+}
+
+.ccp__nav {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.ccp__nav-item {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 10px 12px;
+  border-radius: 9px;
+  color: #9a9aa6;
+  font-size: 12.5px;
+  font-weight: 400;
+}
+
+.ccp__nav-item--ativo {
+  background: #5b52f0;
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.ccp__nav-item--duas-linhas {
+  align-items: flex-start;
+  line-height: 1.3;
+}
+
+/* ---------- Topbar ---------- */
+.ccp__main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  background: #0b0b11;
+}
+
+.ccp__topbar {
+  height: 66px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 30px;
+  border-bottom: 1px solid #17171f;
+}
+
+.ccp__topbar-titulo {
+  font-size: 23px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.ccp__usuario {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.ccp__usuario-texto {
+  text-align: right;
+  line-height: 1.25;
+}
+
+.ccp__usuario-nome {
+  font-size: 13.5px;
+  font-weight: 600;
+}
+
+.ccp__usuario-papel {
+  font-size: 11.5px;
+  color: #8e8e9a;
+  font-weight: 300;
+}
+
+.ccp__avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #5b52f0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+/* ---------- Corpo ---------- */
+.ccp__corpo {
+  flex: 1;
+  min-height: 0;
+  padding: 22px 30px 26px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.ccp__saudacao {
+  height: 19px;
+  flex: none;
+  font-size: 12.5px;
+  color: #9a9aa6;
+  font-weight: 300;
+}
+
+.ccp__card {
+  background: #101017;
+  border: 1px solid #1e1e28;
+  border-radius: 12px;
+}
+
+.ccp__card-titulo {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+/* ---------- KPIs ---------- */
+.ccp__kpis {
+  height: 132px;
+  flex: none;
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 16px;
+}
+
+.ccp__kpi {
+  padding: 20px 22px;
+  display: flex;
+  flex-direction: column;
+}
+
+.ccp__kpi-rotulo {
+  font-size: 10.5px;
+  letter-spacing: 0.11em;
+  color: #8e8e9a;
+  font-weight: 500;
+}
+
+.ccp__kpi-valor {
+  font-size: 30px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin-top: 8px;
+}
+
+.ccp__kpi-valor--verde {
+  color: #22c55e;
+}
+
+.ccp__kpi-rodape {
+  font-size: 11.5px;
+  color: #22c55e;
+  margin-top: 9px;
+  font-weight: 400;
+}
+
+/* ---------- Gráfico + Metas ---------- */
+.ccp__meio {
+  height: 268px;
+  flex: none;
+  display: grid;
+  grid-template-columns: 1.55fr 1fr;
+  gap: 16px;
+}
+
+.ccp__grafico {
+  padding: 20px 22px;
+  display: flex;
+  flex-direction: column;
+}
+
+.ccp__barras {
+  flex: 1;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-around;
+  padding-top: 16px;
+}
+
+.ccp__barra-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 9px;
+}
+
+.ccp__barra {
+  width: 62px;
+  border-radius: 6px;
+}
+
+.ccp__barra-mes {
+  font-size: 11px;
+  color: #8e8e9a;
+}
+
+/* As metas preenchidas não existem na prancha da Dashboard (que foi
+   desenhada em estado vazio). A linguagem visual vem do card "Ciclos de
+   Investimento" do RecursosTrack — nome + percentual em mono + trilho de
+   6px — trazida para a escala tipográfica da Dashboard. */
+.ccp__metas {
+  padding: 20px 22px;
+  display: flex;
+  flex-direction: column;
+}
+
+.ccp__metas-cabecalho {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.ccp__metas-lista {
+  flex: 1;
+  margin-top: 16px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 20px;
+}
+
+.ccp__meta-linha {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 10px;
+}
+
+.ccp__meta-nome {
+  font-size: 12.5px;
+  color: #f5f5f7;
+  font-weight: 400;
+}
+
+.ccp__meta-pct {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: #8e8e9a;
+}
+
+.ccp__trilho {
+  height: 6px;
+  border-radius: 999px;
+  background: #1e1e28;
+  overflow: hidden;
+}
+
+.ccp__trilho-preenchido {
+  height: 6px;
+  background: #5b52f0;
+  border-radius: 999px;
+}
+
+.ccp__meta-valores {
+  margin-top: 8px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10.5px;
+  color: #63636c;
+}
+
+/* ---------- Faixa de renda ---------- */
+.ccp__renda {
+  height: 153px;
+  flex: none;
+  padding: 0 22px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 14px;
+}
+
+.ccp__renda-topo {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+}
+
+.ccp__renda-bloco--direita {
+  text-align: right;
+}
+
+.ccp__renda-valor {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin-top: 8px;
+}
+
+/* ==========================================================================
+   ATO 2 — Dashboard → Recursos
+   Transcrição de `Dashboard to Recursos.dc.html` + `RecursosPanel.dc.html`.
+   ========================================================================== */
+
+/* O plano inferior do bloco rígido.
+
+   O `top` é a soma de duas coisas que já existem: o topo estrutural do
+   palco (522px) e a altura com que a Dashboard renderiza no F5
+   (740 × 1,2203 = 903,022px). Escrito como conta única e explícita, de
+   propósito — é o que faz a borda de baixo da Dashboard e a borda de cima
+   daqui serem a MESMA coordenada em qualquer progresso, sem duas fórmulas
+   independentes que precisem bater no subpixel.
+
+   Em repouso isso deixa o painel em 1425px, muito abaixo do fold de 900px;
+   ele só entra em cena quando o segundo ato o traz para cima. */
+.cc-recursos {
+  position: absolute;
+  left: 0;
+  right: 0;
+  /* Repouso do painel: o topo do palco mais a altura com que a Dashboard
+     renderiza. A segunda parcela depende da LARGURA, e `top` em
+     porcentagem resolve contra a altura — então quem escreve o valor
+     exato é o hook, que conhece `clientWidth` (e portanto não conta a
+     barra de rolagem, ao contrário de `100vw`). O valor abaixo é o de
+     1440×900 e serve de base antes de o GSAP assumir. */
+  top: calc(522px + 903.022px);
+  height: 100%;
+  z-index: 0;
+  overflow: hidden;
+  background: linear-gradient(180deg, #f6f5f3 0%, #efedea 100%);
+  font-family: Outfit, sans-serif;
+  /* Declarados aqui, e não herdados da Hero, porque no modo sem movimento
+     este painel é renderizado FORA dela — e aí voltaria a pegar o
+     `line-height: 1.5` do Tailwind. */
+  line-height: normal;
+  -webkit-font-smoothing: auto;
+  -moz-osx-font-smoothing: auto;
+  will-change: transform;
+}
+
+/* Sem movimento: o painel deixa de ser o plano de baixo de um bloco que
+   translada e vira uma seção comum, logo abaixo da Hero. */
+.cc-recursos--estatico {
+  position: relative;
+  top: 0;
+  /* Altura explícita: fora da narrativa o painel entra no fluxo, e todo o
+     conteúdo dele é posicionado em absoluto. Sem isto a caixa colapsaria
+     para zero e Recursos sumiria entre a Hero e o Capital Advisor.
+     (No mobile a media query abaixo troca por `auto`, porque lá o
+     conteúdo volta ao fluxo e mede a si mesmo.) */
+  height: 100dvh;
+  will-change: auto;
+}
+
+/* E o trilho, que sem o ato horizontal ficaria com dois painéis e meio
+   presos atrás do `overflow` do painel, vira uma faixa rolável na mão.
+   Não é o layout responsivo final — é o mínimo para que os quatro
+   recursos continuem alcançáveis sem movimento nenhum. */
+.cc-recursos--estatico .cc-recursos__trilho {
+  right: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 12px;
+  will-change: auto;
+}
+
+.cc-recursos__eyebrow {
+  position: absolute;
+  left: calc(120 / 1440 * 100%);
+  top: calc(132 / 900 * 100%);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.24em;
+  color: #5b52f0;
+}
+
+.cc-recursos__ponto {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #5b52f0;
+}
+
+.cc-recursos__titulo {
+  position: absolute;
+  left: calc(120 / 1440 * 100%);
+  top: calc(160 / 900 * 100%);
+  margin: 0;
+  /* Medido, nao escolhido: entre 668 e 852 a linha quebra depois de
+     "evolui" no corpo de 88px do S1 e continua inteira em 52 e 46px. A
+     quebra do Showcase aparece sozinha quando o corpo cresce. */
+  max-width: 760px;
+  font-family: 'Playfair Display', serif;
+  font-size: clamp(30px, 3.611vw, 52px);
+  font-weight: 700;
+  line-height: 1.08;
+  letter-spacing: -0.026em;
+  color: #14141a;
+  /* Em linha unica a caixa abraca o texto, entao centralizar aqui nao
+     muda nada no D5 nem no S2 — so vale quando o titulo quebra, no S1. */
+  text-align: center;
+}
+
+.cc-recursos__realce {
+  color: #5b52f0;
+}
+
+.cc-recursos__sub {
+  position: absolute;
+  left: calc(120 / 1440 * 100%);
+  top: calc(250 / 900 * 100%);
+  margin: 0;
+  max-width: min(620px, 78%);
+  font-size: clamp(14.5px, 1.181vw, 17px);
+  line-height: 1.62;
+  color: #5a5a63;
+  font-weight: 300;
+}
+
+.cc-recursos__trilho {
+  position: absolute;
+  left: calc(120 / 1440 * 100%);
+  top: calc(364 / 900 * 100%);
+  will-change: transform;
+}
+
+/* CTA do S1 — "Conhecer os recursos" */
+.cc-recursos__cta {
+  position: absolute;
+  left: calc(120 / 1440 * 100%);
+  top: calc(569.8 / 900 * 100%);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #14141a;
+  color: #ffffff;
+  font-size: 15px;
+  font-weight: 500;
+  padding: 15px 32px;
+  border-radius: 10px;
+  text-decoration: none;
+  opacity: 0;
+  will-change: transform, opacity;
+}
+
+/* Indicador do trilho */
+.cc-recursos__indicador {
+  position: absolute;
+  left: calc(1140 / 1440 * 100%);
+  top: calc(196 / 900 * 100%);
+  width: calc(180 / 1440 * 100%);
+  opacity: 0;
+}
+
+.cc-recursos__indicador-regua {
+  height: 1px;
+  background: #d8d5cf;
+}
+
+.cc-recursos__indicador-preenchido {
+  height: 1px;
+  width: 0;
+  background: #14141a;
+  margin-top: -1px;
+}
+
+/* ---------- Navbar clara ---------- */
+.cc-hero__nav-clara {
+  opacity: 0;
+  z-index: 4;
+}
+
+.cc-hero__nav-clara .cc-hero__logo {
+  color: #14141a;
+}
+
+.cc-hero__nav-clara .cc-hero__menu-link {
+  color: #76767e;
+  font-weight: 400;
+}
+
+.cc-hero__nav-clara .cc-hero__menu-link--ativo {
+  color: #14141a;
+  font-weight: 500;
+}
+
+.cc-hero__nav-clara .cc-hero__entrar {
+  background: #14141a;
+  border: none;
+  color: #ffffff;
+  padding: 10px 25px;
+}
+
+/* ==========================================================================
+   RecursosTrack — 2164 × 480 (4 × 520 + 3 × 28)
+   Estático nesta fase: o percurso horizontal é a fase seguinte.
+   ========================================================================== */
+.ccr-track {
+  width: 2164px;
+  height: 480px;
+  display: flex;
+  gap: 28px;
+}
+
+.ccr-card {
+  width: 520px;
+  height: 480px;
+  flex: none;
+  /* A prancha declara border-box card a card, contra o content-box que a
+     landing usa no resto. Mantido igual para o padding de 40px não somar
+     aos 520px. */
+  box-sizing: border-box;
+  border-radius: 20px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  padding: 40px 40px 0;
+  background: #fbfaf9;
+  border: 1px solid #e6e4e0;
+  box-shadow: 0 12px 34px rgba(20, 20, 26, 0.05);
+}
+
+.ccr-card *,
+.ccr-card *::before,
+.ccr-card *::after {
+  box-sizing: border-box;
+}
+
+.ccr-card--escuro {
+  background: #14141a;
+  border: none;
+  box-shadow: 0 20px 52px rgba(20, 20, 26, 0.22);
+}
+
+.ccr-card__icone {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: #ecebfd;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+}
+
+.ccr-card__icone--escuro {
+  background: #5b52f0;
+}
+
+.ccr-card__titulo {
+  margin: 24px 0 0;
+  font-size: 27px;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  color: #14141a;
+}
+
+.ccr-card--escuro .ccr-card__titulo {
+  color: #ffffff;
+}
+
+.ccr-card__descricao {
+  margin: 14px 0 0;
+  font-size: 16px;
+  line-height: 1.6;
+  color: #5a5a63;
+  font-weight: 300;
+}
+
+.ccr-card--escuro .ccr-card__descricao {
+  color: #9a9aa6;
+}
+
+.ccr-card__demo {
+  margin: 32px -40px 0;
+  flex: 1;
+  border-top: 1px solid #e8e6e2;
+  background: #f2f0ed;
+  display: flex;
+  flex-direction: column;
+}
+
+.ccr-card--escuro .ccr-card__demo {
+  border-top: 1px solid #24242c;
+  background: #101016;
+}
+
+/* ---------- Demo 1: KPIs + barras ---------- */
+.ccr-demo-kpis {
+  padding: 24px 40px;
+  gap: 18px;
+}
+
+.ccr-demo-kpis__linha {
+  display: flex;
+  gap: 11px;
+}
+
+.ccr-kpi {
+  flex: 1;
+  background: #faf9f7;
+  border: 1px solid #e6e4e0;
+  border-radius: 10px;
+  padding: 13px 14px;
+}
+
+.ccr-kpi__rotulo {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  color: #63636c;
+}
+
+.ccr-kpi__valor {
+  font-size: 17px;
+  font-weight: 700;
+  color: #14141a;
+  margin-top: 6px;
+  letter-spacing: -0.02em;
+}
+
+.ccr-kpi__valor--verde {
+  color: #15803d;
+}
+
+.ccr-demo-kpis__barras {
+  flex: 1;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+}
+
+.ccr-demo-kpis__barra {
+  width: 58px;
+  border-radius: 5px;
+}
+
+/* ---------- Demo 2: lançamentos ---------- */
+.ccr-demo-lancamentos {
+  padding: 14px 40px;
+  justify-content: center;
+}
+
+.ccr-lancamento {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 0;
+  border-bottom: 1px solid #e4e2de;
+}
+
+.ccr-lancamento:last-child {
+  border-bottom: none;
+}
+
+.ccr-lancamento__nome {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  font-size: 13.5px;
+  color: #3c3c44;
+}
+
+.ccr-ponto {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #b4b0a8;
+  flex: none;
+}
+
+.ccr-ponto--entrada {
+  background: #15803d;
+}
+
+.ccr-ponto--roxo {
+  width: 6px;
+  height: 6px;
+  background: #5b52f0;
+}
+
+.ccr-lancamento__valor {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #14141a;
+}
+
+.ccr-lancamento__valor--entrada {
+  color: #15803d;
+}
+
+/* ---------- Demo 3: metas ---------- */
+.ccr-demo-metas {
+  padding: 24px 40px;
+  justify-content: center;
+  gap: 24px;
+}
+
+.ccr-meta__linha {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 10px;
+}
+
+.ccr-meta__nome {
+  font-size: 13.5px;
+  color: #3c3c44;
+}
+
+.ccr-meta__pct {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  color: #63636c;
+}
+
+.ccr-meta__trilho {
+  height: 6px;
+  border-radius: 999px;
+  background: #e0ddd8;
+  overflow: hidden;
+}
+
+.ccr-meta__preenchido {
+  height: 6px;
+  background: #5b52f0;
+  border-radius: 999px;
+}
+
+/* ---------- Demo 4: Capital Advisor ---------- */
+.ccr-demo-advisor {
+  padding: 24px 40px;
+  justify-content: center;
+  gap: 14px;
+}
+
+.ccr-demo-advisor__eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9.5px;
+  letter-spacing: 0.18em;
+  color: #9a9aa6;
+}
+
+.ccr-demo-advisor__balao {
+  background: #1a1a22;
+  border-radius: 14px;
+  padding: 20px 22px;
+  font-size: 15px;
+  line-height: 1.62;
+  color: #e2e2e8;
+  font-weight: 300;
+}
+
+.ccr-demo-advisor__rodape {
+  font-size: 13px;
+  color: #9a9aa6;
+  font-weight: 300;
+  padding-left: 2px;
+}
+
+/* ==========================================================================
+   MOBILE FLOW — até 767px
+
+   Abaixo de 768px a landing deixa de ser narrativa presa e vira fluxo
+   vertical. Não é outra direção de arte: é a mesma composição, a mesma
+   copy e os mesmos componentes, empilhados na ordem em que já eram lidos.
+
+   A classe `--fluxo` é posta pelo React, e o GSAP não cria timeline
+   nenhuma nesta faixa — então tudo aqui é CSS estático.
+   ========================================================================== */
+@media (max-width: 767px) {
+  /* A Hero para de ser um quadro de proporção fixa: ela cresce com o que
+     tem dentro, senão o produto não caberia junto do texto. */
+  .cc-hero--fluxo {
+    height: auto;
+    /* Sem `min-height: 100dvh`: no fluxo a Hero acaba onde o conteúdo
+       acaba, senão sobraria uma faixa escura vazia antes de Recursos. */
+    padding-bottom: 56px;
+    /* Coluna, para as peças se empilharem na ordem em que são lidas. No
+       DOM o palco vem antes do texto — isso existe por causa do
+       empilhamento do desktop (glow embaixo do texto, Dashboard em cima).
+       Aqui `order` recoloca sem mexer no DOM, e o desktop segue intacto. */
+    display: flex;
+    flex-direction: column;
+  }
+
+  .cc-hero--fluxo .cc-hero__headline-wrap { order: 1; }
+  .cc-hero--fluxo .cc-hero__sub-wrap { order: 2; }
+  .cc-hero--fluxo .cc-hero__ctas { order: 3; }
+  .cc-hero--fluxo .cc-stage { order: 4; }
+
+  /* Navbar em duas linhas, sem menu escondido: logo e Entrar em cima, os
+     quatro destinos embaixo. Medido antes de decidir — em 12,5px com 18px
+     de gap os quatro links somam 255px e cabem nos 284px úteis de uma tela
+     de 320. Um hambúrguer só esconderia o que já cabe. */
+  .cc-hero--fluxo .cc-hero__nav {
+    position: static;
+    order: 0;
+    height: auto;
+    flex-wrap: wrap;
+    row-gap: 14px;
+    padding-top: 18px;
+    padding-bottom: 6px;
+  }
+
+  .cc-hero--fluxo .cc-hero__menu {
+    order: 3;
+    width: 100%;
+    margin: 0;
+    gap: 18px;
+    font-size: 12.5px;
+    justify-content: space-between;
+  }
+
+  .cc-hero--fluxo .cc-hero__entrar {
+    margin-left: auto;
+  }
+
+  /* Área de toque dos links: 44px de alto sem mexer no layout — o padding
+     cresce e a margem negativa devolve o espaço, então a linha continua
+     com a mesma altura e o dedo ganha alvo. */
+  .cc-hero--fluxo .cc-hero__menu-link {
+    padding: 14px 4px;
+    margin: -14px -4px;
+  }
+
+  /* O texto volta ao fluxo, um bloco embaixo do outro. */
+  .cc-hero--fluxo .cc-hero__headline-wrap,
+  .cc-hero--fluxo .cc-hero__sub-wrap,
+  .cc-hero--fluxo .cc-hero__ctas {
+    position: static;
+    padding: 0 24px;
+  }
+
+  .cc-hero--fluxo .cc-hero__headline-wrap {
+    margin-top: 42px;
+  }
+
+  .cc-hero--fluxo .cc-hero__sub-wrap {
+    margin-top: 22px;
+  }
+
+  .cc-hero--fluxo .cc-hero__ctas {
+    margin-top: 28px;
+    flex-wrap: wrap;
+  }
+
+  /* Alvos de toque: 48px de altura mínima nos dois CTAs. */
+  /* Alvo de toque de ~48px. A landing roda em `content-box`, então
+     `min-height` somaria ao padding e inflaria o botão — a altura vem do
+     padding, que é o que o Designer já usava. */
+  .cc-hero--fluxo .cc-hero__cta {
+    padding: 15px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .cc-hero--fluxo .cc-hero__entrar {
+    padding: 13px 22px;
+    display: flex;
+    align-items: center;
+  }
+
+  /* O produto continua em cena: a Dashboard inteira, inclinada como no
+     Designer, numa moldura que acompanha a largura do telefone. O palco
+     deixa de ser âncora de narrativa e vira um bloco em fluxo. */
+  .cc-hero--fluxo .cc-stage {
+    position: relative;
+    left: auto;
+    top: auto;
+    width: auto;
+    /* Quem reserva o espaço no fluxo é o palco, não a camada escalada:
+       `transform` desenha menor mas não encolhe a caixa, então a altura
+       da Dashboard já reduzida é declarada aqui e o resto é recortado. */
+    height: calc(742px * var(--cc-escala-produto, 0.3));
+    overflow: hidden;
+    margin-top: 44px;
+  }
+
+  .cc-hero--fluxo .cc-stage__glow {
+    display: none;
+  }
+
+  .cc-hero--fluxo .cc-stage__persp {
+    position: relative;
+    /* A caixa continua medindo os 1182px do produto (1180 + 1px de borda
+       de cada lado) — é o `scale` que a encolhe, e transform não muda
+       caixa. Então o centramento é feito na mão: metade do contêiner para
+       a direita, metade da própria largura para a esquerda. `margin: auto`
+       não serviria, porque a caixa é mais larga que o contêiner. */
+    left: 50%;
+    margin-left: -591px;
+    transform: scale(var(--cc-escala-produto, 0.3));
+    transform-origin: 50% 0;
+    width: 1182px;
+    /* Altura natural: quem reserva o espaço reduzido é `.cc-stage`. */
+    height: 742px;
+  }
+
+  .cc-hero--fluxo .cc-stage__frame {
+    transform: rotateX(6deg) scale(1);
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
+  }
+
+  /* A navbar clara não tem papel no fluxo: só existia para o momento em
+     que a Dashboard saía de cena. */
+  .cc-hero--fluxo .cc-hero__nav-clara {
+    display: none;
+  }
+
+  /* ---------- Recursos no fluxo ---------- */
+  .cc-recursos--estatico {
+    height: auto;
+    padding: 56px 0 64px;
+    overflow: visible;
+  }
+
+  .cc-recursos--estatico .cc-recursos__eyebrow,
+  .cc-recursos--estatico .cc-recursos__titulo,
+  .cc-recursos--estatico .cc-recursos__sub,
+  .cc-recursos--estatico .cc-recursos__trilho {
+    position: static;
+    padding: 0 24px;
+  }
+
+  .cc-recursos--estatico .cc-recursos__titulo {
+    margin-top: 18px;
+    max-width: none;
+    text-align: left;
+  }
+
+  .cc-recursos--estatico .cc-recursos__sub {
+    margin-top: 16px;
+    max-width: none;
+  }
+
+  /* O CTA e o indicador pertencem ao showcase pinado, que não existe aqui. */
+  .cc-recursos--estatico .cc-recursos__cta,
+  .cc-recursos--estatico .cc-recursos__indicador {
+    display: none;
+  }
+
+  /* O trilho vira uma faixa de rolagem horizontal nativa: o dedo faz o
+     que já esperava fazer, sem interceptar gesto nenhum. O padding lateral
+     no próprio scroller mantém os 24px de margem no começo e no fim. */
+  .cc-recursos--estatico .cc-recursos__trilho {
+    margin-top: 32px;
+    padding: 4px 24px 16px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scroll-snap-type: x mandatory;
+    overscroll-behavior-x: contain;
+  }
+
+  .cc-recursos--estatico .ccr-track {
+    width: max-content;
+    height: auto;
+    gap: 16px;
+  }
+
+  .cc-recursos--estatico .ccr-card {
+    width: min(82vw, 400px);
+    height: auto;
+    min-height: 440px;
+    scroll-snap-align: start;
+  }
+}
+
+/* Telas muito estreitas: o respiro lateral encolhe antes do texto. */
+@media (max-width: 380px) {
+  .cc-hero--fluxo .cc-hero__headline-wrap,
+  .cc-hero--fluxo .cc-hero__sub-wrap,
+  .cc-hero--fluxo .cc-hero__ctas,
+  .cc-recursos--estatico .cc-recursos__eyebrow,
+  .cc-recursos--estatico .cc-recursos__titulo,
+  .cc-recursos--estatico .cc-recursos__sub {
+    padding: 0 18px;
+  }
+
+  .cc-recursos--estatico .cc-recursos__trilho {
+    padding: 4px 18px 16px;
+  }
+}

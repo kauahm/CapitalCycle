@@ -174,7 +174,7 @@ export default function Login() {
       initial={plainFade ? { opacity: 0 } : false}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.2 }}
-      className="grid min-h-screen bg-white lg:grid-cols-[44fr_56fr]"
+      className="font-plex grid min-h-screen bg-white lg:grid-cols-[44fr_56fr]"
     >
       {/* Cortina escura da transição: cobre a tela e comprime até a
           faixa exata do painel, depois some por cima do painel real
@@ -237,7 +237,7 @@ export default function Login() {
           </motion.div>
 
           <motion.div variants={formItem}>
-            <h1 className="text-[1.85rem] font-extrabold leading-[1.15] tracking-tight text-slate-950">
+            <h1 className="text-[1.85rem] font-bold leading-[1.15] tracking-tight text-slate-950">
               Bem-vindo de volta
             </h1>
             <p className="mt-2.5 text-[0.95rem] leading-relaxed text-slate-500">
@@ -353,6 +353,19 @@ export default function Login() {
             <GoogleIcon />
             Continuar com Google
           </motion.button>
+
+          {/* Links legais — abrem em nova aba para não interromper o acesso */}
+          <motion.p variants={formItem} className="mt-6 text-center text-[0.78rem] leading-relaxed text-slate-400">
+            Ao continuar, você concorda com os{' '}
+            <a href="/termos" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+              Termos de Uso
+            </a>
+            {' '}e a{' '}
+            <a href="/privacidade" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+              Política de Privacidade
+            </a>
+            .
+          </motion.p>
         </motion.div>
       </div>
 
@@ -386,7 +399,7 @@ export default function Login() {
             )}
           </p>
 
-          <h2 className="mt-16 text-[clamp(2.2rem,3.6vw,3.5rem)] font-black uppercase leading-[1.02] tracking-tight text-white">
+          <h2 className="mt-16 text-[clamp(2.2rem,3.6vw,3.5rem)] font-bold uppercase leading-[1.02] tracking-tight text-white">
             <span className="block">Sua jornada</span>
             <span className="block text-primary">Financeira</span>
           </h2>

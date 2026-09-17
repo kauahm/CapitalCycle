@@ -1,12 +1,18 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  User, Mail, Crown, Lock, ShieldCheck, Eye, EyeOff, X, ArrowRight, AlertTriangle, Wallet, Check,
+  User, Mail, Crown, Lock, ShieldCheck, Eye, EyeOff, X, ArrowRight, AlertTriangle, Wallet, Check, Camera, Trash2,
 } from 'lucide-react';
-import { updatePassword, reauthenticateWithCredential, EmailAuthProvider } from 'firebase/auth';
+import {
+  updatePassword, reauthenticateWithCredential, reauthenticateWithPopup, EmailAuthProvider, deleteUser,
+} from 'firebase/auth';
+import { googleProvider } from '../../services/firebase';
 import { useAuth } from '../../hooks/useAuth';
 import { getPlan } from '../../components/ui/plans';
 import Toast from '../../components/ui/Toast';
+import Avatar from '../../components/ui/Avatar';
+import { prepararFotoPerfil, mensagemErroFoto, TIPOS_ACEITOS } from '../../utils/imagemPerfil';
+import { limparDadosDoUsuario, mensagemFalhaExclusao } from '../../utils/exclusaoConta';
 
 // Mapa de erros do Firebase Authentication para mensagens amigáveis
 function passwordErrorMessage(code) {
@@ -22,6 +28,30 @@ function passwordErrorMessage(code) {
       return 'Sessão expirada. Saia e entre novamente para continuar.';
     default:
       return 'Não foi possível alterar a senha. Tente novamente.';
+  }
+}
+
+// Erros da reautenticação exigida para excluir a conta. Em todos eles nada
+// foi apagado, e a mensagem diz isso — é a dúvida imediata de quem vê o erro.
+function reauthErrorMessage(code) {
+  switch (code) {
+    case 'auth/wrong-password':
+    case 'auth/invalid-credential':
+      return 'Senha incorreta. A conta não foi excluída.';
+    case 'auth/too-many-requests':
+      return 'Muitas tentativas. Aguarde alguns instantes e tente novamente.';
+    case 'auth/popup-closed-by-user':
+    case 'auth/cancelled-popup-request':
+    case 'auth/user-cancelled':
+      return 'Confirmação pelo Google cancelada. A conta não foi excluída.';
+    case 'auth/popup-blocked':
+      return 'O navegador bloqueou a janela do Google. Libere o pop-up e tente novamente.';
+    case 'auth/user-mismatch':
+      return 'A conta do Google confirmada não é a desta sessão.';
+    case 'auth/requires-recent-login':
+      return 'Sessão expirada. Saia e entre novamente para excluir a conta.';
+    default:
+      return 'Não foi possível confirmar sua identidade. A conta não foi excluída.';
   }
 }
 
@@ -43,7 +73,6 @@ export default function Perfil() {
 
   const nome = userProfile?.nome || 'Usuário';
   const email = currentUser?.email || userProfile?.email || '';
-  const inicial = nome.trim().charAt(0).toUpperCase();
   const membroDesde = formatCreatedAt(userProfile?.createdAt);
 
   // Só dá para trocar senha em contas que possuem senha (não vale para Google).
@@ -67,6 +96,33 @@ export default function Perfil() {
   const [rendaInput, setRendaInput] = useState(String(userProfile?.renda_mensal ?? ''));
   const [salvandoRenda, setSalvandoRenda] = useState(false);
 
+  // ── Foto de perfil ───────────────────────────────
+  const [salvandoFoto, setSalvandoFoto] = useState(false);
+
+  const handleEscolherFoto = async (e) => {
+    const file = e.target.files?.[0];
+    // Limpa o input já: escolher o mesmo arquivo de novo depois de um erro
+    // não dispara change se o valor continuar lá.
+    e.target.value = '';
+    if (!file || salvandoFoto) return;
+
+    setSalvandoFoto(true);
+    try {
+      const { dataUrl } = await prepararFotoPerfil(file);
+      // Só o campo da foto é enviado: updateUserProfile grava com merge, então
+      // nome, plano, renda e aceite dos termos ficam intocados.
+      await updateUserProfile({ fotoPerfil: dataUrl });
+      setToast({ show: true, message: 'Foto de perfil atualizada.', type: 'success' });
+    } catch (erro) {
+      // Se a gravação falhar, nada foi alterado no perfil — o avatar anterior
+      // continua na tela.
+      console.error('[Perfil] Falha ao atualizar a foto:', erro?.code || erro?.message);
+      setToast({ show: true, message: mensagemErroFoto(erro?.message), type: 'error' });
+    } finally {
+      setSalvandoFoto(false);
+    }
+  };
+
   const abrirEdicaoRenda = () => {
     setRendaInput(String(userProfile?.renda_mensal ?? ''));
     setEditandoRenda(true);
@@ -88,6 +144,115 @@ export default function Perfil() {
       setToast({ show: true, message: 'Não foi possível salvar a renda mensal.', type: 'error' });
     } finally {
       setSalvandoRenda(false);
+    }
+  };
+
+  // ── Exclusão da conta (Fase 5B) ──────────────────
+  const [delOpen, setDelOpen] = useState(false);
+  const [delEmail, setDelEmail] = useState('');
+  const [delSenha, setDelSenha] = useState('');
+  const [delErro, setDelErro] = useState(null);
+  const [excluindo, setExcluindo] = useState(false);
+  // Trava lógica síncrona: `excluindo` só vale para o visual, e o React agenda
+  // a atualização — dois cliques rápidos passariam pelos dois. Aqui não pode.
+  const excluirLockRef = useRef(false);
+
+  // Confirmação de intenção: precisa ser o e-mail da conta, sem variação.
+  const emailConfere =
+    !!currentUser?.email &&
+    delEmail.trim().toLowerCase() === currentUser.email.trim().toLowerCase();
+
+  const abrirExclusao = () => {
+    setDelEmail('');
+    setDelSenha('');
+    setDelErro(null);
+    setDelOpen(true);
+  };
+
+  const fecharExclusao = () => {
+    // Fechar no meio da rotina deixaria a exclusão correndo sem nada na tela
+    // dizendo o que aconteceu.
+    if (excluirLockRef.current) return;
+    setDelEmail('');
+    setDelSenha('');
+    setDelErro(null);
+    setDelOpen(false);
+  };
+
+  // Reautenticação pelo provedor real da conta. A senha só existe enquanto o
+  // modal está aberto: não é guardada, nem registrada, nem enviada a lugar
+  // nenhum além do próprio Firebase Authentication.
+  const reautenticar = async () => {
+    if (usaSenha) {
+      const credencial = EmailAuthProvider.credential(currentUser.email, delSenha);
+      await reauthenticateWithCredential(currentUser, credencial);
+    } else {
+      await reauthenticateWithPopup(currentUser, googleProvider);
+    }
+  };
+
+  const handleExcluirConta = async (e) => {
+    e.preventDefault();
+    if (!currentUser) return;
+
+    // Validações locais primeiro: elas não iniciam nada destrutivo, então
+    // ainda não é hora de travar.
+    if (!emailConfere) {
+      setDelErro('Digite o e-mail desta conta exatamente como ele aparece acima.');
+      return;
+    }
+    if (usaSenha && !delSenha) {
+      setDelErro('Informe sua senha atual para confirmar.');
+      return;
+    }
+
+    if (excluirLockRef.current) return;
+    excluirLockRef.current = true;
+    setExcluindo(true);
+    setDelErro(null);
+
+    try {
+      // 1. Reautenticar. Se falhar aqui, nenhum documento é tocado.
+      try {
+        await reautenticar();
+      } catch (erro) {
+        console.error('[Perfil] Reautenticação recusada:', erro?.code || erro?.message);
+        setDelErro(reauthErrorMessage(erro?.code));
+        return;
+      }
+
+      // 2. Dados do Firestore, na ordem segura.
+      await limparDadosDoUsuario(currentUser.uid);
+
+      // 3. Autenticação por último: apagá-la antes tiraria o request.auth de
+      // que as regras do Firestore dependem para deixar limpar o resto.
+      try {
+        await deleteUser(currentUser);
+      } catch (erro) {
+        if (erro?.code !== 'auth/requires-recent-login') throw erro;
+        // A limpeza pode ter demorado o bastante para a sessão deixar de ser
+        // recente. Refaz só a reautenticação e tenta de novo apenas o Auth —
+        // o Firestore já está limpo e não precisa ser percorrido outra vez.
+        await reautenticar();
+        await deleteUser(currentUser);
+      }
+
+      navigate('/', { replace: true });
+    } catch (erro) {
+      // Uma etapa falhou: as seguintes não rodaram e o Auth continua de pé,
+      // então a pessoa segue autenticada e pode tentar de novo. O que já saiu
+      // não volta, e a nova tentativa apaga só o que restou.
+      console.error(
+        '[Perfil] Falha ao excluir a conta na etapa',
+        erro?.etapa || 'auth',
+        '-',
+        erro?.code || erro?.message,
+      );
+      setDelErro(erro?.code ? reauthErrorMessage(erro.code) : mensagemFalhaExclusao());
+    } finally {
+      excluirLockRef.current = false;
+      setExcluindo(false);
+      setDelSenha('');
     }
   };
 
@@ -143,12 +308,38 @@ export default function Perfil() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-center">
           {/* Nome + avatar */}
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-2xl bg-indigo-600 text-white flex items-center justify-center text-lg font-bold uppercase shrink-0">
-              {inicial}
-            </div>
+            <Avatar
+              fotoPerfil={userProfile?.fotoPerfil}
+              photoURL={currentUser?.photoURL}
+              nome={nome}
+              className="w-12 h-12 rounded-2xl shrink-0"
+              textoClassName="bg-indigo-600 text-white text-lg font-bold"
+            />
             <div className="min-w-0">
               <p className="text-xs text-slate-500 uppercase tracking-wider font-semibold mb-1">Nome</p>
               <p className="text-white font-bold truncate">{nome}</p>
+
+              {/* Input escondido + label como botão: mantém o controle nativo
+                  acessível por teclado sem o visual padrão do navegador. */}
+              <input
+                id="foto-perfil"
+                type="file"
+                accept={TIPOS_ACEITOS.join(',')}
+                onChange={handleEscolherFoto}
+                disabled={salvandoFoto}
+                className="sr-only"
+              />
+              <label
+                htmlFor="foto-perfil"
+                className={`mt-1.5 inline-flex items-center gap-1.5 text-xs font-medium transition-colors ${
+                  salvandoFoto
+                    ? 'text-slate-500 cursor-not-allowed'
+                    : 'text-indigo-400 hover:text-indigo-300 cursor-pointer'
+                }`}
+              >
+                <Camera size={13} />
+                {salvandoFoto ? 'Salvando...' : 'Alterar foto'}
+              </label>
             </div>
           </div>
 
@@ -298,6 +489,126 @@ export default function Perfil() {
           )}
         </div>
       </div>
+
+      {/* ── EXCLUIR CONTA ────────────────────────────── */}
+      <div className="bg-[#101623] border border-rose-500/25 rounded-2xl p-6">
+        <h3 className="text-sm font-semibold text-rose-300 flex items-center gap-2 mb-4">
+          <AlertTriangle size={16} className="text-rose-400" /> Zona de perigo
+        </h3>
+
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div className="min-w-0">
+            <p className="text-sm font-bold text-white mb-1">Excluir conta</p>
+            <p className="text-sm text-slate-400 leading-relaxed">
+              Remove sua conta e seus dados financeiros — contas, transações, ciclos, metas,
+              aportes e limites de orçamento. A ação é permanente e não pode ser desfeita.
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={abrirExclusao}
+            className="shrink-0 inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-rose-500/10 border border-rose-500/30 hover:bg-rose-500/20 text-rose-300 text-sm font-bold transition-colors"
+          >
+            <Trash2 size={15} /> Excluir conta
+          </button>
+        </div>
+      </div>
+
+      {/* ── MODAL EXCLUIR CONTA ──────────────────────── */}
+      {delOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-[#101623] border border-[#1e293b] rounded-3xl w-full max-w-md max-h-[90vh] overflow-y-auto shadow-2xl animate-in fade-in zoom-in duration-200">
+            <div className="p-6 border-b border-[#1e293b] flex justify-between items-center gap-3">
+              <h2 className="text-xl font-bold text-white">Excluir conta</h2>
+              <button
+                type="button"
+                onClick={fecharExclusao}
+                disabled={excluindo}
+                aria-label="Fechar"
+                className="text-slate-400 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
+              >
+                <X size={24} />
+              </button>
+            </div>
+
+            <form onSubmit={handleExcluirConta} className="p-6 space-y-4">
+              <div className="bg-rose-500/10 border border-rose-500/20 rounded-xl px-4 py-3">
+                <p className="text-rose-200 text-xs leading-relaxed">
+                  Serão removidos: seu perfil, contas, transações, ciclos, metas, aportes e limites
+                  de orçamento. Os registros técnicos dos pagamentos simulados permanecem.
+                  <strong className="block mt-1 font-bold">Esta ação não pode ser desfeita.</strong>
+                </p>
+              </div>
+
+              {delErro && (
+                <div className="flex gap-2 items-start bg-rose-500/10 border border-rose-500/20 rounded-xl px-4 py-3">
+                  <AlertTriangle size={14} className="text-rose-400 mt-0.5 shrink-0" />
+                  <p className="text-rose-300 text-xs leading-relaxed">{delErro}</p>
+                </div>
+              )}
+
+              <div>
+                <label htmlFor="excluir-email" className="block text-xs font-medium text-slate-400 mb-1">
+                  Digite <span className="text-slate-200 font-semibold break-all">{email}</span> para confirmar
+                </label>
+                <input
+                  id="excluir-email"
+                  type="text"
+                  value={delEmail}
+                  onChange={(e) => setDelEmail(e.target.value)}
+                  disabled={excluindo}
+                  autoComplete="off"
+                  spellCheck="false"
+                  className="w-full bg-[#070b14] border border-[#1e293b] rounded-xl px-4 py-3 text-white focus:border-rose-500 outline-none disabled:opacity-50"
+                  placeholder="seu e-mail"
+                />
+              </div>
+
+              {usaSenha ? (
+                <div>
+                  <label htmlFor="excluir-senha" className="block text-xs font-medium text-slate-400 mb-1">
+                    Senha atual
+                  </label>
+                  <input
+                    id="excluir-senha"
+                    type="password"
+                    value={delSenha}
+                    onChange={(e) => setDelSenha(e.target.value)}
+                    disabled={excluindo}
+                    autoComplete="current-password"
+                    className="w-full bg-[#070b14] border border-[#1e293b] rounded-xl px-4 py-3 text-white focus:border-rose-500 outline-none disabled:opacity-50"
+                    placeholder="••••••••"
+                  />
+                </div>
+              ) : (
+                <p className="text-xs text-slate-400 leading-relaxed">
+                  Esta conta entra pelo Google. Ao confirmar, o Google abrirá uma janela para você
+                  se identificar — sua senha do Google não é digitada aqui.
+                </p>
+              )}
+
+              <div className="flex flex-col-reverse sm:flex-row gap-3 pt-1">
+                <button
+                  type="button"
+                  onClick={fecharExclusao}
+                  disabled={excluindo}
+                  className="flex-1 py-3.5 rounded-xl bg-[#1a2234] border border-[#1e293b] hover:bg-[#1e293b] text-white text-sm font-bold transition-colors disabled:opacity-50"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={excluindo || !emailConfere || (usaSenha && !delSenha)}
+                  className="flex-1 py-3.5 rounded-xl bg-rose-600 hover:bg-rose-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-bold transition-colors"
+                >
+                  {excluindo ? 'Excluindo conta...' : usaSenha ? 'Excluir conta' : 'Confirmar com o Google'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* ── MODAL TROCAR SENHA ───────────────────────── */}
       {pwdOpen && (

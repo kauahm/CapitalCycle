@@ -23,6 +23,9 @@ export default {
       },
       fontFamily: {
         sans: ['"Inter"', 'sans-serif'], // Fonte limpa e moderna
+        // Só para as telas de acesso (login, cadastro, termos, privacidade).
+        // Não substitui a fonte global: o painel segue em Inter, fiel ao PDF.
+        plex: ['"IBM Plex Sans"', '"Inter"', 'sans-serif'],
       }
     },
   },

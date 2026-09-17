@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Playfair+Display:wght@700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+body { margin: 0; background: #0e0e12; }
+a { color: #4f7dff; }
+a:hover { color: #7a9bff; }
+</style>
+</helmet>
+<div style="background:#0e0e12;padding:56px 48px 72px;display:flex;flex-direction:column;align-items:center;gap:14px;font-family:Outfit,sans-serif;">
+
+  <div style="width:1440px;display:flex;flex-direction:column;gap:8px;margin-bottom:22px;">
+    <div style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.16em;color:#6b6b78;text-transform:uppercase;">Capital Cycle · Hero → Dashboard</div>
+    <div style="font-family:'Playfair Display',serif;font-size:40px;color:#f5f5f7;letter-spacing:-0.02em;">Storyboard da transição</div>
+    <div style="font-size:14.5px;color:#8e8e9a;font-weight:300;max-width:620px;line-height:1.55;">Cinco momentos da mesma sequência. A dashboard é um único objeto do frame 1 ao 5 — só mudam posição, escala, perspectiva, raio e a relação com o fundo.</div>
+  </div>
+
+  <!-- ============ FRAME 1 ============ -->
+  <div style="display:flex;flex-direction:column;gap:12px;">
+    <div style="display:flex;align-items:baseline;gap:14px;font-family:'JetBrains Mono',monospace;">
+      <span style="font-size:12px;color:#5b52f0;letter-spacing:0.12em;">FRAME 1</span>
+      <span style="font-size:12px;color:#f5f5f7;letter-spacing:0.04em;">HERO INICIAL</span>
+      <span style="font-size:11px;color:#6b6b78;margin-left:auto;">scroll 0%</span>
+    </div>
+    <div style="width:1440px;height:900px;position:relative;overflow:hidden;background:#07070b;border:1px solid #1c1c24;">
+      <div style="position:absolute;left:50%;top:82px;width:1300px;height:760px;transform:translateX(-50%);background:radial-gradient(ellipse 50% 46% at 50% 50%, rgba(124,92,255,0.45), rgba(124,92,255,0.10) 52%, rgba(124,92,255,0) 72%);opacity:{{ g1 }};"></div>
+      <div style="position:absolute;top:0;left:0;right:0;height:82px;display:flex;align-items:center;padding:0 48px;opacity:1;">
+        <div style="font-size:15px;font-weight:700;letter-spacing:0.06em;line-height:1.18;color:#ffffff;">CAPITAL<br>CYCLE</div>
+        <div style="display:flex;gap:38px;margin:0 auto;font-size:14.5px;">
+          <span style="color:#ffffff;font-weight:500;">Início</span>
+          <span style="color:#9a9aa6;font-weight:400;">Recursos</span>
+          <span style="color:#9a9aa6;font-weight:400;">Capital Advisor</span>
+          <span style="color:#9a9aa6;font-weight:400;">Planos</span>
+        </div>
+        <div style="border:1px solid #35353f;border-radius:999px;padding:9px 24px;font-size:14px;color:#f5f5f7;font-weight:500;">Entrar</div>
+      </div>
+      <div style="position:absolute;top:128px;left:0;right:0;display:flex;flex-direction:column;align-items:center;opacity:1;">
+        <div style="font-family:'Playfair Display',serif;font-size:86px;line-height:0.99;letter-spacing:-0.025em;color:#ffffff;text-align:center;">Sua jornada<br>financeira.</div>
+      </div>
+      <div style="position:absolute;top:322px;left:0;right:0;display:flex;justify-content:center;opacity:1;">
+        <div style="max-width:610px;text-align:center;font-size:17px;line-height:1.55;color:#a5a5b0;font-weight:300;">Da primeira transação ao ciclo de investimento completo — controle total do seu capital com inteligência artificial integrada.</div>
+      </div>
+      <div style="position:absolute;top:398px;left:0;right:0;display:flex;justify-content:center;gap:14px;opacity:1;">
+        <div style="background:#5b52f0;color:#ffffff;font-size:15px;font-weight:500;padding:14px 28px;border-radius:10px;">Começar agora</div>
+        <div style="background:rgba(255,255,255,0.10);color:#e5e5ea;font-size:15px;font-weight:500;padding:14px 28px;border-radius:10px;">Já tenho conta</div>
+      </div>
+      <div style="position:absolute;left:50%;top:522px;transform:translateX(-50%);perspective:2400px;">
+        <div style="transform:rotateX(6deg) scale(0.86);transform-origin:50% 0;border-radius:19px;overflow:hidden;border:1px solid rgba(255,255,255,0.09);box-shadow:0 50px 130px rgba(0,0,0,0.62);">
+          <dc-import name="CapitalCycleDashboard" hint-size="1180px,740px"></dc-import>
+        </div>
+      </div>
+    </div>
+    <sc-if value="{{ showCaptions }}" hint-placeholder-val="{{ true }}">
+      <div style="width:1440px;font-size:13.5px;color:#8e8e9a;font-weight:300;line-height:1.5;padding-top:2px;">Repouso. Dashboard em 0.86, inclinada 6°, topo em 58vh — cortada pelo fold. Glow violeta na intensidade de referência.</div>
+    </sc-if>
+  </div>
+
+  <!-- ============ FRAME 2 ============ -->
+  <div style="display:flex;flex-direction:column;gap:12px;margin-top:42px;">
+    <div style="display:flex;align-items:baseline;gap:14px;font-family:'JetBrains Mono',monospace;">
+      <span style="font-size:12px;color:#5b52f0;letter-spacing:0.12em;">FRAME 2</span>
+      <span style="font-size:12px;color:#f5f5f7;letter-spacing:0.04em;">INÍCIO DA TRANSIÇÃO</span>
+      <span style="font-size:11px;color:#6b6b78;margin-left:auto;">scroll ~25%</span>
+    </div>
+    <div style="width:1440px;height:900px;position:relative;overflow:hidden;background:#07070b;border:1px solid #1c1c24;">
+      <div style="position:absolute;left:50%;top:-80px;width:1300px;height:760px;transform:translateX(-50%);background:radial-gradient(ellipse 50% 46% at 50% 50%, rgba(124,92,255,0.45), rgba(124,92,255,0.10) 52%, rgba(124,92,255,0) 72%);opacity:{{ g2 }};"></div>
+      <div style="position:absolute;top:0;left:0;right:0;height:82px;display:flex;align-items:center;padding:0 48px;opacity:0.85;">
+        <div style="font-size:15px;font-weight:700;letter-spacing:0.06em;line-height:1.18;color:#ffffff;">CAPITAL<br>CYCLE</div>
+        <div style="display:flex;gap:38px;margin:0 auto;font-size:14.5px;">
+          <span style="color:#ffffff;font-weight:500;">Início</span>
+          <span style="color:#9a9aa6;font-weight:400;">Recursos</span>
+          <span style="color:#9a9aa6;font-weight:400;">Capital Advisor</span>
+          <span style="color:#9a9aa6;font-weight:400;">Planos</span>
+        </div>
+        <div style="border:1px solid #35353f;border-radius:999px;padding:9px 24px;font-size:14px;color:#f5f5f7;font-weight:500;">Entrar</div>
+      </div>
+      <div style="position:absolute;top:128px;left:0;right:0;display:flex;flex-direction:column;align-items:center;opacity:0.38;transform:translateY(-10px);">
+        <div style="font-family:'Playfair Display',serif;font-size:86px;line-height:0.99;letter-spacing:-0.025em;color:#ffffff;text-align:center;">Sua jornada<br>financeira.</div>
+      </div>
+      <div style="position:absolute;top:322px;left:0;right:0;display:flex;justify-content:center;opacity:0.26;transform:translateY(-12px);">
+        <div style="max-width:610px;text-align:center;font-size:17px;line-height:1.55;color:#a5a5b0;font-weight:300;">Da primeira transação ao ciclo de investimento completo — controle total do seu capital com inteligência artificial integrada.</div>
+      </div>
+      <div style="position:absolute;top:398px;left:0;right:0;display:flex;justify-content:center;gap:14px;opacity:0.18;transform:translateY(-8px);">
+        <div style="background:#5b52f0;color:#ffffff;font-size:15px;font-weight:500;padding:14px 28px;border-radius:10px;">Começar agora</div>
+        <div style="background:rgba(255,255,255,0.10);color:#e5e5ea;font-size:15px;font-weight:500;padding:14px 28px;border-radius:10px;">Já tenho conta</div>
+      </div>
+      <div style="position:absolute;left:50%;top:360px;transform:translateX(-50%);perspective:2400px;">
+        <div style="transform:rotateX(3.6deg) scale(0.94);transform-origin:50% 0;border-radius:17px;overflow:hidden;border:1px solid rgba(255,255,255,0.09);box-shadow:0 46px 120px rgba(0,0,0,0.58);">
+          <dc-import name="CapitalCycleDashboard" hint-size="1180px,740px"></dc-import>
+        </div>
+      </div>
+    </div>
+    <sc-if value="{{ showCaptions }}" hint-placeholder-val="{{ true }}">
+      <div style="width:1440px;font-size:13.5px;color:#8e8e9a;font-weight:300;line-height:1.5;padding-top:2px;">A dashboard sobe 162px e vai a 0.94; a copy sai para cima em bloco. Navbar ainda intacta — é o último elemento institucional a cair.</div>
+    </sc-if>
+  </div>
+
+  <!-- ============ FRAME 3 ============ -->
+  <div style="display:flex;flex-direction:column;gap:12px;margin-top:42px;">
+    <div style="display:flex;align-items:baseline;gap:14px;font-family:'JetBrains Mono',monospace;">
+      <span style="font-size:12px;color:#5b52f0;letter-spacing:0.12em;">FRAME 3</span>
+      <span style="font-size:12px;color:#f5f5f7;letter-spacing:0.04em;">PRODUTO ASSUMINDO A TELA</span>
+      <span style="font-size:11px;color:#6b6b78;margin-left:auto;">scroll ~50%</span>
+    </div>
+    <div style="width:1440px;height:900px;position:relative;overflow:hidden;background:#07070b;border:1px solid #1c1c24;">
+      <div style="position:absolute;left:50%;top:-256px;width:1300px;height:760px;transform:translateX(-50%);background:radial-gradient(ellipse 50% 46% at 50% 50%, rgba(124,92,255,0.45), rgba(124,92,255,0.10) 52%, rgba(124,92,255,0) 72%);opacity:{{ g3 }};"></div>
+      <div style="position:absolute;top:0;left:0;right:0;height:82px;display:flex;align-items:center;padding:0 48px;opacity:0.4;">
+        <div style="font-size:15px;font-weight:700;letter-spacing:0.06em;line-height:1.18;color:#ffffff;">CAPITAL<br>CYCLE</div>
+        <div style="display:flex;gap:38px;margin:0 auto;font-size:14.5px;">
+          <span style="color:#ffffff;font-weight:500;">Início</span>
+          <span style="color:#9a9aa6;font-weight:400;">Recursos</span>
+          <span style="color:#9a9aa6;font-weight:400;">Capital Advisor</span>
+          <span style="color:#9a9aa6;font-weight:400;">Planos</span>
+        </div>
+        <div style="border:1px solid #35353f;border-radius:999px;padding:9px 24px;font-size:14px;color:#f5f5f7;font-weight:500;">Entrar</div>
+      </div>
+      <div style="position:absolute;top:128px;left:0;right:0;display:flex;flex-direction:column;align-items:center;opacity:0.04;transform:translateY(-22px);">
+        <div style="font-family:'Playfair Display',serif;font-size:86px;line-height:0.99;letter-spacing:-0.025em;color:#ffffff;text-align:center;">Sua jornada<br>financeira.</div>
+      </div>
+      <div style="position:absolute;top:322px;left:0;right:0;display:flex;justify-content:center;opacity:0;transform:translateY(-24px);">
+        <div style="max-width:610px;text-align:center;font-size:17px;line-height:1.55;color:#a5a5b0;font-weight:300;">Da primeira transação ao ciclo de investimento completo — controle total do seu capital com inteligência artificial integrada.</div>
+      </div>
+      <div style="position:absolute;top:398px;left:0;right:0;display:flex;justify-content:center;gap:14px;opacity:0;transform:translateY(-16px);">
+        <div style="background:#5b52f0;color:#ffffff;font-size:15px;font-weight:500;padding:14px 28px;border-radius:10px;">Começar agora</div>
+        <div style="background:rgba(255,255,255,0.10);color:#e5e5ea;font-size:15px;font-weight:500;padding:14px 28px;border-radius:10px;">Já tenho conta</div>
+      </div>
+      <div style="position:absolute;left:50%;top:184px;transform:translateX(-50%);perspective:2400px;">
+        <div style="transform:rotateX(2.1deg) scale(1.05);transform-origin:50% 0;border-radius:14px;overflow:hidden;border:1px solid rgba(255,255,255,0.08);box-shadow:0 40px 100px rgba(0,0,0,0.5);">
+          <dc-import name="CapitalCycleDashboard" hint-size="1180px,740px"></dc-import>
+        </div>
+      </div>
+    </div>
+    <sc-if value="{{ showCaptions }}" hint-placeholder-val="{{ true }}">
+      <div style="width:1440px;font-size:13.5px;color:#8e8e9a;font-weight:300;line-height:1.5;padding-top:2px;">Ponto de virada: escala cruza 1.0, a inclinação quase zera e a copy sai de cena. O centro óptico desce dos KPIs para o gráfico.</div>
+    </sc-if>
+  </div>
+
+  <!-- ============ FRAME 4 ============ -->
+  <div style="display:flex;flex-direction:column;gap:12px;margin-top:42px;">
+    <div style="display:flex;align-items:baseline;gap:14px;font-family:'JetBrains Mono',monospace;">
+      <span style="font-size:12px;color:#5b52f0;letter-spacing:0.12em;">FRAME 4</span>
+      <span style="font-size:12px;color:#f5f5f7;letter-spacing:0.04em;">QUASE FULLSCREEN</span>
+      <span style="font-size:11px;color:#6b6b78;margin-left:auto;">scroll ~75%</span>
+    </div>
+    <div style="width:1440px;height:900px;position:relative;overflow:hidden;background:#07070b;border:1px solid #1c1c24;">
+      <div style="position:absolute;left:50%;top:-386px;width:1300px;height:760px;transform:translateX(-50%);background:radial-gradient(ellipse 50% 46% at 50% 50%, rgba(124,92,255,0.45), rgba(124,92,255,0.10) 52%, rgba(124,92,255,0) 72%);opacity:{{ g4 }};"></div>
+      <div style="position:absolute;top:0;left:0;right:0;height:82px;display:flex;align-items:center;padding:0 48px;opacity:0.06;">
+        <div style="font-size:15px;font-weight:700;letter-spacing:0.06em;line-height:1.18;color:#ffffff;">CAPITAL<br>CYCLE</div>
+        <div style="display:flex;gap:38px;margin:0 auto;font-size:14.5px;">
+          <span style="color:#ffffff;font-weight:500;">Início</span>
+          <span style="color:#9a9aa6;font-weight:400;">Recursos</span>
+          <span style="color:#9a9aa6;font-weight:400;">Capital Advisor</span>
+          <span style="color:#9a9aa6;font-weight:400;">Planos</span>
+        </div>
+        <div style="border:1px solid #35353f;border-radius:999px;padding:9px 24px;font-size:14px;color:#f5f5f7;font-weight:500;">Entrar</div>
+      </div>
+      <div style="position:absolute;top:128px;left:0;right:0;display:flex;flex-direction:column;align-items:center;opacity:0;transform:translateY(-28px);">
+        <div style="font-family:'Playfair Display',serif;font-size:86px;line-height:0.99;letter-spacing:-0.025em;color:#ffffff;text-align:center;">Sua jornada<br>financeira.</div>
+      </div>
+      <div style="position:absolute;left:50%;top:54px;transform:translateX(-50%);perspective:2400px;">
+        <div style="transform:rotateX(0.7deg) scale(1.14);transform-origin:50% 0;border-radius:9px;overflow:hidden;border:1px solid rgba(255,255,255,0.06);box-shadow:0 28px 70px rgba(0,0,0,0.42);">
+          <dc-import name="CapitalCycleDashboard" hint-size="1180px,740px"></dc-import>
+        </div>
+      </div>
+    </div>
+    <sc-if value="{{ showCaptions }}" hint-placeholder-val="{{ true }}">
+      <div style="width:1440px;font-size:13.5px;color:#8e8e9a;font-weight:300;line-height:1.5;padding-top:2px;">Escala 1.14, inclinação quase nula, raio em 9px. Restam 47px de fundo de cada lado — a moldura ainda existe, mas já é só uma linha.</div>
+    </sc-if>
+  </div>
+
+  <!-- ============ FRAME 5 ============ -->
+  <div style="display:flex;flex-direction:column;gap:12px;margin-top:42px;">
+    <div style="display:flex;align-items:baseline;gap:14px;font-family:'JetBrains Mono',monospace;">
+      <span style="font-size:12px;color:#5b52f0;letter-spacing:0.12em;">FRAME 5</span>
+      <span style="font-size:12px;color:#f5f5f7;letter-spacing:0.04em;">DENTRO DO CAPITAL CYCLE</span>
+      <span style="font-size:11px;color:#6b6b78;margin-left:auto;">scroll 100%</span>
+    </div>
+    <div style="width:1440px;height:900px;position:relative;overflow:hidden;background:#0b0b11;border:1px solid #1c1c24;">
+      <div style="position:absolute;top:0;left:0;right:0;height:82px;display:flex;align-items:center;padding:0 48px;opacity:0;">
+        <div style="font-size:15px;font-weight:700;letter-spacing:0.06em;line-height:1.18;color:#ffffff;">CAPITAL<br>CYCLE</div>
+        <div style="display:flex;gap:38px;margin:0 auto;font-size:14.5px;">
+          <span style="color:#ffffff;font-weight:500;">Início</span>
+          <span style="color:#9a9aa6;font-weight:400;">Recursos</span>
+          <span style="color:#9a9aa6;font-weight:400;">Capital Advisor</span>
+          <span style="color:#9a9aa6;font-weight:400;">Planos</span>
+        </div>
+        <div style="border:1px solid #35353f;border-radius:999px;padding:9px 24px;font-size:14px;color:#f5f5f7;font-weight:500;">Entrar</div>
+      </div>
+      <div style="position:absolute;left:50%;top:0;transform:translateX(-50%);">
+        <div style="transform:scale(1.2203);transform-origin:50% 0;">
+          <dc-import name="CapitalCycleDashboard" hint-size="1180px,740px"></dc-import>
+        </div>
+      </div>
+    </div>
+    <sc-if value="{{ showCaptions }}" hint-placeholder-val="{{ true }}">
+      <div style="width:1440px;font-size:13.5px;color:#8e8e9a;font-weight:300;line-height:1.5;padding-top:2px;">Escala 1.2203 — a largura do frame encontra exatamente 1440px. Sem perspectiva, sem raio, sem glow, sem moldura. O scroll da página termina aqui.</div>
+    </sc-if>
+  </div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;showCaptions&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Storyboard&quot;},&quot;glow&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;default&quot;:1,&quot;min&quot;:0,&quot;max&quot;:1.6,&quot;step&quot;:0.05,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Motion&quot;}}">
+class Component extends DCLogic {
+  renderVals() {
+    const m = this.props.glow ?? 1;
+    return {
+      showCaptions: this.props.showCaptions ?? true,
+      g1: Math.min(1, 1 * m),
+      g2: Math.min(1, 0.72 * m),
+      g3: Math.min(1, 0.42 * m),
+      g4: Math.min(1, 0.14 * m)
+    };
+  }
+}
+</script>
+</body>
+</html>

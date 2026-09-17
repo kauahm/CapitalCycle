@@ -9,6 +9,12 @@ import { auth, db, googleProvider } from '../services/firebase';
 
 const AuthContext = createContext(null);
 
+// Versão dos documentos legais vigente no cadastro. Registrada junto ao aceite
+// para que se saiba qual texto a pessoa leu. Contas criadas antes desta versão
+// simplesmente não têm o campo — a ausência é esperada e não é corrigida
+// retroativamente.
+const TERMOS_VERSAO = '1.0';
+
 export function AuthProvider({ children }) {
   const [currentUser, setCurrentUser] = useState(null);
   const [userProfile, setUserProfile] = useState(null);
@@ -129,6 +135,7 @@ export function AuthProvider({ children }) {
       // Usuários a exibe como inativa.
       situacao: 'ativa',
       createdAt: serverTimestamp(),
+      termosAceitos: { versao: TERMOS_VERSAO, em: serverTimestamp() },
     };
     await setDoc(doc(db, 'usuarios', user.uid), profile);
 
@@ -170,6 +177,10 @@ export function AuthProvider({ children }) {
         profile = { ...profile, plan };
       }
     } else {
+      // Conta nova: é o único momento em que o aceite é registrado. O ramo
+      // acima, de conta que já existia, não recebe o campo — quem entrou antes
+      // não aceitou esta versão, e inventar isso seria registrar um
+      // consentimento que nunca houve.
       profile = {
         nome: user.displayName || 'Usuário',
         perfil: 'investidor',
@@ -177,6 +188,7 @@ export function AuthProvider({ children }) {
         plan: plan || 'jovem',
         situacao: 'ativa',
         createdAt: serverTimestamp(),
+        termosAceitos: { versao: TERMOS_VERSAO, em: serverTimestamp() },
       };
       await setDoc(docRef, profile);
     }

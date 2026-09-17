@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Playfair+Display:wght@700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+body { margin: 0; background: #0e0e12; }
+a { color: #4f7dff; }
+a:hover { color: #7a9bff; }
+</style>
+</helmet>
+<div style="background:#0e0e12;padding:56px 48px 72px;display:flex;flex-direction:column;align-items:center;gap:14px;font-family:Outfit,sans-serif;">
+
+  <div style="width:1440px;display:flex;flex-direction:column;gap:8px;margin-bottom:22px;">
+    <div style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.16em;color:#6b6b78;text-transform:uppercase;">Capital Cycle · Dashboard → Recursos · v2</div>
+    <div style="font-family:'Playfair Display',serif;font-size:40px;color:#f5f5f7;letter-spacing:-0.02em;">Recursos nasce por baixo do produto</div>
+    <div style="font-size:14.5px;color:#8e8e9a;font-weight:300;max-width:700px;line-height:1.55;">Sem faixa neutra, sem fade, sem corte. A borda inferior da dashboard e a borda superior de Recursos são a mesma linha durante toda a passagem — os dois planos sobem juntos e a seção se revela na ordem em que deve ser lida.</div>
+  </div>
+
+  <!-- ============ FRAME 1 ============ -->
+  <div style="display:flex;flex-direction:column;gap:12px;">
+    <div style="display:flex;align-items:baseline;gap:14px;font-family:'JetBrains Mono',monospace;">
+      <span style="font-size:12px;color:#5b52f0;letter-spacing:0.12em;">FRAME 1</span>
+      <span style="font-size:12px;color:#f5f5f7;letter-spacing:0.04em;">DASHBOARD FULLSCREEN</span>
+      <span style="font-size:11px;color:#6b6b78;margin-left:auto;">0%</span>
+    </div>
+    <div style="width:1440px;height:900px;position:relative;overflow:hidden;border:1px solid #1c1c24;background:#f3f2f0;">
+      <div style="position:absolute;left:0;top:903px;width:1440px;height:900px;">
+        <dc-import name="RecursosPanel" hint-size="1440px,900px"></dc-import>
+      </div>
+      <div style="position:absolute;left:50%;top:0;transform:translateX(-50%);">
+        <div style="transform:scale(1.2203);transform-origin:50% 0;box-shadow:0 21px 44px rgba(0,0,0,0.32);">
+          <dc-import name="CapitalCycleDashboard" hint-size="1180px,740px"></dc-import>
+        </div>
+      </div>
+    </div>
+    <sc-if value="{{ showCaptions }}" hint-placeholder-val="{{ true }}">
+      <div style="width:1440px;font-size:13.5px;color:#8e8e9a;font-weight:300;line-height:1.5;padding-top:2px;">Estado final aprovado. Recursos já existe, encostada na borda inferior da dashboard, logo abaixo do fold.</div>
+    </sc-if>
+  </div>
+
+  <!-- ============ FRAME 2 ============ -->
+  <div style="display:flex;flex-direction:column;gap:12px;margin-top:42px;">
+    <div style="display:flex;align-items:baseline;gap:14px;font-family:'JetBrains Mono',monospace;">
+      <span style="font-size:12px;color:#5b52f0;letter-spacing:0.12em;">FRAME 2</span>
+      <span style="font-size:12px;color:#f5f5f7;letter-spacing:0.04em;">INÍCIO DA SAÍDA</span>
+      <span style="font-size:11px;color:#6b6b78;margin-left:auto;">~14%</span>
+    </div>
+    <div style="width:1440px;height:900px;position:relative;overflow:hidden;border:1px solid #1c1c24;background:#f3f2f0;">
+      <div style="position:absolute;left:0;top:790px;width:1440px;height:900px;">
+        <dc-import name="RecursosPanel" hint-size="1440px,900px"></dc-import>
+      </div>
+      <div style="position:absolute;left:50%;top:-113px;transform:translateX(-50%);">
+        <div style="transform:scale(1.2203);transform-origin:50% 0;box-shadow:0 21px 44px rgba(0,0,0,0.32);">
+          <dc-import name="CapitalCycleDashboard" hint-size="1180px,740px"></dc-import>
+        </div>
+      </div>
+    </div>
+    <sc-if value="{{ showCaptions }}" hint-placeholder-val="{{ true }}">
+      <div style="width:1440px;font-size:13.5px;color:#8e8e9a;font-weight:300;line-height:1.5;padding-top:2px;">113px de off-white entram por baixo, ainda sem conteúdo. A sombra da dashboard cai sobre a superfície clara — é o que faz ela ler como plano superior, e não como tela trocada.</div>
+    </sc-if>
+  </div>
+
+  <!-- ============ FRAME 3 ============ -->
+  <div style="display:flex;flex-direction:column;gap:12px;margin-top:42px;">
+    <div style="display:flex;align-items:baseline;gap:14px;font-family:'JetBrains Mono',monospace;">
+      <span style="font-size:12px;color:#5b52f0;letter-spacing:0.12em;">FRAME 3</span>
+      <span style="font-size:12px;color:#f5f5f7;letter-spacing:0.04em;">RECURSOS NASCENDO DO PRODUTO</span>
+      <span style="font-size:11px;color:#6b6b78;margin-left:auto;">~38%</span>
+    </div>
+    <div style="width:1440px;height:900px;position:relative;overflow:hidden;border:1px solid #1c1c24;background:#f3f2f0;">
+      <div style="position:absolute;left:0;top:560px;width:1440px;height:900px;">
+        <dc-import name="RecursosPanel" hint-size="1440px,900px"></dc-import>
+      </div>
+      <div style="position:absolute;left:50%;top:-343px;transform:translateX(-50%);">
+        <div style="transform:scale(1.2203);transform-origin:50% 0;box-shadow:0 21px 44px rgba(0,0,0,0.32);">
+          <dc-import name="CapitalCycleDashboard" hint-size="1180px,740px"></dc-import>
+        </div>
+      </div>
+    </div>
+    <sc-if value="{{ showCaptions }}" hint-placeholder-val="{{ true }}">
+      <div style="width:1440px;font-size:13.5px;color:#8e8e9a;font-weight:300;line-height:1.5;padding-top:2px;">A dashboard ainda ocupa 62% da tela — o gráfico de fluxo segue legível acima. Label, headline e subtítulo já estão inteiros no espaço liberado: a seção chega estruturada, nunca vazia.</div>
+    </sc-if>
+  </div>
+
+  <!-- ============ FRAME 4 ============ -->
+  <div style="display:flex;flex-direction:column;gap:12px;margin-top:42px;">
+    <div style="display:flex;align-items:baseline;gap:14px;font-family:'JetBrains Mono',monospace;">
+      <span style="font-size:12px;color:#5b52f0;letter-spacing:0.12em;">FRAME 4</span>
+      <span style="font-size:12px;color:#f5f5f7;letter-spacing:0.04em;">A TRILHA ENTRA</span>
+      <span style="font-size:11px;color:#6b6b78;margin-left:auto;">~67%</span>
+    </div>
+    <div style="width:1440px;height:900px;position:relative;overflow:hidden;border:1px solid #1c1c24;background:#f3f2f0;">
+      <div style="position:absolute;left:0;top:300px;width:1440px;height:900px;">
+        <dc-import name="RecursosPanel" hint-size="1440px,900px"></dc-import>
+      </div>
+      <div style="position:absolute;left:50%;top:-603px;transform:translateX(-50%);">
+        <div style="transform:scale(1.2203);transform-origin:50% 0;box-shadow:0 21px 44px rgba(0,0,0,0.32);">
+          <dc-import name="CapitalCycleDashboard" hint-size="1180px,740px"></dc-import>
+        </div>
+      </div>
+      <div style="position:absolute;top:0;left:0;right:0;height:82px;display:flex;align-items:center;padding:0 48px;opacity:0;">
+        <div style="font-size:15px;font-weight:700;letter-spacing:0.06em;line-height:1.18;color:#14141a;">CAPITAL<br>CYCLE</div>
+        <div style="display:flex;gap:38px;margin:0 auto;font-size:14.5px;">
+          <span style="color:#76767e;font-weight:400;">Início</span>
+          <span style="color:#14141a;font-weight:500;">Recursos</span>
+          <span style="color:#76767e;font-weight:400;">Capital Advisor</span>
+          <span style="color:#76767e;font-weight:400;">Planos</span>
+        </div>
+        <div style="background:#14141a;border-radius:999px;padding:10px 25px;font-size:14px;color:#ffffff;font-weight:500;">Entrar</div>
+      </div>
+    </div>
+    <sc-if value="{{ showCaptions }}" hint-placeholder-val="{{ true }}">
+      <div style="width:1440px;font-size:13.5px;color:#8e8e9a;font-weight:300;line-height:1.5;padding-top:2px;">Resta uma faixa de 300px da dashboard no topo — a sidebar e os KPIs ainda ancoram a cena. Embaixo, 236px do primeiro painel já entraram: o texto nunca fica sozinho na tela.</div>
+    </sc-if>
+  </div>
+
+  <!-- ============ FRAME 5 ============ -->
+  <div style="display:flex;flex-direction:column;gap:12px;margin-top:42px;">
+    <div style="display:flex;align-items:baseline;gap:14px;font-family:'JetBrains Mono',monospace;">
+      <span style="font-size:12px;color:#5b52f0;letter-spacing:0.12em;">FRAME 5</span>
+      <span style="font-size:12px;color:#f5f5f7;letter-spacing:0.04em;">RECURSOS ESTABELECIDA</span>
+      <span style="font-size:11px;color:#6b6b78;margin-left:auto;">100%</span>
+    </div>
+    <div style="width:1440px;height:900px;position:relative;overflow:hidden;border:1px solid #1c1c24;background:#f3f2f0;">
+      <div style="position:absolute;left:0;top:0;width:1440px;height:900px;">
+        <dc-import name="RecursosPanel" hint-size="1440px,900px"></dc-import>
+      </div>
+      <div style="position:absolute;left:50%;top:-903px;transform:translateX(-50%);">
+        <div style="transform:scale(1.2203);transform-origin:50% 0;">
+          <dc-import name="CapitalCycleDashboard" hint-size="1180px,740px"></dc-import>
+        </div>
+      </div>
+      <div style="position:absolute;top:0;left:0;right:0;height:82px;display:flex;align-items:center;padding:0 48px;opacity:1;">
+        <div style="font-size:15px;font-weight:700;letter-spacing:0.06em;line-height:1.18;color:#14141a;">CAPITAL<br>CYCLE</div>
+        <div style="display:flex;gap:38px;margin:0 auto;font-size:14.5px;">
+          <span style="color:#76767e;font-weight:400;">Início</span>
+          <span style="color:#14141a;font-weight:500;">Recursos</span>
+          <span style="color:#76767e;font-weight:400;">Capital Advisor</span>
+          <span style="color:#76767e;font-weight:400;">Planos</span>
+        </div>
+        <div style="background:#14141a;border-radius:999px;padding:10px 25px;font-size:14px;color:#ffffff;font-weight:500;">Entrar</div>
+      </div>
+    </div>
+    <sc-if value="{{ showCaptions }}" hint-placeholder-val="{{ true }}">
+      <div style="width:1440px;font-size:13.5px;color:#8e8e9a;font-weight:300;line-height:1.5;padding-top:2px;">A dashboard saiu, a navbar clara assume e a trilha está pronta para o pin horizontal. Este frame é exatamente o estado inicial da prancha Recursos Showcase.</div>
+    </sc-if>
+  </div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;showCaptions&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Prancha&quot;}}">
+class Component extends DCLogic {
+  renderVals() {
+    return { showCaptions: this.props.showCaptions ?? true };
+  }
+}
+</script>
+</body>
+</html>

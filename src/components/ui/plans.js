@@ -25,17 +25,15 @@ export const PLAN_LIST = [
     feats: [
       'Dashboard financeiro completo',
       'Até 100 lançamentos por mês',
-      'Até 3 contas bancárias',
+      '1 conta cadastrada',
       '2 ciclos de meta ou orçamento em andamento',
       'Capital Advisor — 50 consultas/mês',
-      'Sincronização em tempo real',
     ],
     limits: {
-      contas: 3,
+      contas: 1,
       transacoesPorMes: 100,
       ciclosAtivos: 2,
       consultasIAMes: 50,
-      mercado: false,
     },
   },
   {
@@ -44,15 +42,14 @@ export const PLAN_LIST = [
     price: '64,90',
     priceNum: 64.90,
     period: BILLING_PERIOD,
-    desc: 'Controle total, IA ilimitada e mercado em tempo real para quem leva as finanças a sério.',
+    desc: 'Controle total e IA ilimitada para quem leva as finanças a sério.',
     featured: true,
     badge: 'Mais popular',
     feats: [
       'Tudo do plano Jovem',
-      'Contas bancárias e lançamentos ilimitados',
+      'Contas e lançamentos ilimitados',
       'Ciclos e metas ilimitados',
       'Capital Advisor — consultas ilimitadas',
-      'Mercado com cotações de B3, cripto e câmbio',
       'Sincronização em tempo real',
     ],
     limits: {
@@ -60,7 +57,6 @@ export const PLAN_LIST = [
       transacoesPorMes: null,
       ciclosAtivos: null,
       consultasIAMes: null,
-      mercado: true,
     },
   },
 ];
@@ -103,13 +99,11 @@ export const canConsultarIA = (planId, usadasNoMes) => {
   return limite == null || usadasNoMes < limite;
 };
 
-export const temMercado = (planId) => !!getLimits(planId).mercado;
-
 // ── Metadados das travas → usados pelo UpgradeModal ────────────────────
 export const GATES = {
   contas: {
     title: 'Limite de contas alcançado',
-    message: 'O plano Jovem permite até 3 contas cadastradas. Faça upgrade para o plano Adulto e cadastre quantas contas precisar.',
+    message: 'O plano Jovem permite 1 conta cadastrada. Faça upgrade para o plano Adulto e cadastre quantas contas precisar.',
     requiredPlan: 'adulto',
   },
   ciclos: {
@@ -125,11 +119,6 @@ export const GATES = {
   consultasIA: {
     title: 'Cota de consultas do Capital Advisor atingida',
     message: 'O plano Jovem inclui 50 consultas do Capital Advisor por mês. Faça upgrade para o plano Adulto e converse sem limites.',
-    requiredPlan: 'adulto',
-  },
-  mercado: {
-    title: 'Exclusivo do plano Adulto',
-    message: 'O Mercado, com cotações de B3, cripto e câmbio em tempo real, é um recurso exclusivo do plano Adulto. Faça upgrade para liberar.',
     requiredPlan: 'adulto',
   },
 };

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Plus, Landmark, Wallet, TrendingUp, Trash2, Pencil, X, Building2 } from 'lucide-react';
 import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, query, where } from 'firebase/firestore';
 import { db } from '../../services/firebase';
@@ -11,10 +11,17 @@ import { useAuth } from '../../hooks/useAuth';
 export default function ContasBancarias() {
   const { currentUser, userProfile } = useAuth();
   const [contas, setContas] = useState([]);
+  // { [conta_id]: quantidade } — usado para proteger o histórico na exclusão.
+  const [lancamentosPorConta, setLancamentosPorConta] = useState({});
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [upgradeOpen, setUpgradeOpen] = useState(false);
+
+  // Trava de submissão: o ref é o lock lógico (síncrono, fecha a janela entre
+  // dois cliques antes de qualquer re-render); o state é só o retorno visual.
+  const submitLockRef = useRef(false);
+  const [salvando, setSalvando] = useState(false);
 
   const [formData, setFormData] = useState({
     nome: '',
@@ -23,7 +30,20 @@ export default function ContasBancarias() {
     saldo: ''
   });
 
-  const tiposConta = ['Corrente', 'Poupança', 'Investimentos', 'Carteira Física'];
+  // Uma conta representa ONDE o patrimônio está. O valor gravado no Firestore
+  // é preservado como está — inclusive 'Carteira Física', que só ganhou rótulo
+  // novo — para não precisar migrar nenhum documento existente.
+  const tiposConta = [
+    { valor: 'Corrente',         rotulo: 'Conta corrente' },
+    { valor: 'Poupança',         rotulo: 'Poupança' },
+    { valor: 'Carteira Digital', rotulo: 'Carteira digital' },
+    { valor: 'Carteira Física',  rotulo: 'Dinheiro' },
+    { valor: 'Investimentos',    rotulo: 'Investimentos' },
+  ];
+
+  // Tipos gravados antes desta mudança que não estejam na lista continuam
+  // aparecendo com o próprio valor, em vez de sumir da tela.
+  const rotuloTipo = (valor) => tiposConta.find((t) => t.valor === valor)?.rotulo || valor;
 
   const planId = userProfile?.plan || 'jovem';
   const limiteContas = getLimits(planId).contas;
@@ -35,7 +55,25 @@ export default function ContasBancarias() {
       setContas(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
       setLoading(false);
     });
-    return () => unsub();
+
+    // Transações do usuário, só para saber quantas estão vinculadas a cada
+    // conta. Filtro por uid apenas — a mesma forma de query já usada nas
+    // outras páginas, que não exige índice composto. A contagem por conta é
+    // feita no cliente.
+    const qTransacoes = query(collection(db, 'transactions'), where('uid', '==', currentUser.uid));
+    const unsubTransacoes = onSnapshot(qTransacoes, (snapshot) => {
+      const porConta = {};
+      snapshot.docs.forEach((d) => {
+        const contaId = d.data().conta_id;
+        if (contaId) porConta[contaId] = (porConta[contaId] || 0) + 1;
+      });
+      setLancamentosPorConta(porConta);
+    });
+
+    return () => {
+      unsub();
+      unsubTransacoes();
+    };
   }, [currentUser]);
 
   const handleSubmit = async (e) => {
@@ -46,6 +84,14 @@ export default function ContasBancarias() {
       setUpgradeOpen(true);
       return;
     }
+
+    // Lock adquirido aqui de propósito: depois da saída antecipada do plano
+    // (que não inicia operação nenhuma) e imediatamente antes do try. Como não
+    // há instrução entre a aquisição e o try, todo caminho a partir daqui passa
+    // pelo finally e libera a trava.
+    if (submitLockRef.current) return;
+    submitLockRef.current = true;
+    setSalvando(true);
 
     try {
       const dados = {
@@ -65,6 +111,9 @@ export default function ContasBancarias() {
       closeModal();
     } catch (error) {
       console.error("Erro ao salvar conta: ", error);
+    } finally {
+      submitLockRef.current = false;
+      setSalvando(false);
     }
   };
 
@@ -86,7 +135,20 @@ export default function ContasBancarias() {
   };
 
   const handleDelete = async (id) => {
-    if (window.confirm("Atenção: Excluir esta conta NÃO exclui as transações vinculadas a ela. Deseja continuar?")) {
+    // Conta com histórico não é excluída: apagar as transações destruiria o
+    // histórico financeiro, e deixá-las para trás as tornaria órfãs. Editar a
+    // conta existente é o caminho para trocar instituição, nome ou tipo.
+    const vinculados = lancamentosPorConta[id] || 0;
+    if (vinculados > 0) {
+      window.alert(
+        `Esta conta possui ${vinculados} ${vinculados === 1 ? 'lançamento vinculado' : 'lançamentos vinculados'} ` +
+        `e não pode ser excluída, para preservar seu histórico.\n\n` +
+        `Se precisar alterar a instituição ou o tipo, edite a conta existente.`
+      );
+      return;
+    }
+
+    if (window.confirm('Deseja realmente excluir esta conta?')) {
       await deleteDoc(doc(db, 'accounts', id));
     }
   };
@@ -95,6 +157,8 @@ export default function ContasBancarias() {
   const getEstiloConta = (tipo) => {
     switch(tipo) {
       case 'Investimentos': return { icon: TrendingUp, cor: 'text-indigo-400', bg: 'bg-indigo-500/10', border: 'hover:border-indigo-500/50' };
+      case 'Carteira Digital': return { icon: Wallet, cor: 'text-sky-400', bg: 'bg-sky-500/10', border: 'hover:border-sky-500/50' };
+      // 'Carteira Física' é o valor gravado para o que hoje se chama Dinheiro.
       case 'Carteira Física': return { icon: Wallet, cor: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'hover:border-emerald-500/50' };
       case 'Poupança': return { icon: Building2, cor: 'text-amber-400', bg: 'bg-amber-500/10', border: 'hover:border-amber-500/50' };
       default: return { icon: Landmark, cor: 'text-slate-200', bg: 'bg-slate-700/30', border: 'hover:border-slate-500/50' };
@@ -110,7 +174,7 @@ export default function ContasBancarias() {
       
       {/* HEADER */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <p className="text-sm text-slate-400">Gerencie de onde o dinheiro sai e para onde vai.</p>
+        <p className="text-sm text-slate-400">Cadastre onde o seu dinheiro está: conta, poupança, carteira digital, dinheiro ou investimentos.</p>
         
         <div className="flex items-center gap-4">
           <div className="text-right hidden sm:block mr-4">
@@ -146,41 +210,58 @@ export default function ContasBancarias() {
           {contas.map((conta) => {
             const Estilo = getEstiloConta(conta.tipo);
             const Icone = Estilo.icon;
+            const vinculados = lancamentosPorConta[conta.id] || 0;
+            const temHistorico = vinculados > 0;
 
             return (
               <div key={conta.id} className={`bg-[#101623] border border-[#1e293b] p-6 rounded-3xl relative overflow-hidden group transition-all duration-300 ${Estilo.border}`}>
                 
-                {/* Botões Editar/Excluir (Aparecem no Hover) */}
-                <div className="absolute top-4 right-4 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button 
-                    onClick={() => handleEdit(conta)}
-                    className="text-slate-600 hover:text-indigo-400 bg-[#070b14] p-2 rounded-lg"
-                    title="Editar Conta"
-                  >
-                    <Pencil size={16} />
-                  </button>
-                  <button 
-                    onClick={() => handleDelete(conta.id)}
-                    className="text-slate-600 hover:text-rose-400 bg-[#070b14] p-2 rounded-lg"
-                    title="Excluir Conta"
-                  >
-                    <Trash2 size={16} />
-                  </button>
-                </div>
-
                 <div className="flex items-center gap-4 mb-6">
                   <div className={`p-4 rounded-2xl ${Estilo.bg} ${Estilo.cor}`}>
                     <Icone size={28} />
                   </div>
                   <div>
                     <h3 className="text-lg font-bold text-white">{conta.nome}</h3>
-                    <p className="text-sm text-slate-400">{conta.banco} • {conta.tipo}</p>
+                    <p className="text-sm text-slate-400">
+                      {[conta.banco, rotuloTipo(conta.tipo)].filter(Boolean).join(' • ')}
+                    </p>
                   </div>
                 </div>
 
                 <div className="mt-4">
                   <p className="text-xs text-slate-500 font-medium uppercase tracking-wider mb-1">Saldo Atual</p>
                   <CurrencyValue value={conta.saldo} size="3xl" className={`font-black ${Estilo.cor}`} />
+                  {temHistorico && (
+                    <p className="text-xs text-slate-500 mt-2">
+                      {vinculados} {vinculados === 1 ? 'lançamento' : 'lançamentos'}
+                    </p>
+                  )}
+                </div>
+
+                {/* Ações. No mobile ficam no rodapé, em fluxo normal: como o
+                    card é estreito, mantê-las flutuando no topo direito as
+                    faria cobrir o nome da conta. A partir de md voltam para
+                    o canto superior direito, discretas até o hover ou o foco
+                    por teclado — exatamente a composição anterior. */}
+                <div className="relative z-10 mt-5 flex items-center justify-end gap-2 md:mt-0 md:absolute md:top-4 md:right-4 md:opacity-0 md:transition-opacity md:group-hover:opacity-100 md:group-focus-within:opacity-100">
+                  <button
+                    onClick={() => handleEdit(conta)}
+                    className="text-slate-600 hover:text-indigo-400 bg-[#070b14] p-2 rounded-lg"
+                    title="Editar Conta"
+                  >
+                    <Pencil size={16} />
+                  </button>
+                  {/* Continua clicável quando há histórico: o clique explica o
+                      bloqueio, em vez de não fazer nada. */}
+                  <button
+                    onClick={() => handleDelete(conta.id)}
+                    className={`bg-[#070b14] p-2 rounded-lg ${temHistorico ? 'text-slate-700 cursor-not-allowed' : 'text-slate-600 hover:text-rose-400'}`}
+                    title={temHistorico
+                      ? `Não é possível excluir: ${vinculados} ${vinculados === 1 ? 'lançamento vinculado' : 'lançamentos vinculados'}`
+                      : 'Excluir Conta'}
+                  >
+                    <Trash2 size={16} />
+                  </button>
                 </div>
                 
                 {/* Efeito visual decorativo no fundo do card */}
@@ -212,13 +293,14 @@ export default function ContasBancarias() {
               
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-medium text-slate-400 mb-1">Instituição/Banco</label>
-                  <input required type="text" value={formData.banco} onChange={e => setFormData({...formData, banco: e.target.value})} className="w-full bg-[#070b14] border border-[#1e293b] rounded-xl px-4 py-3 text-white focus:border-indigo-500 outline-none" placeholder="Ex: Nubank" />
+                  {/* Opcional: dinheiro em espécie não tem instituição. */}
+                  <label className="block text-xs font-medium text-slate-400 mb-1">Instituição</label>
+                  <input type="text" value={formData.banco} onChange={e => setFormData({...formData, banco: e.target.value})} className="w-full bg-[#070b14] border border-[#1e293b] rounded-xl px-4 py-3 text-white focus:border-indigo-500 outline-none" placeholder="Opcional" />
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-slate-400 mb-1">Tipo de Conta</label>
                   <select required value={formData.tipo} onChange={e => setFormData({...formData, tipo: e.target.value})} className="w-full bg-[#070b14] border border-[#1e293b] rounded-xl px-4 py-3 text-white focus:border-indigo-500 outline-none">
-                    {tiposConta.map(tipo => <option key={tipo} value={tipo}>{tipo}</option>)}
+                    {tiposConta.map(({ valor, rotulo }) => <option key={valor} value={valor}>{rotulo}</option>)}
                   </select>
                 </div>
               </div>
@@ -228,8 +310,12 @@ export default function ContasBancarias() {
                 <input required type="number" step="0.01" value={formData.saldo} onChange={e => setFormData({...formData, saldo: e.target.value})} className="w-full bg-[#070b14] border border-[#1e293b] rounded-xl px-4 py-3 text-white focus:border-indigo-500 outline-none" placeholder="0,00" />
               </div>
 
-              <button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3.5 rounded-xl transition-colors mt-4">
-                {editingId ? 'Salvar Alterações' : 'Salvar Conta'}
+              <button
+                type="submit"
+                disabled={salvando}
+                className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-bold py-3.5 rounded-xl transition-colors mt-4"
+              >
+                {salvando ? 'Salvando...' : (editingId ? 'Salvar Alterações' : 'Salvar Conta')}
               </button>
             </form>
           </div>

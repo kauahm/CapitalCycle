@@ -1,8 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import {
   Sparkles, Send, Bot, User,
-  TrendingUp, AlertTriangle, Lightbulb,
-  Key, Eye, EyeOff, Settings
+  TrendingUp, AlertTriangle, Lightbulb
 } from 'lucide-react';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { db } from '../../services/firebase';
@@ -11,12 +10,18 @@ import { canConsultarIA, getLimits, mesAtualKey } from '../../components/ui/plan
 import { useAuth } from '../../hooks/useAuth';
 
 // ─────────────────────────────────────────────────────────
-// Configure no arquivo .env na raiz do projeto:
+// Configuração interna — vive só no .env da raiz do projeto,
+// nunca na interface:
 //   VITE_GEMINI_API_KEY=sua_chave_aqui
-//   VITE_GEMINI_MODEL=gemini-1.5-flash   ← opcional
+//   VITE_GEMINI_MODEL=gemini-3.6-flash   ← opcional
 // ─────────────────────────────────────────────────────────
 const ENV_KEY   = import.meta.env.VITE_GEMINI_API_KEY || '';
 const ENV_MODEL = import.meta.env.VITE_GEMINI_MODEL   || '';
+
+// Fallback usado quando o .env não define o modelo. Precisa acompanhar o
+// valor aprovado no .env — as duas pontas apontando para modelos diferentes
+// foi o que deixou a tela quebrada quando o modelo antigo ficou indisponível.
+const MODELO_PADRAO = 'gemini-3.6-flash';
 
 const SYSTEM_PROMPT = `Você é o Capital Advisor, assistente financeiro pessoal do sistema CapitalCycle.
 Ajude o usuário a entender finanças, otimizar gastos e acompanhar metas.
@@ -49,15 +54,19 @@ export default function AnaliseIA() {
 
   const [input, setInput]         = useState('');
   const [isTyping, setIsTyping]   = useState(false);
+  // Lock lógico do envio: `isTyping` é estado do React e só fecha a porta
+  // depois do re-render, deixando passar um segundo clique disparado antes
+  // disso — o que geraria duas consultas e duas cotas.
+  const sendLockRef = useRef(false);
   const [error, setError]         = useState(null);
-  const [showConfig, setShowConfig] = useState(!ENV_KEY);
+  // Aviso de sincronização da cota — separado de `error` de propósito: a
+  // resposta do Advisor foi entregue, só a gravação do contador falhou.
+  const [avisoCota, setAvisoCota] = useState(null);
 
-  // Campos de configuração — só ativam ao clicar "Salvar"
-  const [apiKey, setApiKey]         = useState(ENV_KEY);
-  const [model, setModel]           = useState(ENV_MODEL || 'gemini-3.5-flash');
-  const [keyDraft, setKeyDraft]     = useState('');
-  const [modelDraft, setModelDraft] = useState(ENV_MODEL || 'gemini-3.5-flash');
-  const [showKey, setShowKey]       = useState(false);
+  // Configuração de infraestrutura: só o .env decide, e nada disso aparece
+  // para o usuário final.
+  const apiKey = ENV_KEY;
+  const model  = ENV_MODEL || MODELO_PADRAO;
 
   // Trava por plano: cota mensal de consultas de IA (plano Jovem)
   const { userProfile, currentUser } = useAuth();
@@ -81,17 +90,25 @@ export default function AnaliseIA() {
         const uso = snap.exists() ? (snap.data().iaUso?.[mesKey] || 0) : 0;
         if (active) setUsoMes(uso);
       })
-      .catch(() => {});
+      .catch((err) => {
+        // Falhar aqui deixa o contador em zero e pode liberar consultas além
+        // da cota — não pode passar despercebido, mesmo sem afetar a tela.
+        console.error('[Capital Advisor] Falha ao carregar o contador de consultas:', err?.code || err?.message);
+      });
     return () => { active = false; };
   }, [currentUser, mesKey]);
 
-  const handleSaveConfig = () => {
-    const key = keyDraft.trim() || apiKey;
-    if (!key) return;
-    setApiKey(key);
-    setModel(modelDraft.trim() || model);
-    setShowConfig(false);
-    setError(null);
+  // Debita 1 consulta da cota. Só é chamada depois que a resposta do Advisor
+  // já está na tela, então nada aqui pode descartá-la: a falha de gravação é
+  // tratada aqui dentro e nunca escapa para o catch que trata a IA.
+  const registrarConsulta = async (novoUso) => {
+    setUsoMes(novoUso);
+    try {
+      await updateDoc(doc(db, 'usuarios', currentUser.uid), { [`iaUso.${mesKey}`]: novoUso });
+    } catch (err) {
+      console.error('[Capital Advisor] Falha ao sincronizar o contador de consultas:', err?.code || err?.message);
+      setAvisoCota('Não foi possível sincronizar o contador de consultas. Tente recarregar a página mais tarde.');
+    }
   };
 
   const handleSend = async (e) => {
@@ -99,8 +116,7 @@ export default function AnaliseIA() {
     if (!input.trim() || isTyping) return;
 
     if (!apiKey) {
-      setError('Configure a API Key primeiro.');
-      setShowConfig(true);
+      setError('O Capital Advisor está indisponível no momento. Tente novamente mais tarde.');
       return;
     }
 
@@ -110,19 +126,21 @@ export default function AnaliseIA() {
       return;
     }
 
+    // Lock adquirido aqui: depois das saídas antecipadas, que não iniciam
+    // consulta nenhuma, e antes da primeira mudança de estado do envio — se
+    // viesse só antes do try, o segundo clique já teria inserido a mensagem
+    // do usuário no chat duas vezes. Daqui até o fim, todo caminho passa
+    // pelo finally.
+    if (sendLockRef.current) return;
+    sendLockRef.current = true;
+
     const userMsg = { id: Date.now(), role: 'user', text: input.trim() };
     const updated = [...messages, userMsg];
     setMessages(updated);
     setInput('');
     setIsTyping(true);
     setError(null);
-
-    // Consome 1 consulta da cota (persistido no próprio doc do usuário)
-    if (limiteIA != null) {
-      const novoUso = usoMes + 1;
-      setUsoMes(novoUso);
-      updateDoc(doc(db, 'usuarios', currentUser.uid), { [`iaUso.${mesKey}`]: novoUso }).catch(() => {});
-    }
+    setAvisoCota(null);
 
     try {
       const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
@@ -133,33 +151,56 @@ export default function AnaliseIA() {
         body: JSON.stringify(buildPayload(updated))
       });
 
-      // Tenta extrair mensagem de erro da API
+      // O detalhe técnico fica no console para diagnóstico; o usuário recebe
+      // sempre uma mensagem de produto, nunca o retorno cru da API.
       if (!res.ok) {
         const errJson = await res.json().catch(() => ({}));
-        const msg = errJson?.error?.message || `Erro ${res.status}`;
+        const msgTecnica = errJson?.error?.message || `Erro ${res.status}`;
+        console.error(`[Capital Advisor] Falha na consulta (HTTP ${res.status}): ${msgTecnica}`);
+
+        if (res.status === 503 || res.status === 500 || res.status === 502 || res.status === 504)
+          throw new Error('O Capital Advisor está temporariamente indisponível. Tente novamente em alguns instantes.');
 
         if (res.status === 429)
-          throw new Error('Cota atingida. Aguarde alguns minutos ou use outra conta Google.');
+          throw new Error('Muitas consultas em pouco tempo. Aguarde alguns minutos e tente novamente.');
 
-        if (msg.includes('not found') || msg.includes('not supported'))
-          throw new Error(
-            `Modelo "${model}" não encontrado nessa chave.\n` +
-            `Tente: gemini-pro, gemini-1.5-flash ou gemini-1.5-pro.`
-          );
+        if (msgTecnica.includes('not found') || msgTecnica.includes('not supported'))
+          throw new Error('O Capital Advisor está indisponível no momento. Tente novamente mais tarde.');
 
-        throw new Error(msg);
+        throw new Error('Não foi possível falar com o Capital Advisor agora. Tente novamente em alguns instantes.');
       }
 
       const data = await res.json();
-      const aiText =
-        data?.candidates?.[0]?.content?.parts?.[0]?.text ||
-        'Não consegui gerar uma resposta. Tente novamente.';
+      const aiText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+
+      // HTTP 200 não basta: sem texto utilizável não houve consulta respondida,
+      // então isso é falha e não pode debitar cota.
+      if (!aiText || !aiText.trim()) {
+        console.error('[Capital Advisor] Resposta sem texto utilizável no payload.');
+        throw new Error('Não foi possível falar com o Capital Advisor agora. Tente novamente em alguns instantes.');
+      }
 
       setMessages(prev => [...prev, { id: Date.now() + 1, role: 'ai', text: aiText }]);
 
+      // Daqui em diante a resposta já está entregue. Só agora a consulta é
+      // contabilizada — e só quando o plano tem limite (Adulto é ilimitado e
+      // não precisa de contador persistido).
+      if (limiteIA != null) {
+        await registrarConsulta(usoMes + 1);
+      }
+
     } catch (e) {
-      setError(e.message);
+      // Os throws acima já trazem texto de produto. O que sobra aqui é falha
+      // de rede ou resposta malformada, cuja mensagem nativa é técnica —
+      // essa fica só no console.
+      if (e instanceof TypeError) {
+        console.error('[Capital Advisor] Falha de rede:', e.message);
+        setError('Não foi possível conectar. Verifique sua internet e tente novamente.');
+      } else {
+        setError(e.message);
+      }
     } finally {
+      sendLockRef.current = false;
       setIsTyping(false);
     }
   };
@@ -183,82 +224,8 @@ export default function AnaliseIA() {
                 : `${limiteIA - usoMes} consulta${limiteIA - usoMes === 1 ? '' : 's'} restantes`}
             </span>
           )}
-          <button
-            onClick={() => setShowConfig(v => !v)}
-            className={`flex items-center gap-2 text-xs font-semibold px-4 py-2 rounded-xl border transition-colors ${
-              apiKey
-                ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20'
-                : 'bg-rose-500/10 border-rose-500/30 text-rose-400 hover:bg-rose-500/20'
-            }`}
-          >
-            <Settings size={13} />
-            {apiKey ? `Configurado · ${model}` : 'Configurar API'}
-          </button>
         </div>
       </div>
-
-      {/* PAINEL DE CONFIGURAÇÃO */}
-      {showConfig && (
-        <div className="bg-[#101623] border border-indigo-500/25 rounded-2xl p-5 shrink-0 space-y-4">
-          <p className="text-white font-bold text-sm flex items-center gap-2">
-            <Key size={14} className="text-indigo-400" /> Configuração da API Gemini
-          </p>
-
-          <div className="bg-[#070b14] border border-[#1e293b] rounded-xl px-4 py-3 text-xs font-mono text-emerald-400">
-            {'# .env (raiz do projeto — recomendado)\nVITE_GEMINI_API_KEY=sua_chave_aqui\nVITE_GEMINI_MODEL=gemini-1.5-flash'}
-          </div>
-
-          <p className="text-slate-400 text-xs">
-            Ou preencha abaixo para esta sessão. Gere sua chave em{' '}
-            <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noreferrer"
-              className="text-indigo-400 underline">aistudio.google.com
-            </a>.
-          </p>
-
-          {/* API Key */}
-          <div>
-            <label className="text-xs text-slate-500 font-semibold mb-1 block">API KEY</label>
-            <div className="relative">
-              <input
-                type={showKey ? 'text' : 'password'}
-                value={keyDraft}
-                onChange={e => setKeyDraft(e.target.value)}
-                placeholder={apiKey ? '••••••••••••••••••••••' : 'Cole sua API Key aqui...'}
-                className="w-full bg-[#070b14] border border-[#1e293b] text-white rounded-xl pl-4 pr-10 py-3 text-sm focus:outline-none focus:border-indigo-500 transition-colors font-mono"
-              />
-              <button type="button" onClick={() => setShowKey(v => !v)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition-colors">
-                {showKey ? <EyeOff size={14} /> : <Eye size={14} />}
-              </button>
-            </div>
-          </div>
-
-          {/* Modelo */}
-          <div>
-            <label className="text-xs text-slate-500 font-semibold mb-1 block">
-              MODELO &nbsp;
-              <span className="text-slate-600 font-normal normal-case">
-                — sugestões: gemini-1.5-flash · gemini-1.5-pro · gemini-pro
-              </span>
-            </label>
-            <input
-              type="text"
-              value={modelDraft}
-              onChange={e => setModelDraft(e.target.value)}
-              placeholder="gemini-1.5-flash"
-              className="w-full bg-[#070b14] border border-[#1e293b] text-white rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-indigo-500 transition-colors font-mono"
-            />
-          </div>
-
-          <button
-            onClick={handleSaveConfig}
-            disabled={!keyDraft.trim() && !apiKey}
-            className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 text-white text-sm font-bold rounded-xl transition-colors"
-          >
-            Salvar configuração
-          </button>
-        </div>
-      )}
 
       {/* GUIA RÁPIDO */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 shrink-0">
@@ -324,6 +291,16 @@ export default function AnaliseIA() {
             </div>
           )}
 
+          {/* Aviso próprio: a resposta acima continua válida, só o contador
+              não foi sincronizado. Tom âmbar para não se confundir com falha
+              do Advisor. */}
+          {avisoCota && (
+            <div className="flex gap-3 items-start bg-amber-500/10 border border-amber-500/20 rounded-2xl p-4">
+              <AlertTriangle size={15} className="text-amber-400 mt-0.5 shrink-0" />
+              <p className="text-amber-300 text-xs leading-relaxed">{avisoCota}</p>
+            </div>
+          )}
+
           <div ref={messagesEndRef} />
         </div>
 
@@ -337,7 +314,7 @@ export default function AnaliseIA() {
               disabled={isTyping}
               placeholder={apiKey
                 ? 'Pergunte sobre seus investimentos, gastos ou metas...'
-                : 'Configure a API Key para começar...'}
+                : 'Capital Advisor indisponível no momento...'}
               className="w-full bg-[#101623] border border-[#1e293b] text-white rounded-2xl pl-5 pr-14 py-4 focus:outline-none focus:border-indigo-500 transition-colors disabled:opacity-50"
             />
             <button

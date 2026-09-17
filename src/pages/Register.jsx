@@ -5,6 +5,18 @@ import Toast from '../components/ui/Toast';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
 import { PLAN_LIST as PLANS } from '../components/ui/plans';
 
+/* Ícone oficial do Google — mesmo SVG usado na tela de Login */
+function GoogleIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.9c1.7-1.57 2.7-3.88 2.7-6.62z" />
+      <path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.9-2.26c-.8.54-1.84.86-3.06.86-2.35 0-4.34-1.59-5.05-3.72H.96v2.33A9 9 0 0 0 9 18z" />
+      <path fill="#FBBC05" d="M3.95 10.7A5.4 5.4 0 0 1 3.67 9c0-.59.1-1.17.28-1.7V4.97H.96A9 9 0 0 0 0 9c0 1.45.35 2.83.96 4.03l2.99-2.33z" />
+      <path fill="#EA4335" d="M9 3.58c1.32 0 2.51.46 3.44 1.35l2.58-2.58C13.46.89 11.43 0 9 0A9 9 0 0 0 .96 4.97l2.99 2.33C4.66 5.17 6.65 3.58 9 3.58z" />
+    </svg>
+  );
+}
+
 // ─── Indicador de etapa (passo 1) ─────────────────────────────────────────────
 function EtapaIndicador({ numero, rotulo, ativa = false, concluida = false }) {
   const marcada = ativa || concluida;
@@ -82,7 +94,7 @@ function PlanoCard({ plan, selecionado, onEscolher }) {
       {/* Preço */}
       <div className="mt-5 flex items-baseline gap-2">
         <span className={`text-xl font-bold ${destaque ? 'text-white' : 'text-slate-950'}`}>R$</span>
-        <span className={`text-[2.4rem] font-extrabold tracking-tight ${destaque ? 'text-white' : 'text-slate-950'}`}>
+        <span className={`text-[2.4rem] font-bold tracking-tight ${destaque ? 'text-white' : 'text-slate-950'}`}>
           {plan.price}
         </span>
         <span className={`text-base ${destaque ? 'text-slate-400' : 'text-slate-500'}`}>{plan.period}</span>
@@ -157,6 +169,11 @@ export default function Register() {
   const [confirmPassword, setConfirmPassword] = useState(location.state?.password ?? '');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  // Aceite dos termos: controlado para que o submit possa barrar a continuação
+  // com a mesma mensagem das outras validações, em vez de depender só do
+  // balão nativo do `required`. A gravação em si é feita quando a conta
+  // nasce de fato, não aqui.
+  const [aceitouTermos, setAceitouTermos] = useState(false);
 
   // Esta tela não cria a conta: ela só coleta os dados e encaminha para o
   // pagamento, que é quem chama o cadastro no fim do fluxo.
@@ -188,6 +205,14 @@ export default function Register() {
       setToast({ show: true, message: 'A senha deve ter pelo menos 6 caracteres.', type: 'error' });
       return;
     }
+    if (!aceitouTermos) {
+      setToast({
+        show: true,
+        message: 'Você precisa aceitar os Termos de Uso e a Política de Privacidade para continuar.',
+        type: 'error',
+      });
+      return;
+    }
 
     // Encaminha para a tela de pagamento com os dados do cadastro
     navigate('/pagamento', {
@@ -201,6 +226,30 @@ export default function Register() {
     });
   };
 
+  // Cadastro com Google. O popup não é aberto aqui: quem o abre é a tela de
+  // pagamento, no fim do fluxo, para que a conta só nasça depois do pagamento
+  // confirmado — mesma regra do cadastro por senha.
+  //
+  // O aceite é validado antes de qualquer coisa, então nem chegamos ao popup
+  // sem ele. Nenhuma senha viaja neste caminho: o Google é quem autentica.
+  const handleGoogleRegister = () => {
+    if (!aceitouTermos) {
+      setToast({
+        show: true,
+        message: 'Você precisa aceitar os Termos de Uso e a Política de Privacidade para continuar.',
+        type: 'error',
+      });
+      return;
+    }
+
+    navigate('/pagamento', {
+      state: {
+        plan: selectedPlan,
+        isGoogle: true,
+      },
+    });
+  };
+
   const chosenPlan = PLANS.find((p) => p.id === selectedPlan);
 
   /* ── STEP 1: escolha do plano ──────────────────────────────────────────
@@ -208,7 +257,7 @@ export default function Register() {
      usado no passo 2. */
   if (step === 1) {
     return (
-      <div className="min-h-screen bg-white px-6 py-10 sm:px-10">
+      <div className="font-plex min-h-screen bg-white px-6 py-10 sm:px-10">
         <div className="mx-auto w-full max-w-[66rem]">
 
           {/* Cabeçalho: voltar + marca */}
@@ -222,7 +271,7 @@ export default function Register() {
               <ArrowLeft size={20} />
             </button>
 
-            <span className="text-[1.65rem] font-extrabold tracking-tight text-slate-950">
+            <span className="text-[1.65rem] font-bold tracking-tight text-slate-950">
               CapitalCycle
             </span>
           </div>
@@ -237,7 +286,7 @@ export default function Register() {
           </div>
 
           {/* Título */}
-          <h1 className="mt-9 text-center text-[3rem] font-extrabold leading-tight tracking-tight text-slate-950">
+          <h1 className="mt-9 text-center text-[3rem] font-bold leading-tight tracking-tight text-slate-950">
             Escolha seu plano
           </h1>
           <p className="mt-2 text-center text-lg text-slate-500">
@@ -263,7 +312,7 @@ export default function Register() {
   }
 
   return (
-    <div className="grid min-h-screen bg-white lg:grid-cols-[54fr_46fr]">
+    <div className="font-plex grid min-h-screen bg-white lg:grid-cols-[54fr_46fr]">
 
       {/* ── Coluna Esquerda: formulário ── */}
       <div className="flex flex-col justify-center px-8 py-10 sm:px-12 lg:px-14">
@@ -288,7 +337,7 @@ export default function Register() {
             Trocar plano
           </button>
 
-          <h1 className="mt-4 text-[2.15rem] font-extrabold leading-none tracking-tight text-slate-950">
+          <h1 className="mt-4 text-[2.15rem] font-bold leading-none tracking-tight text-slate-950">
             CapitalCycle
           </h1>
           <p className="mt-2.5 text-[0.9rem] text-slate-500">
@@ -397,14 +446,21 @@ export default function Register() {
               <input
                 id="terms"
                 type="checkbox"
-                required
+                checked={aceitouTermos}
+                onChange={(e) => setAceitouTermos(e.target.checked)}
                 className="mt-0.5 h-4 w-4 flex-none cursor-pointer rounded border-slate-300 accent-primary"
               />
               <label htmlFor="terms" className="cursor-pointer text-[0.85rem] leading-relaxed text-slate-600">
-                Concordo com os{' '}
-                <a href="#" className="text-primary hover:underline">Termos de Uso</a>
+                Li e aceito os{' '}
+                {/* Nova aba de propósito: sair da página perderia os dados já
+                    digitados, que vivem apenas no estado da rota. */}
+                <a href="/termos" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+                  Termos de Uso
+                </a>
                 {' '}e a{' '}
-                <a href="#" className="text-primary hover:underline">Política de Privacidade</a>
+                <a href="/privacidade" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+                  Política de Privacidade
+                </a>
               </label>
             </div>
 
@@ -418,6 +474,24 @@ export default function Register() {
                 {loading ? <LoadingSpinner size="sm" color="text-white" /> : 'Continuar para pagamento'}
               </button>
             </div>
+
+            {/* Divisor */}
+            <div className="flex items-center gap-4 pt-2">
+              <div className="h-px flex-1 bg-slate-200" />
+              <span className="text-[0.8rem] text-slate-400">ou</span>
+              <div className="h-px flex-1 bg-slate-200" />
+            </div>
+
+            {/* Cadastro com Google — type="button" para não disparar o submit
+                do formulário, que exige nome, e-mail e senha. */}
+            <button
+              type="button"
+              onClick={handleGoogleRegister}
+              className="flex h-[3.1rem] w-full items-center justify-center gap-3 rounded-2xl border border-slate-200 bg-transparent text-[0.95rem] font-bold text-slate-800 transition-colors hover:bg-slate-50"
+            >
+              <GoogleIcon />
+              Continuar com Google
+            </button>
           </form>
 
         </div>
@@ -445,7 +519,7 @@ export default function Register() {
 
             <div className="mt-4 flex items-baseline gap-1.5">
               <span className="text-lg font-bold text-slate-950">R$</span>
-              <span className="text-[2rem] font-extrabold tracking-tight text-slate-950">
+              <span className="text-[2rem] font-bold tracking-tight text-slate-950">
                 {chosenPlan.price}
               </span>
               <span className="text-[0.9rem] text-slate-500">{chosenPlan.period}</span>

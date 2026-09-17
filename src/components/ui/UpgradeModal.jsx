@@ -8,7 +8,7 @@ import { useAuth } from '../../hooks/useAuth';
  * Modal reutilizável de "paywall": avisa que a funcionalidade não está no
  * plano atual do usuário e oferece o CTA de upgrade.
  *
- * Uso:  <UpgradeModal feature="mercado" open={open} onClose={() => setOpen(false)} />
+ * Uso:  <UpgradeModal feature="contas" open={open} onClose={() => setOpen(false)} />
  *
  * A "feature" precisa existir em GATES (src/components/ui/plans.js).
  */

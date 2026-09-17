@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>QA H4 — Recursos Showcase, S1→S4</title>
+<style>
+  body { margin: 0; background: #0e0e12; color: #f5f5f7;
+         font-family: ui-sans-serif, system-ui, sans-serif; padding: 32px; }
+  h1 { font-size: 19px; margin: 0 0 6px; }
+  p.intro { font-size: 13px; color: #8e8e9a; max-width: 1000px; line-height: 1.6; margin: 0 0 30px; }
+  h2 { font-size: 14px; font-weight: 600; margin: 34px 0 10px; }
+  .tag { font-family: ui-monospace, monospace; font-size: 11px; color: #6b6b78;
+         letter-spacing: 0.1em; margin-bottom: 6px; text-transform: uppercase; }
+  .par { display: flex; gap: 16px; align-items: flex-start; }
+  .col img { width: 460px; height: 287.5px; display: block; border: 1px solid #2a2a36; }
+  .ovl { position: relative; width: 460px; height: 287.5px; background: #000;
+         border: 1px solid #2a2a36; overflow: hidden; }
+  .ovl img { position: absolute; left: 0; top: 0; width: 460px; height: 287.5px; }
+  .ovl img.ref { mix-blend-mode: difference; }
+  .solo img { width: 620px; height: 387.5px; display: block; border: 1px solid #2a2a36; }
+</style>
+</head>
+<body>
+
+<h1>H4 — Recursos Showcase, S1 → S4</h1>
+<p class="intro">
+  Para cada estado: implementação (rolagem parada no progresso oficial),
+  frame do Designer, e o overlay em <code>difference</code>. Preto no overlay
+  significa pixel idêntico. O D5 aparece à parte porque é o fim da H3 e o
+  ponto de partida deste ato — ele deve ser diferente do S1, por decisão de
+  projeto: são dois keyframes, não um.
+</p>
+
+<h2>D5 — fim da H3, entrada da H4 <span style="color:#6b6b78;font-weight:400">· deve diferir do S1</span></h2>
+<div class="par">
+  <div class="col solo"><div class="tag">Implementação · D5</div><img src="./d5.png" alt=""></div>
+  <div class="col solo"><div class="tag">Implementação · S1</div><img src="./s1.png" alt=""></div>
+</div>
+
+<div id="frames"></div>
+
+<script>
+  const FRAMES = [
+    ['S1', 'INTRODUÇÃO', 'antes do pin'],
+    ['S2', 'PIN ENGATA', 'trilho 0%'],
+    ['S3', 'TRILHO EM CURSO', 'trilho 50% · indicador 55%'],
+    ['S4', 'CLÍMAX', 'trilho 100%'],
+  ];
+  document.getElementById('frames').innerHTML = FRAMES.map(([id, nome, nota], i) => {
+    const n = i + 1;
+    return `
+      <h2>${id} — ${nome} <span style="color:#6b6b78;font-weight:400">· ${nota}</span></h2>
+      <div class="par">
+        <div class="col"><div class="tag">Implementação</div><img src="./s${n}.png" alt=""></div>
+        <div class="col"><div class="tag">Designer</div><img src="./ref-s${n}.png" alt=""></div>
+        <div class="col"><div class="tag">Overlay</div>
+          <div class="ovl"><img src="./s${n}.png" alt=""><img class="ref" src="./ref-s${n}.png" alt=""></div>
+        </div>
+      </div>`;
+  }).join('');
+</script>
+
+</body>
+</html>
