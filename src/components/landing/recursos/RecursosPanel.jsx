@@ -41,6 +41,21 @@ const RecursosPanel = forwardRef(function RecursosPanel({ trackRef, estatico }, 
         lançamento individual à inteligência financeira por IA.
       </p>
 
+      {/* Só existe no S1 do Showcase: nasce em opacity 0 e some de novo
+          quando o pin engata. */}
+      <a className="cc-recursos__cta" href="#capital-advisor" tabIndex={-1}>
+        <span>Conhecer os recursos</span>
+        <span aria-hidden="true">↓</span>
+      </a>
+
+      {/* Indicador de progresso do trilho. A régua é fixa em 180px; só o
+          preenchimento anda, e com keyframes próprios — no S3 ele está em
+          55% enquanto o trilho está em 50%. */}
+      <div className="cc-recursos__indicador" aria-hidden="true">
+        <div className="cc-recursos__indicador-regua" />
+        <div className="cc-recursos__indicador-preenchido" />
+      </div>
+
       <div className="cc-recursos__trilho">
         <RecursosTrack ref={trackRef} />
       </div>

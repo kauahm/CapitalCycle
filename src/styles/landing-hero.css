@@ -621,6 +621,18 @@
   will-change: auto;
 }
 
+/* E o trilho, que sem o ato horizontal ficaria com dois painéis e meio
+   presos atrás do `overflow` do painel, vira uma faixa rolável na mão.
+   Não é o layout responsivo final — é o mínimo para que os quatro
+   recursos continuem alcançáveis sem movimento nenhum. */
+.cc-recursos--estatico .cc-recursos__trilho {
+  right: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 12px;
+  will-change: auto;
+}
+
 .cc-recursos__eyebrow {
   position: absolute;
   left: 120px;
@@ -647,12 +659,19 @@
   left: 120px;
   top: 160px;
   margin: 0;
+  /* Medido, nao escolhido: entre 668 e 852 a linha quebra depois de
+     "evolui" no corpo de 88px do S1 e continua inteira em 52 e 46px. A
+     quebra do Showcase aparece sozinha quando o corpo cresce. */
+  max-width: 760px;
   font-family: 'Playfair Display', serif;
   font-size: 52px;
   font-weight: 700;
   line-height: 1.08;
   letter-spacing: -0.026em;
   color: #14141a;
+  /* Em linha unica a caixa abraca o texto, entao centralizar aqui nao
+     muda nada no D5 nem no S2 — so vale quando o titulo quebra, no S1. */
+  text-align: center;
 }
 
 .cc-recursos__realce {
@@ -675,6 +694,47 @@
   position: absolute;
   left: 120px;
   top: 364px;
+  will-change: transform;
+}
+
+/* CTA do S1 — "Conhecer os recursos" */
+.cc-recursos__cta {
+  position: absolute;
+  left: 120px;
+  top: 569.8px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #14141a;
+  color: #ffffff;
+  font-size: 15px;
+  font-weight: 500;
+  padding: 15px 32px;
+  border-radius: 10px;
+  text-decoration: none;
+  opacity: 0;
+  will-change: transform, opacity;
+}
+
+/* Indicador do trilho */
+.cc-recursos__indicador {
+  position: absolute;
+  left: 1140px;
+  top: 196px;
+  width: 180px;
+  opacity: 0;
+}
+
+.cc-recursos__indicador-regua {
+  height: 1px;
+  background: #d8d5cf;
+}
+
+.cc-recursos__indicador-preenchido {
+  height: 1px;
+  width: 0;
+  background: #14141a;
+  margin-top: -1px;
 }
 
 /* ---------- Navbar clara ---------- */

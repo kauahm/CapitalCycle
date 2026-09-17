@@ -8,6 +8,7 @@ import {
   RECURSOS_KEYFRAMES,
   RECURSOS_RUNWAY_VH,
 } from './recursosKeyframes';
+import { SHOWCASE_KEYFRAMES, SHOWCASE_RUNWAY_VH } from './showcaseKeyframes';
 
 /* Registro idempotente. Em dev o Vite reexecuta o módulo a cada HMR, e
    registrar o mesmo plugin duas vezes é inofensivo, mas o guard deixa
@@ -16,12 +17,20 @@ gsap.registerPlugin(ScrollTrigger);
 
 const runwayHero = () => window.innerHeight * (HERO_RUNWAY_VH / 100);
 const runwayRecursos = () => window.innerHeight * (RECURSOS_RUNWAY_VH / 100);
+const runwayShowcase = () => window.innerHeight * (SHOWCASE_RUNWAY_VH / 100);
 
 /* ==========================================================================
-   useHeroScrollStory — os dois atos da landing
+   useHeroScrollStory — os três atos da landing
 
      Ato 1 · Hero Scroll Storyboard ............. F1 → F5
      Ato 2 · Dashboard → Recursos ............... D1 → D5
+     Ato 3 · Recursos Showcase .................. D5 → S1 → S2 → S3 → S4
+
+   Um pin só, três timelines. O pin cobre os três runways porque a cena
+   inteira acontece na mesma viewport presa; pins encostados criariam um
+   spacer por ato e uma emenda de scroll entre eles. As timelines é que
+   são separadas, cada uma com o seu trecho — dá para ler e mexer num ato
+   sem abrir os outros.
 
    A rolagem vertical transforma A MESMA instância de ProductStage do
    começo ao fim. Nada aqui monta, desmonta ou troca a Dashboard: o GSAP
@@ -126,7 +135,7 @@ export default function useHeroScrollStory(storyRef, rootRef) {
       const pin = ScrollTrigger.create({
         trigger: story,
         start: 'top top',
-        end: () => `+=${runwayHero() + runwayRecursos()}`,
+        end: () => `+=${runwayHero() + runwayRecursos() + runwayShowcase()}`,
         pin: root,
         pinSpacing: true,
         anticipatePin: 1,
@@ -256,12 +265,85 @@ export default function useHeroScrollStory(storyRef, rootRef) {
         0,
       );
 
+      /* ------------------------------------------------------------------
+         ATO 3 — Recursos Showcase (D5 → S1 → S2 → S3 → S4)
+
+         O painel já é a viewport desde o fim do ato 2 e fica parado aqui;
+         o que se transforma é o conteúdo dele. Mesmos nós, sempre: o
+         lockup encolhe e cresce de volta, o trilho desce até o rodapé,
+         sobe para o trilho de leitura e então atravessa a tela.
+
+         O lockup vai da esquerda ao centro e volta sem que nada meça
+         largura: `x` e `xPercent` interpolam juntos e o resultado é
+         `120 + x − largura·|xPercent|`, que dá o centro de 1440 quando
+         x = 600 e xPercent = −50, seja qual for o corpo da fonte.
+         ------------------------------------------------------------------ */
+      const eyebrow = q('.cc-recursos__eyebrow')[0];
+      const titulo = q('.cc-recursos__titulo')[0];
+      const subRecursos = q('.cc-recursos__sub')[0];
+      const cta = q('.cc-recursos__cta')[0];
+      const indicador = q('.cc-recursos__indicador')[0];
+      const preenchido = q('.cc-recursos__indicador-preenchido')[0];
+      const trilho = q('.cc-recursos__trilho')[0];
+
+      const tlShow = gsap.timeline({
+        defaults: { ease: 'none', immediateRender: false },
+        scrollTrigger: {
+          trigger: story,
+          start: () => `top top-=${runwayHero() + runwayRecursos()}`,
+          end: () => `+=${runwayShowcase()}`,
+          scrub: true,
+          invalidateOnRefresh: true,
+        },
+      });
+
+      SHOWCASE_KEYFRAMES.slice(1).forEach((kf, i) => {
+        const ant = SHOWCASE_KEYFRAMES[i];
+        const at = ant.progresso;
+        const duration = kf.progresso - ant.progresso;
+        const trecho = { duration, immediateRender: false };
+
+        tlShow.fromTo(eyebrow, { ...ant.eyebrow }, { ...kf.eyebrow, ...trecho }, at);
+        tlShow.fromTo(titulo, { ...ant.titulo }, { ...kf.titulo, ...trecho }, at);
+        tlShow.fromTo(subRecursos, { ...ant.sub }, { ...kf.sub, ...trecho }, at);
+        tlShow.fromTo(cta, { ...ant.cta }, { ...kf.cta, ...trecho }, at);
+        tlShow.fromTo(
+          indicador,
+          { opacity: ant.hairline.opacity },
+          { opacity: kf.hairline.opacity, ...trecho },
+          at,
+        );
+        /* Tween separado do trilho, de propósito: no S3 o preenchimento
+           está em 55% enquanto o trilho está em 50%. Derivar um do outro
+           apagaria essa diferença, que é do Designer. */
+        tlShow.fromTo(
+          preenchido,
+          { width: ant.hairline.fill },
+          { width: kf.hairline.fill, ...trecho },
+          at,
+        );
+        tlShow.fromTo(trilho, { ...ant.trilho }, { ...kf.trilho, ...trecho }, at);
+      });
+
+      /* O subtítulo é alinhado à esquerda no painel de Recursos e
+         centralizado no S1 — a prancha muda as duas coisas. `text-align`
+         não interpola, então a troca acontece no meio do primeiro trecho,
+         quando o bloco inteiro já está em movimento e o deslocamento da
+         segunda linha passa despercebido. */
+      tlShow.set(
+        subRecursos,
+        { textAlign: 'center' },
+        SHOWCASE_KEYFRAMES[1].progresso / 2,
+      );
+
       return () => {
         pin.kill();
         tlHero.scrollTrigger?.kill();
         tlHero.kill();
         tlRec.scrollTrigger?.kill();
         tlRec.kill();
+        tlShow.scrollTrigger?.kill();
+        tlShow.kill();
       };
     });
 
