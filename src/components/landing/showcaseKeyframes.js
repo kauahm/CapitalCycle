@@ -67,6 +67,9 @@ export const BASE = {
    que precisasse ser ligado e desligado no meio da transição. */
 export const TITULO_MAX_WIDTH = 760;
 
+/* 4 painéis de 520 + 3 gaps de 28. */
+export const LARGURA_TRILHO = 4 * 520 + 3 * 28;
+
 const y = (topAlvo, base) => +(topAlvo - base).toFixed(2);
 
 export const SHOWCASE_KEYFRAMES = [

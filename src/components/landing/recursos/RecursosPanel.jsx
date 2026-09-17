@@ -57,7 +57,17 @@ const RecursosPanel = forwardRef(function RecursosPanel({ trackRef, estatico }, 
         <div className="cc-recursos__indicador-preenchido" />
       </div>
 
-      <div className="cc-recursos__trilho">
+      {/* No fluxo o trilho é uma faixa de rolagem horizontal. Quem navega
+          por teclado precisa conseguir focá-la para rolar com as setas —
+          sem isso os dois últimos painéis ficariam fora de alcance sem
+          gesto de toque. No desktop a faixa não rola sozinha (quem move é
+          a narrativa), então não vira parada de tabulação. */}
+      <div
+        className="cc-recursos__trilho"
+        {...(estatico
+          ? { tabIndex: 0, role: 'group', 'aria-label': 'Recursos, faixa rolável' }
+          : {})}
+      >
         <RecursosTrack ref={trackRef} />
       </div>
     </section>

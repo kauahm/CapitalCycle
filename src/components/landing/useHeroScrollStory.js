@@ -2,9 +2,9 @@ import { useLayoutEffect } from 'react';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 
-import { HERO_KEYFRAMES, HERO_SEGMENTO } from './heroKeyframes';
-import { RECURSOS_FUNDO, RECURSOS_KEYFRAMES } from './recursosKeyframes';
-import { SHOWCASE_KEYFRAMES } from './showcaseKeyframes';
+import { HERO_KEYFRAMES, HERO_SEGMENTO, STAGE_TOP_BASE } from './heroKeyframes';
+import { ALTURA_DASH_F5, RECURSOS_FUNDO, RECURSOS_KEYFRAMES } from './recursosKeyframes';
+import { LARGURA_TRILHO, SHOWCASE_KEYFRAMES } from './showcaseKeyframes';
 import { duracaoDoPin, runwayHero, runwayRecursos, runwayShowcase } from './landingRunways';
 
 /* Registro idempotente. Em dev o Vite reexecuta o módulo a cada HMR, e
@@ -57,18 +57,55 @@ gsap.registerPlugin(ScrollTrigger);
    spacer, jogando o início da narrativa para depois de todo o runway. Foi
    exatamente o que aconteceu antes desta separação: as timelines só
    começavam a rodar quando o pin já tinha soltado. */
-export default function useHeroScrollStory(storyRef, rootRef) {
+/* Fatores de viewport.
+
+   Os keyframes das três pranchas são o sistema de coordenadas 1440×900 do
+   Designer, e continuam intocados nos módulos de keyframes. Quem adapta é
+   aqui: cada valor é multiplicado pelo fator da dimensão que o governa.
+
+     fx — largura. Manda em tudo que a Dashboard faz, porque o F5 dela é
+          definido por encostar nas duas bordas: 1180 × 1,2203 × fx = vw.
+          Manda também nas posições horizontais do lockup e do trilho.
+     fy — altura. Manda nas âncoras verticais da Hero (522, 128, 322...),
+          que descrevem um quadro de 900px.
+
+   Em 1440×900 os dois valem exatamente 1, e nada muda — é o que mantém o
+   golden master intacto por construção, e não por ajuste. */
+const fatorX = () => document.documentElement.clientWidth / 1440;
+const fatorY = (root) => root.getBoundingClientRect().height / 900;
+
+/* O trilho não encolhe junto com a largura: abaixo de ~1040px os cards
+   ficariam estreitos demais para o texto que carregam. Ele para de
+   encolher em 0,72 e o percurso é que fica mais longo. */
+const fatorTrilho = () => Math.min(1, Math.max(0.72, fatorX()));
+
+export default function useHeroScrollStory(storyRef, rootRef, modoFluxo) {
   useLayoutEffect(() => {
     const story = storyRef.current;
     const root = rootRef.current;
     if (!story || !root) return undefined;
+
+    /* No fluxo vertical não existe narrativa para montar.
+
+       `modoFluxo` precisa estar nas dependências, e não só no matchMedia
+       do GSAP: quando a janela cruza os 768px, o React move o painel de
+       Recursos para dentro ou para fora da Hero. O matchMedia do GSAP
+       dispara antes desse remanejo, e encontraria a árvore do jeito
+       antigo — na volta do mobile para o desktop ele procurava o painel
+       dentro da Hero, não achava, e desistia sem criar o pin. Amarrado
+       aqui, o efeito só roda depois de o DOM já estar no formato certo. */
+    if (modoFluxo) return undefined;
 
     /* matchMedia dá o corte de reduced motion e o cleanup de graça: fora
        da query nada é criado, e `revert()` no unmount mata timelines, pin
        e triggers, devolvendo os estilos inline ao estado original. */
     const mm = gsap.matchMedia();
 
-    mm.add('(prefers-reduced-motion: no-preference)', () => {
+    /* Abaixo de 768px a landing não é uma narrativa presa: é um fluxo
+       vertical comum, montado pelo React (ver LandingHero). Aqui não se
+       cria timeline nenhuma — e o matchMedia derruba tudo sozinho quando
+       a janela cruza a fronteira, sem deixar trigger nem spacer órfão. */
+    mm.add('(min-width: 768px) and (prefers-reduced-motion: no-preference)', () => {
       const q = gsap.utils.selector(root);
       const persp = q('.cc-stage__persp')[0];
       const frame = q('.cc-stage__frame')[0];
@@ -81,6 +118,16 @@ export default function useHeroScrollStory(storyRef, rootRef) {
       const navClara = q('.cc-hero__nav-clara')[0];
 
       if (!persp || !frame || !painel) return;
+
+      const fx = fatorX();
+      const fy = fatorY(root);
+      const ft = fatorTrilho();
+
+      /* O repouso do painel tem uma parcela vertical e uma horizontal, o
+         que CSS não consegue somar num `top` percentual. Escrito aqui, com
+         `clientWidth`, mantém a emenda entre Dashboard e Recursos exata em
+         qualquer largura — e o `mm.revert()` desfaz no unmount. */
+      gsap.set(painel, { top: STAGE_TOP_BASE * fy + ALTURA_DASH_F5 * fx });
 
       /* O BLOCO RÍGIDO.
 
@@ -102,16 +149,18 @@ export default function useHeroScrollStory(storyRef, rootRef) {
       /* F1 explícito: a partir daqui quem manda nos transforms é o GSAP,
          não o CSS. Evita depender de como o navegador serializou a
          matrix do `rotateX(6deg) scale(0.86)` que a H1 deixou no CSS. */
-      gsap.set(sobem, { y: F1.stage.y });
+      gsap.set(sobem, { y: F1.stage.y * fy });
       gsap.set(frame, {
         transformOrigin: '50% 0%',
-        scale: F1.stage.scale,
+        scale: F1.stage.scale * fx,
         rotationX: F1.stage.rotationX,
         borderRadius: F1.stage.radius,
         borderColor: F1.stage.borderColor,
         boxShadow: F1.stage.boxShadow,
       });
-      gsap.set(glow, { opacity: F1.glowOpacity });
+      /* O glow é parte da composição do produto, não do quadro: escala
+         junto com a Dashboard, ancorado no topo dela. */
+      gsap.set(glow, { opacity: F1.glowOpacity, scale: fx, transformOrigin: '50% 100%' });
       gsap.set(navbar, { opacity: F1.navbarOpacity });
       gsap.set(h1, { opacity: F1.h1.opacity, y: F1.h1.y });
       gsap.set(sub, { opacity: F1.sub.opacity, y: F1.sub.y });
@@ -163,11 +212,11 @@ export default function useHeroScrollStory(storyRef, rootRef) {
       HERO_KEYFRAMES.slice(1).forEach((kf, i) => {
         const at = i * HERO_SEGMENTO;
 
-        tlHero.to(sobem, { y: kf.stage.y }, at);
+        tlHero.to(sobem, { y: kf.stage.y * fy }, at);
         tlHero.to(
           frame,
           {
-            scale: kf.stage.scale,
+            scale: kf.stage.scale * fx,
             rotationX: kf.stage.rotationX,
             borderRadius: kf.stage.radius,
             borderColor: kf.stage.borderColor,
@@ -212,10 +261,14 @@ export default function useHeroScrollStory(storyRef, rootRef) {
         const at = anterior.progresso;
         const duration = kf.progresso - anterior.progresso;
 
+        /* `y` do keyframe é `dashTop − 522` em coordenadas do Designer.
+           Aqui as duas parcelas voltam separadas: o topo estrutural segue
+           a altura e o deslocamento da Dashboard segue a largura. */
+        const yEscalado = (k) => k.dashTop * fx - STAGE_TOP_BASE * fy;
         tlRec.fromTo(
           blocoRigido,
-          { y: anterior.y },
-          { y: kf.y, duration, immediateRender: false },
+          { y: yEscalado(anterior) },
+          { y: yEscalado(kf), duration, immediateRender: false },
           at,
         );
 
@@ -282,6 +335,7 @@ export default function useHeroScrollStory(storyRef, rootRef) {
       const indicador = q('.cc-recursos__indicador')[0];
       const preenchido = q('.cc-recursos__indicador-preenchido')[0];
       const trilho = q('.cc-recursos__trilho')[0];
+      const track = q('.ccr-track')[0];
 
       const tlShow = gsap.timeline({
         defaults: { ease: 'none', immediateRender: false },
@@ -294,16 +348,46 @@ export default function useHeroScrollStory(storyRef, rootRef) {
         },
       });
 
+      /* O trilho para de encolher em 0,72 para os cards continuarem
+         legíveis; o percurso é recalculado a partir da largura real dele
+         e da folga de 120px (proporcional) nas duas pontas — em 1440 isso
+         reproduz os 964px do Designer. */
+      gsap.set(track, { scale: ft, transformOrigin: '0 0' });
+      const larguraTrilho = LARGURA_TRILHO * ft;
+      const margemTrilho = 120 * fx;
+      const curso = Math.max(
+        0,
+        larguraTrilho - (document.documentElement.clientWidth - 2 * margemTrilho),
+      );
+
+      /* Cada peça do lockup: horizontais pela largura, verticais pela
+         altura, corpo de fonte pelo clamp do CSS (que já é do viewport). */
+      /* O vaivém tipográfico do showcase (52 → 88 → 46px) é keyframe
+         aprovado e sobrevive a qualquer largura: o que muda é a escala.
+         O piso de 0,6 impede que o título da seção fique pequeno demais
+         nas viewports estreitas da faixa compacta. */
+      const escalaFonte = (px) => Math.min(px, Math.max(px * 0.6, px * fx));
+      const escalaPeca = (v) => ({
+        ...v,
+        ...(v.x !== undefined ? { x: v.x * fx } : {}),
+        ...(v.y !== undefined ? { y: v.y * fy } : {}),
+        ...(v.fontSize !== undefined ? { fontSize: escalaFonte(v.fontSize) } : {}),
+      });
+      const escalaTrilho = (v) => ({
+        x: (v.x / 964) * curso,
+        y: v.y * fy,
+      });
+
       SHOWCASE_KEYFRAMES.slice(1).forEach((kf, i) => {
         const ant = SHOWCASE_KEYFRAMES[i];
         const at = ant.progresso;
         const duration = kf.progresso - ant.progresso;
         const trecho = { duration, immediateRender: false };
 
-        tlShow.fromTo(eyebrow, { ...ant.eyebrow }, { ...kf.eyebrow, ...trecho }, at);
-        tlShow.fromTo(titulo, { ...ant.titulo }, { ...kf.titulo, ...trecho }, at);
-        tlShow.fromTo(subRecursos, { ...ant.sub }, { ...kf.sub, ...trecho }, at);
-        tlShow.fromTo(cta, { ...ant.cta }, { ...kf.cta, ...trecho }, at);
+        tlShow.fromTo(eyebrow, escalaPeca(ant.eyebrow), { ...escalaPeca(kf.eyebrow), ...trecho }, at);
+        tlShow.fromTo(titulo, escalaPeca(ant.titulo), { ...escalaPeca(kf.titulo), ...trecho }, at);
+        tlShow.fromTo(subRecursos, escalaPeca(ant.sub), { ...escalaPeca(kf.sub), ...trecho }, at);
+        tlShow.fromTo(cta, escalaPeca(ant.cta), { ...escalaPeca(kf.cta), ...trecho }, at);
         tlShow.fromTo(
           indicador,
           { opacity: ant.hairline.opacity },
@@ -315,11 +399,11 @@ export default function useHeroScrollStory(storyRef, rootRef) {
            apagaria essa diferença, que é do Designer. */
         tlShow.fromTo(
           preenchido,
-          { width: ant.hairline.fill },
-          { width: kf.hairline.fill, ...trecho },
+          { width: ant.hairline.fill * fx },
+          { width: kf.hairline.fill * fx, ...trecho },
           at,
         );
-        tlShow.fromTo(trilho, { ...ant.trilho }, { ...kf.trilho, ...trecho }, at);
+        tlShow.fromTo(trilho, escalaTrilho(ant.trilho), { ...escalaTrilho(kf.trilho), ...trecho }, at);
       });
 
       /* O subtítulo é alinhado à esquerda no painel de Recursos e
@@ -358,5 +442,5 @@ export default function useHeroScrollStory(storyRef, rootRef) {
       vivo = false;
       mm.revert();
     };
-  }, [storyRef, rootRef]);
+  }, [storyRef, rootRef, modoFluxo]);
 }

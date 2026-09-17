@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useReducedMotion } from 'framer-motion';
 
@@ -45,6 +45,29 @@ const LINKS_NAV_CLARA = LINKS_NAV.map((l) => ({
   ativo: l.rotulo === 'Recursos',
 }));
 
+/* Fronteira entre a narrativa presa e o fluxo vertical.
+
+   768px porque é onde a composição do Designer deixa de caber como
+   narrativa: abaixo disso a Dashboard em F5 teria menos de metade da
+   largura para a qual foi desenhada, e o trilho horizontal disputaria o
+   gesto do usuário com a rolagem da página. O mesmo valor é usado no
+   `matchMedia` do GSAP, para que os dois lados concordem. */
+const CONSULTA_FLUXO = '(max-width: 767px)';
+
+function useFluxoVertical() {
+  const [ehFluxo, setEhFluxo] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia(CONSULTA_FLUXO).matches,
+  );
+  useEffect(() => {
+    const mq = window.matchMedia(CONSULTA_FLUXO);
+    const sincroniza = () => setEhFluxo(mq.matches);
+    sincroniza();
+    mq.addEventListener('change', sincroniza);
+    return () => mq.removeEventListener('change', sincroniza);
+  }, []);
+  return ehFluxo;
+}
+
 export default function LandingHero() {
   const storyRef = useRef(null);
   const rootRef = useRef(null);
@@ -53,16 +76,21 @@ export default function LandingHero() {
   // Exposto desde já para a fase seguinte animar este mesmo trilho.
   const trackRef = useRef(null);
 
-  // A narrativa vive fora do React: o GSAP escreve direto nestes nós. O
-  // componente só monta a estrutura — e monta uma única vez.
-  useHeroScrollStory(storyRef, rootRef);
-
   /* Sem movimento, nenhuma timeline roda — e aí o painel de Recursos, que
      descansa em 1425px dentro de uma Hero de 900px com `overflow: hidden`,
      ficaria inalcançável. Então nesse modo ele sai de dentro da Hero e vira
      uma seção comum logo abaixo dela: a mesma composição, sem narrativa,
      mas legível e acessível. */
   const semMovimento = useReducedMotion();
+  const larguraDeFluxo = useFluxoVertical();
+
+  /* Os dois caminhos chegam no mesmo lugar: sem narrativa presa, o painel
+     de Recursos sai de dentro da Hero e vira seção comum logo abaixo. */
+  const modoFluxo = semMovimento || larguraDeFluxo;
+
+  // A narrativa vive fora do React: o GSAP escreve direto nestes nós. O
+  // componente só monta a estrutura — e monta uma única vez.
+  useHeroScrollStory(storyRef, rootRef, modoFluxo);
 
   /* "Recursos" não é um nó que o navegador possa procurar: a seção vive
      dentro da narrativa pinada, e o elemento dela fica preso na viewport
@@ -77,28 +105,51 @@ export default function LandingHero() {
     e.preventDefault();
     const suave = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     window.scrollTo({
-      top: semMovimento
+      top: modoFluxo
         ? (document.querySelector('.cc-recursos')?.getBoundingClientRect().top ?? 0) + window.scrollY
         : scrollDaSecaoRecursos(storyRef.current),
       behavior: suave ? 'smooth' : 'auto',
     });
   };
 
+  /* No fluxo vertical a Dashboard é apresentada inteira, escalada para a
+     largura do telefone. `scale()` precisa de um número sem unidade, e o
+     CSS não sabe dividir `100vw` por 1182 e devolver isso — então a razão
+     é escrita aqui, como custom property, e recalculada no resize. */
+  useEffect(() => {
+    const el = rootRef.current;
+    if (!modoFluxo || !el) return undefined;
+    const aplica = () => {
+      const disponivel = Math.max(0, el.clientWidth - 32);
+      el.style.setProperty('--cc-escala-produto', String(disponivel / 1182));
+    };
+    aplica();
+    window.addEventListener('resize', aplica);
+    return () => {
+      window.removeEventListener('resize', aplica);
+      el.style.removeProperty('--cc-escala-produto');
+    };
+  }, [modoFluxo]);
+
   const painel = (
     <RecursosPanel
       ref={recursosRef}
       trackRef={trackRef}
-      estatico={semMovimento}
+      estatico={modoFluxo}
     />
   );
 
   return (
     <div className="cc-hero-story" ref={storyRef}>
-    <section className="cc-hero" id="inicio" ref={rootRef}>
+    <section
+      className={`cc-hero${modoFluxo ? ' cc-hero--fluxo' : ''}`}
+      id="inicio"
+      ref={rootRef}
+    >
       {/* Plano inferior do bloco rígido. Declarado antes do palco, como na
           prancha: Recursos vem por baixo, a Dashboard por cima. Em repouso
           ele fica fora do fold e só entra quando o segundo ato começa. */}
-      {!semMovimento && painel}
+      {!modoFluxo && painel}
 
       <ProductStage ref={stageRef} />
 
@@ -186,7 +237,7 @@ export default function LandingHero() {
       </div>
     </section>
 
-    {semMovimento && painel}
+    {modoFluxo && painel}
     </div>
   );
 }
