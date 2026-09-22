@@ -62,8 +62,10 @@ export function useAportesPorMeta(metaIds, uid) {
       );
     });
 
+    /* `key` e a lista de ids serializada, e nao o array `metaIds`: um array
+       novo a cada render reassinaria os listeners toda vez. Com a string,
+       a dependencia so muda quando as metas realmente mudam. */
     return () => unsubs.forEach((u) => u());
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key, uid]);
 
   return aportesMap;
