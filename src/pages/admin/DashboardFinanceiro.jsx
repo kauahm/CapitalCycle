@@ -69,7 +69,7 @@ export default function DashboardFinanceiro() {
   // Aportes das metas — usados para o progresso real das metas (não mais
   // inferido de transações de entrada, ver especificação Fase 1 item 2).
   const metaIds = ciclos.filter((c) => c.tipo === 'Meta').map((c) => c.id);
-  const aportesMap = useAportesPorMeta(metaIds);
+  const aportesMap = useAportesPorMeta(metaIds, currentUser?.uid);
 
   // Formatador de Moeda
   const formatarMoeda = (valor) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor || 0);

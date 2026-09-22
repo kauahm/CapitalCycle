@@ -54,7 +54,7 @@ export default function CiclosInvestimento() {
   // Aportes das metas (subcoleção ciclos/{id}/aportes) — não afeta ciclos do
   // tipo Orçamento, que continuam calculados a partir de transactions.
   const metaIds = ciclos.filter((c) => c.tipo === 'Meta').map((c) => c.id);
-  const aportesMap = useAportesPorMeta(metaIds);
+  const aportesMap = useAportesPorMeta(metaIds, currentUser?.uid);
 
   useEffect(() => {
     if (!currentUser) return;
