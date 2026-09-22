@@ -178,6 +178,20 @@ export default function Payment() {
 
   // ── Estado geral ──
   const [loading, setLoading] = useState(false);
+
+  /* Lock sincrono da confirmacao de pagamento.
+
+     `loading` e estado do React e so fecha a porta depois do re-render:
+     dois cliques rapidos em "Ja paguei" entravam os dois antes disso. O
+     botao tambem nao tinha `disabled` nenhum. O resultado era duas
+     chamadas a `finishRegistration` — a primeira criava a conta e a
+     segunda batia em `auth/email-already-in-use`, que aparecia como erro
+     na tela de um cadastro que na verdade tinha dado certo. Era esse o
+     "erro do Ja paguei".
+
+     Um ref muda no mesmo tick do clique, entao fecha a porta antes de o
+     segundo evento ser processado. */
+  const confirmacaoLockRef = useRef(false);
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
 
   // ── Limpa o timer do PIX ao sair ──
@@ -249,6 +263,10 @@ export default function Payment() {
 
   // ── Simula o pagamento PIX sendo confirmado (botão "Já paguei") ──
   const handlePixPaid = async () => {
+    // Lock antes de qualquer efeito: e o primeiro clique que vale.
+    if (confirmacaoLockRef.current) return;
+    confirmacaoLockRef.current = true;
+
     setStep('processing');
     setLoading(true);
     // Simula a "verificação" do pagamento no PSP
@@ -283,6 +301,11 @@ export default function Payment() {
       return;
     }
 
+    // Lock depois das validacoes — elas nao iniciam operacao nenhuma e
+    // precisam continuar podendo ser corrigidas e reenviadas.
+    if (confirmacaoLockRef.current) return;
+    confirmacaoLockRef.current = true;
+
     setStep('processing');
     setLoading(true);
 
@@ -291,6 +314,9 @@ export default function Payment() {
 
     // Recusa simulada para cartões terminados em "0000" (apenas para a demo)
     if (n.endsWith('0000')) {
+      // Recusa simulada: nada foi criado, entao a pessoa precisa poder
+      // trocar o cartao e tentar de novo.
+      confirmacaoLockRef.current = false;
       setLoading(false);
       setStep('card-form');
       setToast({
@@ -325,12 +351,28 @@ export default function Payment() {
       setLoading(false);
     } catch (error) {
       console.error('Erro ao finalizar cadastro:', error);
+
+      /* Libera o lock: a tentativa terminou e nada foi concluido, entao a
+         pessoa precisa poder tentar de novo. O `registerWithPayment` e
+         idempotente — se a conta do Auth ja tiver sido criada por esta
+         mesma tentativa, a proxima retoma de onde parou em vez de esbarrar
+         em `auth/email-already-in-use`. */
+      confirmacaoLockRef.current = false;
       setLoading(false);
       setStep(method === 'pix' ? 'pix-waiting' : 'card-form');
+
       if (error.code === 'auth/email-already-in-use') {
-        setToast({ show: true, message: 'Este e-mail já está cadastrado. Faça login.', type: 'error' });
+        // Agora so chega aqui quando a senha NAO confere, ou seja, quando o
+        // e-mail e mesmo de outra pessoa.
+        setToast({ show: true, message: 'Este e-mail já tem conta. Faça login para continuar.', type: 'error' });
       } else if (error.code === 'auth/popup-closed-by-user' || error.code === 'auth/cancelled-popup-request') {
-        setToast({ show: true, message: 'Popup do Google fechado.', type: 'warning' });
+        setToast({ show: true, message: 'Popup do Google fechado. Tente novamente.', type: 'warning' });
+      } else if (error.code === 'auth/network-request-failed') {
+        setToast({ show: true, message: 'Sem conexão. Verifique sua internet e tente novamente.', type: 'error' });
+      } else if (error.code === 'auth/weak-password') {
+        setToast({ show: true, message: 'A senha precisa ter ao menos 6 caracteres.', type: 'error' });
+      } else if (error.code === 'auth/invalid-email') {
+        setToast({ show: true, message: 'E-mail inválido. Volte e corrija o endereço.', type: 'error' });
       } else {
         setToast({ show: true, message: 'Não foi possível concluir. Tente novamente.', type: 'error' });
       }
@@ -498,10 +540,15 @@ export default function Payment() {
               </button>
               <button
                 onClick={handlePixPaid}
-                className="flex-[2] py-3 text-sm font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors flex items-center justify-center gap-2"
+                disabled={loading}
+                className="flex-[2] py-3 text-sm font-bold text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-70 rounded-lg transition-colors flex items-center justify-center gap-2"
               >
-                <Check size={15} />
-                Já paguei
+                {loading ? <LoadingSpinner size="sm" color="text-white" /> : (
+                  <>
+                    <Check size={15} />
+                    Já paguei
+                  </>
+                )}
               </button>
             </div>
 

@@ -15,6 +15,62 @@ const AuthContext = createContext(null);
 // retroativamente.
 const TERMOS_VERSAO = '1.0';
 
+/* ==========================================================================
+   Operacao critica x registro secundario
+
+   O cadastro nao e uma operacao so: ele cria a conta no Firebase Auth,
+   grava o perfil em `usuarios/{uid}`, ajusta o displayName e grava o
+   comprovante em `pagamentos/{...}`. Antes, qualquer uma delas falhando
+   derrubava o fluxo inteiro com "erro" — mas a conta do Auth JA TINHA
+   sido criada, porque e a primeira. Na segunda tentativa vinha
+   `auth/email-already-in-use` e a pessoa ficava presa: nao conseguia
+   concluir nem recomecar.
+
+   A classificacao, que e o que define o que pode derrubar o cadastro:
+
+     CRITICO
+       - conta no Firebase Auth
+       - documento `usuarios/{uid}`
+     Sem os dois a pessoa nao tem acesso: e o perfil que carrega plano,
+     nome e situacao. Falha aqui e falha de verdade e precisa aparecer.
+
+     SECUNDARIO
+       - `updateProfile({ displayName })`
+       - documento em `pagamentos/{...}`
+     O displayName e conveniencia — o nome de exibicao vem do perfil. E o
+     pagamento e SIMULADO: nao existe gateway, banco nem conciliacao por
+     tras dele, entao o comprovante e registro interno. Perder o registro
+     de um pagamento que nao moveu dinheiro nao justifica destruir um
+     cadastro ja concluido.
+
+   Falha secundaria fica no console e o fluxo segue. Isso nao e esconder
+   erro: nada e engolido em silencio, e nenhuma falha de Auth e mascarada
+   como sucesso.
+   ========================================================================== */
+
+/* Grava o comprovante do pagamento simulado. Secundario por contrato:
+   nunca lanca. */
+async function registrarPagamento(uid, plan, payment) {
+  if (!payment) return;
+  try {
+    await setDoc(doc(db, 'pagamentos', `${uid}_${payment.idTransacao}`), {
+      uid,
+      plan,
+      metodo: payment.metodo, // 'pix' | 'cartao'
+      valor: payment.valor,
+      idTransacao: payment.idTransacao,
+      status: 'aprovado',
+      cartaoFinal: payment.cartaoFinal || null,
+      createdAt: serverTimestamp(),
+    });
+  } catch (err) {
+    console.error(
+      '[Cadastro] Comprovante de pagamento nao registrado (falha secundaria, cadastro preservado):',
+      err?.code || err?.message,
+    );
+  }
+}
+
 export function AuthProvider({ children }) {
   const [currentUser, setCurrentUser] = useState(null);
   const [userProfile, setUserProfile] = useState(null);
@@ -102,20 +158,11 @@ export function AuthProvider({ children }) {
   const changePlanWithPayment = async ({ plan, payment }) => {
     if (!currentUser) throw new Error('Usuário não autenticado.');
 
+    // Critico: e a troca de plano em si, o que a pessoa pagou para obter.
     await setDoc(doc(db, 'usuarios', currentUser.uid), { plan }, { merge: true });
 
-    if (payment) {
-      await setDoc(doc(db, 'pagamentos', `${currentUser.uid}_${payment.idTransacao}`), {
-        uid: currentUser.uid,
-        plan,
-        metodo: payment.metodo,
-        valor: payment.valor,
-        idTransacao: payment.idTransacao,
-        status: 'aprovado',
-        cartaoFinal: payment.cartaoFinal || null,
-        createdAt: serverTimestamp(),
-      });
-    }
+    // Secundario: o comprovante nao pode desfazer a troca ja gravada.
+    await registrarPagamento(currentUser.uid, plan, payment);
 
     setUserProfile((prev) => ({ ...(prev || {}), plan }));
   };
@@ -123,8 +170,49 @@ export function AuthProvider({ children }) {
   // Cadastro tradicional: agora é invocado SOMENTE após a confirmação de pagamento.
   // O fluxo da tela de pagamento coleta os dados e, no sucesso, chama esta função.
   const registerWithPayment = async ({ name, email, password, plan, payment }) => {
-    const { user } = await createUserWithEmailAndPassword(auth, email, password);
-    await updateProfile(user, { displayName: name });
+    /* Passo 1, critico: a conta do Auth.
+
+       `auth/email-already-in-use` aqui tem duas leituras muito diferentes,
+       e tratar as duas como erro era o que prendia a pessoa:
+
+         (a) uma tentativa ANTERIOR deste mesmo fluxo criou a conta e
+             falhou depois, num passo seguinte;
+         (b) o e-mail e de outra pessoa, que ja tem conta.
+
+       O login com a MESMA senha separa os dois casos. Se entrar, a conta e
+       desta pessoa, foi criada agora por este fluxo, e o certo e continuar
+       de onde parou em vez de recomecar. Se nao entrar, e o caso (b) e o
+       erro original vale. */
+    let user;
+    try {
+      ({ user } = await createUserWithEmailAndPassword(auth, email, password));
+    } catch (err) {
+      if (err?.code !== 'auth/email-already-in-use') throw err;
+
+      try {
+        ({ user } = await signInWithEmailAndPassword(auth, email, password));
+        console.warn('[Cadastro] Conta ja existia e a senha confere: retomando cadastro parcial.');
+      } catch {
+        // Senha nao confere: e mesmo o e-mail de outra pessoa.
+        throw err;
+      }
+    }
+
+    // Secundario: o nome de exibicao do Auth. O nome que a interface mostra
+    // vem do perfil, entao falhar aqui nao muda nada para a pessoa.
+    try {
+      await updateProfile(user, { displayName: name });
+    } catch (err) {
+      console.error('[Cadastro] displayName nao atualizado (falha secundaria):', err?.code || err?.message);
+    }
+
+    /* Passo 2, critico: o perfil.
+
+       `merge: true` para o caso de retomada — se uma tentativa anterior ja
+       gravou parte do documento, isto completa em vez de sobrescrever, e
+       `createdAt` de uma conta que ja existia nao e reescrito. */
+    const perfilRef = doc(db, 'usuarios', user.uid);
+    const jaExiste = (await getDoc(perfilRef)).exists();
 
     const profile = {
       nome: name,
@@ -134,24 +222,13 @@ export function AuthProvider({ children }) {
       // Sem este campo a conta nasce sem situação definida e o painel de
       // Usuários a exibe como inativa.
       situacao: 'ativa',
-      createdAt: serverTimestamp(),
+      ...(jaExiste ? {} : { createdAt: serverTimestamp() }),
       termosAceitos: { versao: TERMOS_VERSAO, em: serverTimestamp() },
     };
-    await setDoc(doc(db, 'usuarios', user.uid), profile);
+    await setDoc(perfilRef, profile, { merge: true });
 
-    // Registra o comprovante de pagamento vinculado ao uid do usuário.
-    if (payment) {
-      await setDoc(doc(db, 'pagamentos', `${user.uid}_${payment.idTransacao}`), {
-        uid: user.uid,
-        plan,
-        metodo: payment.metodo, // 'pix' | 'cartao'
-        valor: payment.valor,
-        idTransacao: payment.idTransacao,
-        status: 'aprovado',
-        cartaoFinal: payment.cartaoFinal || null,
-        createdAt: serverTimestamp(),
-      });
-    }
+    // Secundario: comprovante do pagamento simulado.
+    await registrarPagamento(user.uid, plan, payment);
 
     setUserProfile(profile);
     return user;
@@ -193,18 +270,8 @@ export function AuthProvider({ children }) {
       await setDoc(docRef, profile);
     }
 
-    if (payment) {
-      await setDoc(doc(db, 'pagamentos', `${user.uid}_${payment.idTransacao}`), {
-        uid: user.uid,
-        plan,
-        metodo: payment.metodo,
-        valor: payment.valor,
-        idTransacao: payment.idTransacao,
-        status: 'aprovado',
-        cartaoFinal: payment.cartaoFinal || null,
-        createdAt: serverTimestamp(),
-      });
-    }
+    // Secundario: comprovante do pagamento simulado.
+    await registrarPagamento(user.uid, plan, payment);
 
     setUserProfile(profile);
     return user;
