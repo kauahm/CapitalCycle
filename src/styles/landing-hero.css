@@ -61,6 +61,43 @@
      referência. */
   -webkit-font-smoothing: auto;
   -moz-osx-font-smoothing: auto;
+
+  /* ---- Ritmo vertical da primeira dobra ----
+
+     O bloco textual estava comprimido porque o corpo da H1 crescia com a
+     LARGURA (5.972vw) enquanto as ancoras dele, do subtitulo e dos CTAs
+     eram fracoes da ALTURA (`N / 900 * 100%` de uma Hero de 100dvh). Os
+     dois eixos so coincidem na proporcao 1440:900 do Designer; em
+     qualquer viewport mais larga que alta o texto crescia dentro de um
+     slot que encolhia, e o respiro — que e a DIFERENCA entre os dois —
+     era o primeiro a sumir. Em 1366x768 sobravam 4px entre a segunda
+     linha da H1 e o subtitulo.
+
+     A correcao tem duas partes, e nenhuma delas mexe na geometria da
+     Dashboard (o palco continua ancorado em 522/900):
+
+     1. o corpo da H1 e do subtitulo passa a respeitar TAMBEM a altura,
+        via `min(vw, vh)`. Em 1440x900 os dois termos dao o mesmo numero
+        e nada muda — 86px e 17px, exatamente como na prancha;
+     2. subtitulo e CTAs deixam de ter ancora propria e passam a ser
+        empilhados A PARTIR da altura real da H1, com respiros
+        declarados. Assim o intervalo entre as pecas e uma constante da
+        composicao, e nao um resto de duas contas concorrentes. */
+  --cc-h1-fs: clamp(38px, min(5.972vw, 9.556vh), 86px);
+  --cc-sub-fs: clamp(14.5px, min(1.181vw, 1.889vh), 17px);
+
+  /* Alturas previstas das duas caixas de texto, ambas em duas linhas: a
+     H1 porque a copy traz o <br>, e o subtitulo porque a `max-width` de
+     610px o mantem em duas linhas em toda a faixa de desktop (>=768px),
+     onde o corpo ja esta no piso de 14,5px. */
+  --cc-h1-altura: calc(var(--cc-h1-fs) * 0.99 * 2);
+  --cc-sub-altura: calc(var(--cc-sub-fs) * 1.55 * 2);
+
+  /* Topo da H1 e os dois respiros editoriais. Em % da altura para
+     acompanharem o quadro, com piso para nao colapsarem em telas baixas. */
+  --cc-h1-topo: calc(110 / 900 * 100%);
+  --cc-respiro-h1-sub: max(34px, calc(52 / 900 * 100%));
+  --cc-respiro-sub-ctas: max(24px, calc(35 / 900 * 100%));
 }
 
 /* --------------------------------------------------------------------------
@@ -188,7 +225,7 @@
    -------------------------------------------------------------------------- */
 .cc-hero__headline-wrap {
   position: absolute;
-  top: calc(128 / 900 * 100%);
+  top: var(--cc-h1-topo);
   left: 0;
   right: 0;
   display: flex;
@@ -200,9 +237,11 @@
 .cc-hero__headline {
   margin: 0;
   font-family: 'Playfair Display', serif;
-  /* 86/1440 = 5.972vw. O teto trava o crescimento acima de 1440 e o piso
-     segura a legibilidade no mobile. Em 1440 da os 86px do Designer. */
-  font-size: clamp(38px, 5.972vw, 86px);
+  /* 86/1440 = 5.972vw e 86/900 = 9.556vh: o corpo obedece ao menor dos
+     dois eixos, entao a H1 nunca fica maior do que o quadro comporta em
+     altura. Em 1440x900 os dois termos valem 86px e a prancha fica
+     intacta; e so em telas mais largas que altas que o vh assume. */
+  font-size: var(--cc-h1-fs);
   font-weight: 700;
   line-height: 0.99;
   letter-spacing: -0.025em;
@@ -210,9 +249,11 @@
   text-align: center;
 }
 
+/* Empilhado a partir da H1, e nao ancorado por conta propria: o respiro
+   entre os dois passa a ser um valor declarado da composicao. */
 .cc-hero__sub-wrap {
   position: absolute;
-  top: calc(322 / 900 * 100%);
+  top: calc(var(--cc-h1-topo) + var(--cc-h1-altura) + var(--cc-respiro-h1-sub));
   left: 0;
   right: 0;
   display: flex;
@@ -224,15 +265,21 @@
   margin: 0;
   max-width: min(610px, 86%);
   text-align: center;
-  font-size: clamp(14.5px, 1.181vw, 17px);
+  font-size: var(--cc-sub-fs);
   line-height: 1.55;
   color: #a5a5b0;
   font-weight: 300;
 }
 
+/* Mesma logica do subtitulo: os CTAs vem depois dele, nao de uma ancora
+   independente. Subtitulo e CTAs leem como um par — por isso o respiro
+   daqui e menor que o que separa os dois da H1. */
 .cc-hero__ctas {
   position: absolute;
-  top: calc(398 / 900 * 100%);
+  top: calc(
+    var(--cc-h1-topo) + var(--cc-h1-altura) + var(--cc-respiro-h1-sub)
+    + var(--cc-sub-altura) + var(--cc-respiro-sub-ctas)
+  );
   left: 0;
   right: 0;
   display: flex;
