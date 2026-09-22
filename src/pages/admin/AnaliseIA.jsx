@@ -8,6 +8,7 @@ import { db } from '../../services/firebase';
 import UpgradeModal from '../../components/ui/UpgradeModal';
 import { canConsultarIA, getLimits, mesAtualKey } from '../../components/ui/plans';
 import { useAuth } from '../../hooks/useAuth';
+import { renderMarkdown } from '../../utils/markdownSimples';
 
 // ─────────────────────────────────────────────────────────
 // Configuração interna — vive só no .env da raiz do projeto,
@@ -23,6 +24,53 @@ const ENV_MODEL = import.meta.env.VITE_GEMINI_MODEL   || '';
 // foi o que deixou a tela quebrada quando o modelo antigo ficou indisponível.
 const MODELO_PADRAO = 'gemini-3.6-flash';
 
+/* Teto de espera de UMA tentativa.
+
+   Medido contra a API antes de escolher, com o prompt "Quanto gastei este
+   mes?": o tempo total variou de 3,4s a 49,4s, com casos de nao responder
+   dentro de 50s. A variacao e do servico, nao do payload — o mesmo pedido
+   curto ora volta em 3s, ora em 42s.
+
+   Sem teto, a requisicao que nunca volta deixa o chat girando para sempre:
+   e exatamente o sintoma de "as vezes nao responde".
+
+   30s e um compromisso deliberado para a apresentacao: corta a cauda longa
+   antes que ela pareca travamento, e ainda cobre a maioria das respostas
+   observadas. */
+const TIMEOUT_MS = 30000;
+
+/* Espera curta antes da unica retentativa. */
+const ESPERA_RETENTATIVA_MS = 1200;
+
+/* Status que valem uma segunda tentativa: indisponibilidade momentanea do
+   servico. Falham rapido, entao repetir custa pouco.
+
+   O 429 NAO entra, apesar de ser transitorio. A chave esta no nivel
+   gratuito, cujo limite medido e de 20 requisicoes por minuto neste
+   modelo, e a propria API responde "please retry in 10-15s". Repetir 1,2s
+   depois cai no mesmo balde e so dobra a espera antes da mesma mensagem —
+   melhor avisar a pessoa na hora.
+
+   Um 400 ou 403 tambem nao entra: repetir pedido malformado ou sem
+   permissao da o mesmo erro. */
+const STATUS_TRANSITORIO = new Set([500, 502, 503, 504]);
+
+/* Configuracao de geracao.
+
+   `thinkingLevel: 'low'` e a correcao central da lentidao. O modelo
+   raciocina por padrao, e para as perguntas desta tela isso e desproporcional:
+   na medicao, o pensamento respondia por cerca de 83% dos tokens gerados.
+   Com o nivel baixo a mediana medida caiu de ~23s para ~12s, sem perda de
+   qualidade percebida nas respostas de financas pessoais.
+
+   `maxOutputTokens` limita a cauda: sem teto, uma resposta longa demais e
+   outro caminho para a espera crescer. */
+const GENERATION_CONFIG = {
+  thinkingConfig: { thinkingLevel: 'low' },
+  maxOutputTokens: 1200,
+  temperature: 0.7,
+};
+
 const SYSTEM_PROMPT = `Você é o Capital Advisor, assistente financeiro pessoal do sistema CapitalCycle.
 Ajude o usuário a entender finanças, otimizar gastos e acompanhar metas.
 Responda sempre em português do Brasil, de forma concisa e prática.
@@ -33,6 +81,7 @@ Ao sugerir investimentos, sempre mencione os riscos envolvidos.`;
 // Monta o histórico no formato Gemini (system prompt injetado como 1º par)
 function buildPayload(history) {
   return {
+    generationConfig: GENERATION_CONFIG,
     contents: [
       { role: 'user',  parts: [{ text: `[Instruções do sistema]\n${SYSTEM_PROMPT}` }] },
       { role: 'model', parts: [{ text: 'Entendido. Sou o Capital Advisor, pronto para ajudar.' }] },
@@ -111,6 +160,127 @@ export default function AnaliseIA() {
     }
   };
 
+  /* Uma tentativa de consulta, com teto de espera.
+
+     O `AbortController` e o que impede a UI de esperar para sempre: sem
+     ele, uma conexao que nunca responde deixa o `await fetch` pendurado e
+     o spinner girando indefinidamente. O `clearTimeout` no finally evita
+     que o aborto dispare depois de a resposta ja ter chegado.
+
+     Distingue as falhas que valem retentativa (`transitorio: true`) das
+     que nao valem, para que quem chama decida — e nunca vaza o retorno
+     cru da API nem a chave para a tela. */
+  const tentarConsulta = async (history) => {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+
+    const ctrl = new AbortController();
+    const alarme = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
+
+    let res;
+    try {
+      res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(buildPayload(history)),
+        signal: ctrl.signal,
+      });
+    } catch (err) {
+      // `AbortError` e o nosso proprio teto batendo; `TypeError` e rede.
+      // Os dois sao transitorios — vale uma segunda tentativa.
+      /* Estourar o teto NAO e motivo para repetir: a pessoa ja esperou os
+         30s, e uma segunda tentativa a faria esperar 60s para ver a mesma
+         mensagem. Falha direto, com texto claro. */
+      if (err?.name === 'AbortError') {
+        console.error(`[Capital Advisor] Tempo esgotado apos ${TIMEOUT_MS}ms.`);
+        const e = new Error('TIMEOUT');
+        e.transitorio = false;
+        throw e;
+      }
+      console.error('[Capital Advisor] Falha de rede:', err?.message);
+      const e = new Error('REDE');
+      e.transitorio = true;
+      throw e;
+    } finally {
+      clearTimeout(alarme);
+    }
+
+    // O detalhe técnico fica no console para diagnóstico; o usuário recebe
+    // sempre uma mensagem de produto, nunca o retorno cru da API.
+    if (!res.ok) {
+      const errJson = await res.json().catch(() => ({}));
+      const msgTecnica = errJson?.error?.message || `Erro ${res.status}`;
+      console.error(`[Capital Advisor] Falha na consulta (HTTP ${res.status}): ${msgTecnica}`);
+
+      const e = new Error(String(res.status));
+      e.status = res.status;
+      e.transitorio = STATUS_TRANSITORIO.has(res.status);
+      e.naoEncontrado = msgTecnica.includes('not found') || msgTecnica.includes('not supported');
+      throw e;
+    }
+
+    const data = await res.json();
+    const aiText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+
+    /* HTTP 200 não basta: sem texto utilizável não houve consulta
+       respondida, então isso é falha e não pode debitar cota.
+
+       Tambem cai aqui a resposta cortada por `maxOutputTokens` antes de
+       produzir texto — por isso conta como transitoria: repetir costuma
+       resolver. */
+    if (!aiText || !aiText.trim()) {
+      const motivo = data?.candidates?.[0]?.finishReason || 'sem finishReason';
+      console.error(`[Capital Advisor] Resposta sem texto utilizável no payload (${motivo}).`);
+      const e = new Error('VAZIA');
+      e.transitorio = true;
+      throw e;
+    }
+
+    return aiText;
+  };
+
+  /* A consulta como a tela a enxerga: no maximo duas tentativas, e sempre
+     terminando ou com texto util ou com uma mensagem de produto.
+
+     A retentativa nao duplica nada: a mensagem do usuario ja esta no chat
+     desde antes da primeira tentativa, e a cota so e debitada depois que
+     esta funcao retorna texto. Uma consulta que falha nas duas tentativas
+     nao consome cota — e a regra que ja existia, preservada. */
+  const consultarAdvisor = async (history) => {
+    for (let tentativa = 1; tentativa <= 2; tentativa++) {
+      try {
+        return await tentarConsulta(history);
+      } catch (err) {
+        const ultima = tentativa === 2;
+
+        if (err?.transitorio && !ultima) {
+          console.warn(`[Capital Advisor] Tentativa ${tentativa} falhou (${err.message}); repetindo uma vez.`);
+          await new Promise((r) => setTimeout(r, ESPERA_RETENTATIVA_MS));
+          continue;
+        }
+
+        // Acabou o que dava para tentar: vira mensagem de produto.
+        if (err?.message === 'TIMEOUT') {
+          throw new Error('O Capital Advisor está demorando mais que o esperado. Tente novamente em alguns instantes.');
+        }
+        if (err?.message === 'REDE') {
+          throw new Error('Não foi possível conectar. Verifique sua internet e tente novamente.');
+        }
+        if (err?.status === 429) {
+          throw new Error('Muitas consultas em pouco tempo. Aguarde cerca de um minuto e tente novamente.');
+        }
+        if (err?.status && err.status >= 500) {
+          throw new Error('O Capital Advisor está temporariamente indisponível. Tente novamente em alguns instantes.');
+        }
+        if (err?.naoEncontrado) {
+          throw new Error('O Capital Advisor está indisponível no momento. Tente novamente mais tarde.');
+        }
+        throw new Error('Não foi possível falar com o Capital Advisor agora. Tente novamente em alguns instantes.');
+      }
+    }
+    // Inalcancavel: o laco ou retorna ou lanca. Fica pelo contrato explicito.
+    throw new Error('Não foi possível falar com o Capital Advisor agora. Tente novamente em alguns instantes.');
+  };
+
   const handleSend = async (e) => {
     e.preventDefault();
     if (!input.trim() || isTyping) return;
@@ -143,42 +313,7 @@ export default function AnaliseIA() {
     setAvisoCota(null);
 
     try {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(buildPayload(updated))
-      });
-
-      // O detalhe técnico fica no console para diagnóstico; o usuário recebe
-      // sempre uma mensagem de produto, nunca o retorno cru da API.
-      if (!res.ok) {
-        const errJson = await res.json().catch(() => ({}));
-        const msgTecnica = errJson?.error?.message || `Erro ${res.status}`;
-        console.error(`[Capital Advisor] Falha na consulta (HTTP ${res.status}): ${msgTecnica}`);
-
-        if (res.status === 503 || res.status === 500 || res.status === 502 || res.status === 504)
-          throw new Error('O Capital Advisor está temporariamente indisponível. Tente novamente em alguns instantes.');
-
-        if (res.status === 429)
-          throw new Error('Muitas consultas em pouco tempo. Aguarde alguns minutos e tente novamente.');
-
-        if (msgTecnica.includes('not found') || msgTecnica.includes('not supported'))
-          throw new Error('O Capital Advisor está indisponível no momento. Tente novamente mais tarde.');
-
-        throw new Error('Não foi possível falar com o Capital Advisor agora. Tente novamente em alguns instantes.');
-      }
-
-      const data = await res.json();
-      const aiText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-
-      // HTTP 200 não basta: sem texto utilizável não houve consulta respondida,
-      // então isso é falha e não pode debitar cota.
-      if (!aiText || !aiText.trim()) {
-        console.error('[Capital Advisor] Resposta sem texto utilizável no payload.');
-        throw new Error('Não foi possível falar com o Capital Advisor agora. Tente novamente em alguns instantes.');
-      }
+      const aiText = await consultarAdvisor(updated);
 
       setMessages(prev => [...prev, { id: Date.now() + 1, role: 'ai', text: aiText }]);
 
@@ -190,9 +325,9 @@ export default function AnaliseIA() {
       }
 
     } catch (e) {
-      // Os throws acima já trazem texto de produto. O que sobra aqui é falha
-      // de rede ou resposta malformada, cuja mensagem nativa é técnica —
-      // essa fica só no console.
+      // Os throws de `consultarAdvisor` já trazem texto de produto. O que
+      // sobra aqui é falha de rede ou resposta malformada, cuja mensagem
+      // nativa é técnica — essa fica só no console.
       if (e instanceof TypeError) {
         console.error('[Capital Advisor] Falha de rede:', e.message);
         setError('Não foi possível conectar. Verifique sua internet e tente novamente.');
@@ -261,12 +396,19 @@ export default function AnaliseIA() {
               <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 text-white ${msg.role === 'user' ? 'bg-slate-700' : 'bg-indigo-600'}`}>
                 {msg.role === 'user' ? <User size={20} /> : <Bot size={20} />}
               </div>
-              <div className={`max-w-[75%] rounded-2xl p-4 text-sm leading-relaxed whitespace-pre-wrap ${
+              {/* A resposta do Advisor vem em Markdown e era impressa crua,
+                  entao os `**negritos**` apareciam com os asteriscos na
+                  tela. Agora passa pelo parser, que devolve elementos
+                  React — nunca HTML, entao nao ha como o modelo injetar
+                  markup. A mensagem do usuario continua texto puro: ela
+                  nao e Markdown e interpretar asterisco que a pessoa
+                  digitou seria errado. */}
+              <div className={`max-w-[75%] rounded-2xl p-4 text-sm leading-relaxed ${
                 msg.role === 'user'
-                  ? 'bg-[#1e293b] text-white rounded-tr-sm'
+                  ? 'bg-[#1e293b] text-white rounded-tr-sm whitespace-pre-wrap'
                   : 'bg-indigo-500/10 border border-indigo-500/20 text-slate-200 rounded-tl-sm'
               }`}>
-                {msg.text}
+                {msg.role === 'user' ? msg.text : renderMarkdown(msg.text)}
               </div>
             </div>
           ))}
