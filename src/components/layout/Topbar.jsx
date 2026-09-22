@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
-import { Menu, Bell } from 'lucide-react';
+import { Menu } from 'lucide-react';
 import Avatar from '../ui/Avatar';
 
 export default function Topbar({ onMenuClick }) {
@@ -30,11 +30,13 @@ export default function Topbar({ onMenuClick }) {
         <h2 className="text-lg font-semibold text-white">{getPageTitle()}</h2>
       </div>
 
-      <div className="flex items-center gap-4">
-        <button className="text-slate-500 hover:text-white transition-colors" title="Notificações">
-          <Bell size={19} />
-        </button>
-        <div className="h-6 w-px bg-[#1e293b]"></div>
+      {/* O sino de notificacoes foi removido: nao havia sistema de
+          notificacoes por tras dele, so um botao inerte. Saiu junto o
+          separador vertical, que existia unicamente para apartar o sino do
+          bloco de perfil — sem ele o separador ficaria pendurado na borda.
+          O bloco de perfil e agora o unico item a direita, entao o `gap`
+          do container deixou de ter funcao. */}
+      <div className="flex items-center">
         {/* Avatar / nome clicável → Meu Perfil */}
         <Link
           to="/capital/perfil"
