@@ -362,10 +362,13 @@ export default function useHeroScrollStory(storyRef, rootRef, modoFluxo) {
 
       /* Cada peça do lockup: horizontais pela largura, verticais pela
          altura, corpo de fonte pelo clamp do CSS (que já é do viewport). */
-      /* O vaivém tipográfico do showcase (52 → 88 → 46px) é keyframe
-         aprovado e sobrevive a qualquer largura: o que muda é a escala.
-         O piso de 0,6 impede que o título da seção fique pequeno demais
-         nas viewports estreitas da faixa compacta. */
+      /* O corpo do lockup é o MESMO em todos os keyframes do showcase —
+         o vaivém 52 → 88 → 46 foi revogado. Esta escala existe só para
+         adaptar esse corpo único à largura da viewport; como ela é
+         calculada uma vez e aplicada igual a todos os keyframes, o tween
+         de `fontSize` continua sendo de X para X em qualquer largura.
+         O piso de 0,6 impede que o título fique pequeno demais na faixa
+         compacta. */
       const escalaFonte = (px) => Math.min(px, Math.max(px * 0.6, px * fx));
       const escalaPeca = (v) => ({
         ...v,
