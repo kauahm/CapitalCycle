@@ -337,6 +337,16 @@ export default function useHeroScrollStory(storyRef, rootRef, modoFluxo) {
       const trilho = q('.cc-recursos__trilho')[0];
       const track = q('.ccr-track')[0];
 
+      /* O trilho e o indicador seguem em `ease: 'none'`: eles precisam
+         acompanhar a mão 1:1, senão a faixa horizontal descola do gesto.
+
+         O LOCKUP é outro caso. Com ease linear ele chega em cada keyframe
+         na velocidade cheia e troca de direção num corte, o que lê como
+         "anda → para → anda". Uma ease suave nos dois extremos de cada
+         trecho tira essa quina sem inventar movimento: é a mesma
+         trajetória, percorrida com velocidade contínua. */
+      const EASE_LOCKUP = 'power1.inOut';
+
       const tlShow = gsap.timeline({
         defaults: { ease: 'none', immediateRender: false },
         scrollTrigger: {
@@ -361,20 +371,23 @@ export default function useHeroScrollStory(storyRef, rootRef, modoFluxo) {
       );
 
       /* Cada peça do lockup: horizontais pela largura, verticais pela
-         altura, corpo de fonte pelo clamp do CSS (que já é do viewport). */
-      /* O corpo do lockup é o MESMO em todos os keyframes do showcase —
-         o vaivém 52 → 88 → 46 foi revogado. Esta escala existe só para
-         adaptar esse corpo único à largura da viewport; como ela é
-         calculada uma vez e aplicada igual a todos os keyframes, o tween
-         de `fontSize` continua sendo de X para X em qualquer largura.
-         O piso de 0,6 impede que o título fique pequeno demais na faixa
-         compacta. */
-      const escalaFonte = (px) => Math.min(px, Math.max(px * 0.6, px * fx));
+         altura. E SÓ.
+
+         A timeline não toca em tipografia — não há `fontSize`,
+         `lineHeight` nem `letterSpacing` aqui nem nos keyframes, e não há
+         `scale` em peça nenhuma do lockup. É o que garante que o título
+         seja o mesmo objeto tipográfico do D5 ao S4: o corpo vem do
+         `clamp()` do CSS, que responde à largura da viewport sozinho e
+         não muda durante o scrub, porque o scroll não altera a largura.
+
+         Antes existia aqui um `escalaFonte()` que reescrevia o corpo da
+         fonte a cada frame. Mesmo produzindo sempre o mesmo número, ele
+         mantinha viva a possibilidade do vaivém e duplicava no JS uma
+         decisão que já era do CSS. */
       const escalaPeca = (v) => ({
         ...v,
         ...(v.x !== undefined ? { x: v.x * fx } : {}),
         ...(v.y !== undefined ? { y: v.y * fy } : {}),
-        ...(v.fontSize !== undefined ? { fontSize: escalaFonte(v.fontSize) } : {}),
       });
       const escalaTrilho = (v) => ({
         x: (v.x / 964) * curso,
@@ -387,10 +400,12 @@ export default function useHeroScrollStory(storyRef, rootRef, modoFluxo) {
         const duration = kf.progresso - ant.progresso;
         const trecho = { duration, immediateRender: false };
 
-        tlShow.fromTo(eyebrow, escalaPeca(ant.eyebrow), { ...escalaPeca(kf.eyebrow), ...trecho }, at);
-        tlShow.fromTo(titulo, escalaPeca(ant.titulo), { ...escalaPeca(kf.titulo), ...trecho }, at);
-        tlShow.fromTo(subRecursos, escalaPeca(ant.sub), { ...escalaPeca(kf.sub), ...trecho }, at);
-        tlShow.fromTo(cta, escalaPeca(ant.cta), { ...escalaPeca(kf.cta), ...trecho }, at);
+        const trechoLockup = { ...trecho, ease: EASE_LOCKUP };
+
+        tlShow.fromTo(eyebrow, escalaPeca(ant.eyebrow), { ...escalaPeca(kf.eyebrow), ...trechoLockup }, at);
+        tlShow.fromTo(titulo, escalaPeca(ant.titulo), { ...escalaPeca(kf.titulo), ...trechoLockup }, at);
+        tlShow.fromTo(subRecursos, escalaPeca(ant.sub), { ...escalaPeca(kf.sub), ...trechoLockup }, at);
+        tlShow.fromTo(cta, escalaPeca(ant.cta), { ...escalaPeca(kf.cta), ...trechoLockup }, at);
         tlShow.fromTo(
           indicador,
           { opacity: ant.hairline.opacity },

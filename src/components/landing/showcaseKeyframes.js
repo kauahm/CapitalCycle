@@ -8,8 +8,8 @@
    Precedência: nesta fase o SHOWCASE manda. `RecursosPanel.dc.html` e
    `RecursosTrack.dc.html` são componentes subordinados a ele.
 
-   Tipografia estável — o vaivém foi REVOGADO
-   ------------------------------------------
+   Tipografia FORA da narrativa — o vaivém foi REVOGADO
+   ----------------------------------------------------
    As pranchas desenhavam três corpos para o mesmo título:
 
      D→R F5 (RecursosPanel) ....... 52px, à esquerda
@@ -18,20 +18,26 @@
 
    Animado no scrub, isso lia como defeito: o título começava menor,
    crescia demais, voltava a diminuir e parecia travar antes dos cards.
-   A decisão foi revogada em favor de UM corpo estável.
+   A decisão está revogada.
 
-   O corpo escolhido é 52px — o mesmo do D5, que é onde a seção entra.
-   Assim o handoff do ato 2 para o ato 3 não tem troca nenhuma: o título
-   já chega no tamanho em que vai ficar e permanece nele até o S4. O
-   eyebrow, que fazia 11 → 12 → 11, também fica fixo em 11px.
+   A primeira correção igualou os três corpos em 52px, mas manteve o corpo
+   da fonte DENTRO dos keyframes — o tween continuava existindo, só que de
+   52 para 52. Funcionava, e ainda assim era frágil: bastava alguém editar
+   um número para o vaivém voltar, e a tipografia ficava descrita em dois
+   lugares (aqui e no CSS).
 
-   O que continua se transformando é POSIÇÃO: o lockup vai da esquerda ao
-   centro no S1 e volta à esquerda quando o pin engata, via x/xPercent/y e
-   opacidade. Nada de corpo de fonte.
+   Agora a garantia é estrutural. Corpo, entrelinha e tracking NÃO EXISTEM
+   mais nestes keyframes, e a timeline não tem como tocá-los. Quem define
+   tipografia é só o CSS — `.cc-recursos__titulo` já traz
+   `clamp(30px, 3.611vw, 52px)`, que dá 52px em 1440 e acompanha a largura
+   sozinho.
 
-   Como o título de 52px ocupa uma linha (629px, contra as duas linhas de
-   88px), o S1 foi recomposto: o lockup se reequilibra entre o eyebrow e o
-   CTA em vez de deixar o buraco que a caixa menor abriria.
+   O que a narrativa transforma é POSIÇÃO e OPACIDADE, e nada mais:
+   x / xPercent / y / opacity. Não há scale em peça nenhuma do lockup, nem
+   wrapper escalando, nem largura animada.
+
+   Como o título de 52px ocupa uma linha só (629px) em toda a sequência, o
+   S1 foi recomposto para não deixar o vão que a caixa menor abriria.
 
    Curso do trilho
    ---------------
@@ -63,16 +69,6 @@
    uma peça ancorada em `left: 120px` numa viewport de 1440. */
 export const X_CENTRALIZADO = 600;
 
-/* Corpo único do lockup, do D5 ao S4. Estes valores são repetidos em
-   TODOS os keyframes de propósito: é o que garante que o tween de
-   `fontSize` seja de X para X, ou seja, nenhuma animação tipográfica
-   durante o scrub. Mexer em um só aqui reintroduziria o vaivém. */
-const TITULO_FS = 52;
-const TITULO_LH = 1.08;
-const TITULO_LS = '-0.026em';
-const EYEBROW_FS = 11;
-const SUB_FS = 17;
-
 /* Posições estruturais (CSS) de cada peça — o estado D→R F5, que a H3 já
    deixou pronto. Todo `y` daqui para a frente é relativo a estas. */
 export const BASE = {
@@ -100,12 +96,9 @@ export const SHOWCASE_KEYFRAMES = [
     id: 'D5',
     nome: 'RECURSOS ESTABELECIDA (fim da H3)',
     progresso: 0,
-    eyebrow: { x: 0, xPercent: 0, y: 0, fontSize: EYEBROW_FS },
-    titulo: {
-      x: 0, xPercent: 0, y: 0,
-      fontSize: TITULO_FS, lineHeight: TITULO_LH, letterSpacing: TITULO_LS,
-    },
-    sub: { x: 0, xPercent: 0, y: 0, fontSize: SUB_FS, opacity: 1 },
+    eyebrow: { x: 0, xPercent: 0, y: 0 },
+    titulo: { x: 0, xPercent: 0, y: 0 },
+    sub: { x: 0, xPercent: 0, y: 0, opacity: 1 },
     cta: { x: X_CENTRALIZADO, xPercent: -50, y: 0, opacity: 0 },
     hairline: { opacity: 0, fill: 0 },
     trilho: { x: 0, y: 0 },
@@ -119,12 +112,9 @@ export const SHOWCASE_KEYFRAMES = [
        deixaria um vão de mais de 100px no meio do lockup. Agora as quatro
        peças se distribuem a partir de 206 com respiros declarados:
        eyebrow → 70 → título → 50 → subtítulo → CTA. */
-    eyebrow: { x: X_CENTRALIZADO, xPercent: -50, y: y(206, BASE.eyebrowTop), fontSize: EYEBROW_FS },
-    titulo: {
-      x: X_CENTRALIZADO, xPercent: -50, y: y(289, BASE.tituloTop),
-      fontSize: TITULO_FS, lineHeight: TITULO_LH, letterSpacing: TITULO_LS,
-    },
-    sub: { x: X_CENTRALIZADO, xPercent: -50, y: y(395.2, BASE.subTop), fontSize: SUB_FS, opacity: 1 },
+    eyebrow: { x: X_CENTRALIZADO, xPercent: -50, y: y(206, BASE.eyebrowTop) },
+    titulo: { x: X_CENTRALIZADO, xPercent: -50, y: y(289, BASE.tituloTop) },
+    sub: { x: X_CENTRALIZADO, xPercent: -50, y: y(395.2, BASE.subTop), opacity: 1 },
     /* O CTA sobe junto: preso nos 569,8 do CSS ele ficaria 116px abaixo do
        subtítulo, isolado do lockup que acabou de encolher. */
     cta: { x: X_CENTRALIZADO, xPercent: -50, y: -60, opacity: 1 },
@@ -136,12 +126,9 @@ export const SHOWCASE_KEYFRAMES = [
     id: 'S2',
     nome: 'PIN ENGATA — TRILHO EM 0%',
     progresso: 0.4,
-    eyebrow: { x: 0, xPercent: 0, y: y(142, BASE.eyebrowTop), fontSize: EYEBROW_FS },
-    titulo: {
-      x: 0, xPercent: 0, y: y(176.7, BASE.tituloTop),
-      fontSize: TITULO_FS, lineHeight: TITULO_LH, letterSpacing: TITULO_LS,
-    },
-    sub: { x: X_CENTRALIZADO, xPercent: -50, y: y(467.5, BASE.subTop), fontSize: SUB_FS, opacity: 0 },
+    eyebrow: { x: 0, xPercent: 0, y: y(142, BASE.eyebrowTop) },
+    titulo: { x: 0, xPercent: 0, y: y(176.7, BASE.tituloTop) },
+    sub: { x: X_CENTRALIZADO, xPercent: -50, y: y(467.5, BASE.subTop), opacity: 0 },
     cta: { x: X_CENTRALIZADO, xPercent: -50, y: -60, opacity: 0 },
     hairline: { opacity: 1, fill: 0 },
     trilho: { x: 0, y: y(330, BASE.trilhoTop) },
@@ -150,12 +137,9 @@ export const SHOWCASE_KEYFRAMES = [
     id: 'S3',
     nome: 'TRILHO EM CURSO',
     progresso: 0.7,
-    eyebrow: { x: 0, xPercent: 0, y: y(142, BASE.eyebrowTop), fontSize: EYEBROW_FS },
-    titulo: {
-      x: 0, xPercent: 0, y: y(176.7, BASE.tituloTop),
-      fontSize: TITULO_FS, lineHeight: TITULO_LH, letterSpacing: TITULO_LS,
-    },
-    sub: { x: X_CENTRALIZADO, xPercent: -50, y: y(467.5, BASE.subTop), fontSize: SUB_FS, opacity: 0 },
+    eyebrow: { x: 0, xPercent: 0, y: y(142, BASE.eyebrowTop) },
+    titulo: { x: 0, xPercent: 0, y: y(176.7, BASE.tituloTop) },
+    sub: { x: X_CENTRALIZADO, xPercent: -50, y: y(467.5, BASE.subTop), opacity: 0 },
     cta: { x: X_CENTRALIZADO, xPercent: -50, y: -60, opacity: 0 },
     // 99 de 180 = 55%, enquanto o trilho está em 50%. Intencional.
     hairline: { opacity: 1, fill: 99 },
@@ -165,12 +149,9 @@ export const SHOWCASE_KEYFRAMES = [
     id: 'S4',
     nome: 'CLÍMAX — CAPITAL ADVISOR',
     progresso: 1,
-    eyebrow: { x: 0, xPercent: 0, y: y(142, BASE.eyebrowTop), fontSize: EYEBROW_FS },
-    titulo: {
-      x: 0, xPercent: 0, y: y(176.7, BASE.tituloTop),
-      fontSize: TITULO_FS, lineHeight: TITULO_LH, letterSpacing: TITULO_LS,
-    },
-    sub: { x: X_CENTRALIZADO, xPercent: -50, y: y(467.5, BASE.subTop), fontSize: SUB_FS, opacity: 0 },
+    eyebrow: { x: 0, xPercent: 0, y: y(142, BASE.eyebrowTop) },
+    titulo: { x: 0, xPercent: 0, y: y(176.7, BASE.tituloTop) },
+    sub: { x: X_CENTRALIZADO, xPercent: -50, y: y(467.5, BASE.subTop), opacity: 0 },
     cta: { x: X_CENTRALIZADO, xPercent: -50, y: -60, opacity: 0 },
     hairline: { opacity: 1, fill: 180 },
     trilho: { x: -964, y: y(330, BASE.trilhoTop) },
