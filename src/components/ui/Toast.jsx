@@ -20,7 +20,7 @@ export default function Toast({ message, type = 'success', onClose }) {
   const { border, icon, Icon } = styles[type] || styles.success;
 
   return (
-    <div className={`fixed top-4 right-4 z-50 flex items-center gap-3 px-4 py-3.5 bg-[#101623] border ${border} rounded-xl shadow-lg shadow-black/40 max-w-sm`}>
+    <div className={`fixed top-4 right-4 z-50 flex items-center gap-3 px-4 py-3.5 bg-surface border ${border} rounded-xl shadow-lg shadow-black/40 max-w-sm`}>
       <Icon size={18} className={`${icon} shrink-0`} />
       <p className="flex-1 text-sm text-slate-200">{message}</p>
       <button onClick={onClose} className="text-slate-500 hover:text-white transition-colors shrink-0">

@@ -258,7 +258,7 @@ export default function Transacoes() {
               placeholder="Buscar..." 
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full bg-[#101623] border border-[#1e293b] rounded-xl pl-10 pr-4 py-2.5 text-white focus:outline-none focus:border-indigo-500 transition-colors"
+              className="w-full bg-surface border border-hairline rounded-xl pl-10 pr-4 py-2.5 text-white focus:outline-none focus:border-indigo-500 transition-colors"
             />
           </div>
           <button
@@ -275,7 +275,7 @@ export default function Transacoes() {
       </div>
 
       {/* LISTA DE TRANSAÇÕES (ESTILO EXTRATO) */}
-      <div className="bg-[#101623] border border-[#1e293b] rounded-2xl overflow-hidden">
+      <div className="bg-surface border border-hairline rounded-2xl overflow-hidden">
         {transacoesFiltradas.length === 0 ? (
           <div className="p-10 text-center">
             <p className="text-slate-500 text-sm">
@@ -283,7 +283,7 @@ export default function Transacoes() {
             </p>
           </div>
         ) : (
-          <div className="divide-y divide-[#1e293b]">
+          <div className="divide-y divide-hairline">
             {/* No mobile a linha quebra em duas: sem isso, os botões de ação
                 ficam fora da área visível do card e são cortados pelo
                 overflow-hidden. A partir de md volta a ser uma linha só. */}
@@ -297,7 +297,7 @@ export default function Transacoes() {
                   <div className="min-w-0">
                     <h4 className="text-white font-medium">{t.descricao}</h4>
                     <div className="flex items-center gap-2 text-xs text-slate-400 mt-1">
-                      <span className="bg-[#1e293b] px-2 py-0.5 rounded-md">{t.categoria}</span>
+                      <span className="bg-hairline px-2 py-0.5 rounded-md">{t.categoria}</span>
                       <span>•</span>
                       <span>{formatarData(t.data)}</span>
                     </div>
@@ -332,8 +332,8 @@ export default function Transacoes() {
       {/* MODAL DE NOVA TRANSAÇÃO */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-[#101623] border border-[#1e293b] rounded-2xl w-full max-w-md overflow-hidden shadow-2xl">
-            <div className="p-6 border-b border-[#1e293b] flex justify-between items-center">
+          <div className="bg-surface border border-hairline rounded-2xl w-full max-w-md overflow-hidden shadow-2xl">
+            <div className="p-6 border-b border-hairline flex justify-between items-center">
               <h2 className="text-xl font-bold text-white">{editingId ? 'Editar Transação' : 'Nova Transação'}</h2>
               <button onClick={closeModal} className="text-slate-400 hover:text-white">
                 <X size={24} />
@@ -342,7 +342,7 @@ export default function Transacoes() {
             
             <form onSubmit={handleSubmit} className="p-6 space-y-4">
               {/* Tipo (Toggle) */}
-              <div className="flex p-1 bg-[#070b14] rounded-xl border border-[#1e293b]">
+              <div className="flex p-1 bg-app rounded-xl border border-hairline">
                 <button
                   type="button"
                   onClick={() => setFormData({ ...formData, tipo: 'saida', categoria: categorias.saida[0] })}
@@ -363,15 +363,15 @@ export default function Transacoes() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="col-span-2">
                   <label className="block text-xs font-medium text-slate-400 mb-1">Descrição</label>
-                  <input required type="text" value={formData.descricao} onChange={e => setFormData({...formData, descricao: e.target.value})} className="w-full bg-[#070b14] border border-[#1e293b] rounded-xl px-4 py-3 text-white focus:border-indigo-500 outline-none" placeholder="Ex: Supermercado" />
+                  <input required type="text" value={formData.descricao} onChange={e => setFormData({...formData, descricao: e.target.value})} className="w-full bg-app border border-hairline rounded-xl px-4 py-3 text-white focus:border-indigo-500 outline-none" placeholder="Ex: Supermercado" />
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-slate-400 mb-1">Valor (R$)</label>
-                  <input required type="number" step="0.01" min="0" value={formData.valor} onChange={e => setFormData({...formData, valor: e.target.value})} className="w-full bg-[#070b14] border border-[#1e293b] rounded-xl px-4 py-3 text-white focus:border-indigo-500 outline-none" placeholder="0,00" />
+                  <input required type="number" step="0.01" min="0" value={formData.valor} onChange={e => setFormData({...formData, valor: e.target.value})} className="w-full bg-app border border-hairline rounded-xl px-4 py-3 text-white focus:border-indigo-500 outline-none" placeholder="0,00" />
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-slate-400 mb-1">Data</label>
-                  <input required type="date" value={formData.data} onChange={e => setFormData({...formData, data: e.target.value})} className="w-full bg-[#070b14] border border-[#1e293b] rounded-xl px-4 py-3 text-white focus:border-indigo-500 outline-none [color-scheme:dark]" />
+                  <input required type="date" value={formData.data} onChange={e => setFormData({...formData, data: e.target.value})} className="w-full bg-app border border-hairline rounded-xl px-4 py-3 text-white focus:border-indigo-500 outline-none [color-scheme:dark]" />
                 </div>
               </div>
 
@@ -379,13 +379,13 @@ export default function Transacoes() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-medium text-slate-400 mb-1">Categoria</label>
-                  <select required value={formData.categoria} onChange={e => setFormData({...formData, categoria: e.target.value})} className="w-full bg-[#070b14] border border-[#1e293b] rounded-xl px-4 py-3 text-white focus:border-indigo-500 outline-none">
+                  <select required value={formData.categoria} onChange={e => setFormData({...formData, categoria: e.target.value})} className="w-full bg-app border border-hairline rounded-xl px-4 py-3 text-white focus:border-indigo-500 outline-none">
                     {categorias[formData.tipo].map(cat => <option key={cat} value={cat}>{cat}</option>)}
                   </select>
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-slate-400 mb-1">Conta/Carteira</label>
-                  <select required value={formData.conta_id} onChange={e => setFormData({...formData, conta_id: e.target.value})} className="w-full bg-[#070b14] border border-[#1e293b] rounded-xl px-4 py-3 text-white focus:border-indigo-500 outline-none">
+                  <select required value={formData.conta_id} onChange={e => setFormData({...formData, conta_id: e.target.value})} className="w-full bg-app border border-hairline rounded-xl px-4 py-3 text-white focus:border-indigo-500 outline-none">
                     <option value="">Selecione...</option>
                     {contas.map(c => <option key={c.id} value={c.id}>{c.nome} ({c.banco})</option>)}
                   </select>

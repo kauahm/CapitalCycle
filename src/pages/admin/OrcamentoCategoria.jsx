@@ -85,7 +85,7 @@ export default function OrcamentoCategoria() {
       </div>
 
       <form onSubmit={handleSalvar} className="space-y-4">
-        <div className="bg-[#101623] border border-[#1e293b] rounded-2xl divide-y divide-[#1e293b] overflow-hidden">
+        <div className="bg-surface border border-hairline rounded-2xl divide-y divide-hairline overflow-hidden">
           {CATEGORIAS_SAIDA.map((categoria) => {
             const p = progressoPorCategoria[categoria];
             const temLimite = p != null;
@@ -111,7 +111,7 @@ export default function OrcamentoCategoria() {
                         </span>
                         <CurrencyValue value={p.gasto} size="lg" className="font-semibold min-w-0 text-white" />
                       </div>
-                      <div className="w-full bg-[#1e293b] h-1.5 rounded-full overflow-hidden">
+                      <div className="w-full bg-hairline h-1.5 rounded-full overflow-hidden">
                         <div className={`h-full ${corBarra} transition-all duration-700`} style={{ width: `${Math.min(100, p.pct)}%` }} />
                       </div>
                     </>
@@ -129,7 +129,7 @@ export default function OrcamentoCategoria() {
                     value={inputs[categoria] ?? ''}
                     onChange={(e) => setInputs((prev) => ({ ...prev, [categoria]: e.target.value }))}
                     placeholder="Sem limite"
-                    className="w-full bg-[#070b14] border border-[#1e293b] rounded-xl px-3 py-2.5 text-white text-sm focus:border-indigo-500 outline-none"
+                    className="w-full bg-app border border-hairline rounded-xl px-3 py-2.5 text-white text-sm focus:border-indigo-500 outline-none"
                   />
                 </div>
               </div>

@@ -341,7 +341,12 @@ export default function AnaliseIA() {
   };
 
   return (
-    <div className="space-y-6 flex flex-col h-[calc(100vh-8rem)]">
+    /* A altura desconta a topbar e os recuos do main pelas MESMAS variaveis
+       que os definem. Antes era `100vh-8rem` fixo, herdado da topbar de
+       64px; com a topbar da referencia (88px em 1440, 117px em 1901) a
+       conta ficava curta e o topo da tela — incluindo o contador de
+       consultas — era cortado. */
+    <div className="space-y-6 flex flex-col h-[calc(100vh-var(--cc-topbar)-var(--cc-gutter)-2.5rem)]">
 
       {/* HEADER */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 shrink-0">
@@ -352,7 +357,7 @@ export default function AnaliseIA() {
             <span className={`text-xs font-semibold px-3 py-2 rounded-xl border whitespace-nowrap ${
               usoMes >= limiteIA
                 ? 'bg-rose-500/10 border-rose-500/30 text-rose-400'
-                : 'bg-[#101623] border-[#1e293b] text-slate-400'
+                : 'bg-surface border-hairline text-slate-400'
             }`}>
               {usoMes >= limiteIA
                 ? 'Cota do mês esgotada'
@@ -364,21 +369,21 @@ export default function AnaliseIA() {
 
       {/* GUIA RÁPIDO */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 shrink-0">
-        <div className="bg-[#101623] border border-[#1e293b] p-5 rounded-2xl flex gap-4 items-start">
+        <div className="bg-surface border border-hairline p-5 rounded-2xl flex gap-4 items-start">
           <div className="p-3 bg-emerald-500/10 text-emerald-400 rounded-xl shrink-0"><TrendingUp size={20} /></div>
           <div>
             <h4 className="text-white font-semibold text-sm mb-1">Sobre investimentos</h4>
             <p className="text-xs text-slate-400 leading-relaxed">Pergunte se faz sentido mover parte do seu saldo disponível para investimentos, com base no que você já tem cadastrado.</p>
           </div>
         </div>
-        <div className="bg-[#101623] border border-[#1e293b] p-5 rounded-2xl flex gap-4 items-start">
+        <div className="bg-surface border border-hairline p-5 rounded-2xl flex gap-4 items-start">
           <div className="p-3 bg-rose-500/10 text-rose-400 rounded-xl shrink-0"><AlertTriangle size={20} /></div>
           <div>
             <h4 className="text-white font-semibold text-sm mb-1">Sobre seus gastos</h4>
             <p className="text-xs text-slate-400 leading-relaxed">Peça uma leitura de qual categoria pesou mais no mês e o que dá pra ajustar.</p>
           </div>
         </div>
-        <div className="bg-[#101623] border border-[#1e293b] p-5 rounded-2xl flex gap-4 items-start">
+        <div className="bg-surface border border-hairline p-5 rounded-2xl flex gap-4 items-start">
           <div className="p-3 bg-indigo-500/10 text-indigo-400 rounded-xl shrink-0"><Lightbulb size={20} /></div>
           <div>
             <h4 className="text-white font-semibold text-sm mb-1">Sobre suas metas</h4>
@@ -388,7 +393,7 @@ export default function AnaliseIA() {
       </div>
 
       {/* CHAT */}
-      <div className="flex-1 bg-[#101623] border border-[#1e293b] rounded-2xl flex flex-col overflow-hidden min-h-[400px]">
+      <div className="flex-1 bg-surface border border-hairline rounded-2xl flex flex-col overflow-hidden min-h-[400px]">
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
 
           {messages.map(msg => (
@@ -405,7 +410,7 @@ export default function AnaliseIA() {
                   digitou seria errado. */}
               <div className={`max-w-[75%] rounded-2xl p-4 text-sm leading-relaxed ${
                 msg.role === 'user'
-                  ? 'bg-[#1e293b] text-white rounded-tr-sm whitespace-pre-wrap'
+                  ? 'bg-hairline text-white rounded-tr-sm whitespace-pre-wrap'
                   : 'bg-indigo-500/10 border border-indigo-500/20 text-slate-200 rounded-tl-sm'
               }`}>
                 {msg.role === 'user' ? msg.text : renderMarkdown(msg.text)}
@@ -447,7 +452,7 @@ export default function AnaliseIA() {
         </div>
 
         {/* Input */}
-        <div className="p-4 border-t border-[#1e293b] bg-[#070b14]">
+        <div className="p-4 border-t border-hairline bg-app">
           <form onSubmit={handleSend} className="relative flex items-center">
             <input
               type="text"
@@ -457,7 +462,7 @@ export default function AnaliseIA() {
               placeholder={apiKey
                 ? 'Pergunte sobre seus investimentos, gastos ou metas...'
                 : 'Capital Advisor indisponível no momento...'}
-              className="w-full bg-[#101623] border border-[#1e293b] text-white rounded-2xl pl-5 pr-14 py-4 focus:outline-none focus:border-indigo-500 transition-colors disabled:opacity-50"
+              className="w-full bg-surface border border-hairline text-white rounded-2xl pl-5 pr-14 py-4 focus:outline-none focus:border-indigo-500 transition-colors disabled:opacity-50"
             />
             <button
               type="submit"

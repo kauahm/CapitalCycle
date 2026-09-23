@@ -214,7 +214,7 @@ export default function CiclosInvestimento() {
 
         <div className="flex items-center gap-3">
           {limiteCiclos != null && (
-            <span className="text-xs font-semibold text-slate-500 whitespace-nowrap bg-[#101623] border border-[#1e293b] px-3 py-2 rounded-xl">
+            <span className="text-xs font-semibold text-slate-500 whitespace-nowrap bg-surface border border-hairline px-3 py-2 rounded-xl">
               {ciclosAtivos}/{limiteCiclos} em andamento
             </span>
           )}
@@ -232,7 +232,7 @@ export default function CiclosInvestimento() {
 
       {/* LISTA DE METAS E ORÇAMENTOS */}
       {ciclos.length === 0 ? (
-        <div className="bg-[#101623] border border-[#1e293b] rounded-2xl p-12 text-center">
+        <div className="bg-surface border border-hairline rounded-2xl p-12 text-center">
           <Target size={48} className="mx-auto text-slate-600 mb-4" />
           <h3 className="text-lg font-bold text-white mb-2">Nenhum ciclo ativo</h3>
           <p className="text-slate-400">Crie um orçamento para o mês ou uma meta financeira (ex: Reserva de Emergência).</p>
@@ -248,7 +248,7 @@ export default function CiclosInvestimento() {
               const isEstourado = porcentagem >= 100;
 
               return (
-                <div key={ciclo.id} className="bg-[#101623] border border-[#1e293b] p-6 rounded-2xl relative overflow-hidden group hover:border-indigo-500/30 transition-colors">
+                <div key={ciclo.id} className="bg-surface border border-hairline p-6 rounded-2xl relative overflow-hidden group hover:border-indigo-500/30 transition-colors">
                   <div className="flex items-center gap-3 mb-4">
                     <div className="p-3 rounded-xl bg-emerald-500/10 text-emerald-400">
                       <PieChart size={20} />
@@ -269,7 +269,7 @@ export default function CiclosInvestimento() {
                       <span className="text-slate-400 text-xs uppercase font-bold tracking-wider whitespace-nowrap">Gasto</span>
                       <CurrencyValue value={valorAtual} size="lg" className={`font-bold min-w-0 ${isEstourado ? 'text-rose-400' : 'text-white'}`} />
                     </div>
-                    <div className="w-full bg-[#1e293b] h-2 rounded-full overflow-hidden">
+                    <div className="w-full bg-hairline h-2 rounded-full overflow-hidden">
                       <div className={`h-full transition-all duration-1000 ${isEstourado ? 'bg-rose-500' : 'bg-emerald-400'}`} style={{ width: `${porcentagem}%` }}></div>
                     </div>
                     <p className="text-xs text-slate-500 text-right">Alvo: {formatarMoeda(ciclo.orcamento)}</p>
@@ -280,10 +280,10 @@ export default function CiclosInvestimento() {
                       320px. A partir de md voltam ao canto superior direito,
                       discretas até o hover ou o foco por teclado. */}
                   <div className="relative z-10 mt-5 flex items-center justify-end gap-2 md:mt-0 md:absolute md:top-4 md:right-4 md:opacity-0 md:transition-opacity md:group-hover:opacity-100 md:group-focus-within:opacity-100">
-                    <button onClick={() => handleEdit(ciclo)} className="text-slate-600 hover:text-indigo-400 bg-[#070b14] p-2 rounded-lg" title="Editar">
+                    <button onClick={() => handleEdit(ciclo)} className="text-slate-600 hover:text-indigo-400 bg-app p-2 rounded-lg" title="Editar">
                       <Pencil size={16} />
                     </button>
-                    <button onClick={() => handleDelete(ciclo.id)} className="text-slate-600 hover:text-rose-400 bg-[#070b14] p-2 rounded-lg" title="Excluir">
+                    <button onClick={() => handleDelete(ciclo.id)} className="text-slate-600 hover:text-rose-400 bg-app p-2 rounded-lg" title="Excluir">
                       <Trash2 size={16} />
                     </button>
                   </div>
@@ -306,7 +306,7 @@ export default function CiclosInvestimento() {
               : [];
 
             return (
-              <div key={ciclo.id} className="bg-[#101623] border border-[#1e293b] p-6 rounded-2xl relative overflow-hidden group hover:border-indigo-500/30 transition-colors">
+              <div key={ciclo.id} className="bg-surface border border-hairline p-6 rounded-2xl relative overflow-hidden group hover:border-indigo-500/30 transition-colors">
                 <div className="flex items-center gap-3 mb-4">
                   <div className="p-3 rounded-xl bg-indigo-500/10 text-indigo-400">
                     <Target size={20} />
@@ -329,7 +329,7 @@ export default function CiclosInvestimento() {
                     <CurrencyValue value={p.valorAcumulado} size="lg" className="font-bold min-w-0 text-white" />
                   </div>
 
-                  <div className="w-full bg-[#1e293b] h-2 rounded-full overflow-hidden">
+                  <div className="w-full bg-hairline h-2 rounded-full overflow-hidden">
                     <div className="h-full bg-indigo-500 transition-all duration-1000" style={{ width: `${p.progressoPct}%` }}></div>
                   </div>
 
@@ -351,7 +351,7 @@ export default function CiclosInvestimento() {
 
                   {/* Ritmo: só mostra necessário/atual quando faz sentido calcular */}
                   {!p.concluida && !p.prazoEncerrado && p.equivalentes && (
-                    <div className="pt-2 border-t border-[#1e293b] mt-2 space-y-1">
+                    <div className="pt-2 border-t border-hairline mt-2 space-y-1">
                       {p.equivalentes.hoje != null ? (
                         /* Último dia do prazo: todo o restante precisa entrar hoje. */
                         <div className="flex items-center justify-between text-xs">
@@ -424,10 +424,10 @@ export default function CiclosInvestimento() {
                     entram no fluxo, no rodapé, para não cobrir o nome nem o
                     bloco de ritmo; de md em diante voltam a flutuar no canto. */}
                 <div className="relative z-10 mt-5 flex items-center justify-end gap-2 md:mt-0 md:absolute md:top-4 md:right-4 md:opacity-0 md:transition-opacity md:group-hover:opacity-100 md:group-focus-within:opacity-100">
-                  <button onClick={() => handleEdit(ciclo)} className="text-slate-600 hover:text-indigo-400 bg-[#070b14] p-2 rounded-lg" title="Editar">
+                  <button onClick={() => handleEdit(ciclo)} className="text-slate-600 hover:text-indigo-400 bg-app p-2 rounded-lg" title="Editar">
                     <Pencil size={16} />
                   </button>
-                  <button onClick={() => handleDelete(ciclo.id)} className="text-slate-600 hover:text-rose-400 bg-[#070b14] p-2 rounded-lg" title="Excluir">
+                  <button onClick={() => handleDelete(ciclo.id)} className="text-slate-600 hover:text-rose-400 bg-app p-2 rounded-lg" title="Excluir">
                     <Trash2 size={16} />
                   </button>
                 </div>
@@ -440,8 +440,8 @@ export default function CiclosInvestimento() {
       {/* MODAL NOVO CICLO */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-[#101623] border border-[#1e293b] rounded-2xl w-full max-w-md overflow-hidden shadow-2xl">
-            <div className="p-6 border-b border-[#1e293b] flex justify-between items-center">
+          <div className="bg-surface border border-hairline rounded-2xl w-full max-w-md overflow-hidden shadow-2xl">
+            <div className="p-6 border-b border-hairline flex justify-between items-center">
               <h2 className="text-xl font-bold text-white">{editingId ? 'Editar Ciclo / Meta' : 'Novo Ciclo / Meta'}</h2>
               <button onClick={closeModal} className="text-slate-400 hover:text-white">
                 <X size={24} />
@@ -450,7 +450,7 @@ export default function CiclosInvestimento() {
             
             <form onSubmit={handleSubmit} className="p-6 space-y-4">
               
-              <div className="flex p-1 bg-[#070b14] rounded-xl border border-[#1e293b]">
+              <div className="flex p-1 bg-app rounded-xl border border-hairline">
                 <button type="button" onClick={() => setFormData({ ...formData, tipo: 'Orçamento' })} className={`flex-1 py-2 text-sm font-bold rounded-lg transition-colors ${formData.tipo === 'Orçamento' ? 'bg-emerald-500 text-white' : 'text-slate-400 hover:text-white'}`}>
                   Orçamento Mensal
                 </button>
@@ -461,24 +461,24 @@ export default function CiclosInvestimento() {
 
               <div>
                 <label className="block text-xs font-medium text-slate-400 mb-1">Nome do Objetivo</label>
-                <input required type="text" value={formData.nome} onChange={e => setFormData({...formData, nome: e.target.value})} className="w-full bg-[#070b14] border border-[#1e293b] rounded-xl px-4 py-3 text-white focus:border-indigo-500 outline-none" placeholder={formData.tipo === 'Meta' ? "Ex: Viagem Japão" : "Ex: Orçamento de Junho"} />
+                <input required type="text" value={formData.nome} onChange={e => setFormData({...formData, nome: e.target.value})} className="w-full bg-app border border-hairline rounded-xl px-4 py-3 text-white focus:border-indigo-500 outline-none" placeholder={formData.tipo === 'Meta' ? "Ex: Viagem Japão" : "Ex: Orçamento de Junho"} />
               </div>
 
               <div>
                 <label className="block text-xs font-medium text-slate-400 mb-1">Valor Alvo/Limite (R$)</label>
-                <input required type="number" step="0.01" value={formData.orcamento} onChange={e => setFormData({...formData, orcamento: e.target.value})} className="w-full bg-[#070b14] border border-[#1e293b] rounded-xl px-4 py-3 text-white focus:border-indigo-500 outline-none" placeholder="0,00" />
+                <input required type="number" step="0.01" value={formData.orcamento} onChange={e => setFormData({...formData, orcamento: e.target.value})} className="w-full bg-app border border-hairline rounded-xl px-4 py-3 text-white focus:border-indigo-500 outline-none" placeholder="0,00" />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-medium text-slate-400 mb-1">Data de Início</label>
-                  <input required type="date" value={formData.inicio} onChange={e => setFormData({...formData, inicio: e.target.value})} className="w-full bg-[#070b14] border border-[#1e293b] rounded-xl px-4 py-3 text-white focus:border-indigo-500 outline-none [color-scheme:dark]" />
+                  <input required type="date" value={formData.inicio} onChange={e => setFormData({...formData, inicio: e.target.value})} className="w-full bg-app border border-hairline rounded-xl px-4 py-3 text-white focus:border-indigo-500 outline-none [color-scheme:dark]" />
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-slate-400 mb-1">Data Final</label>
                   {/* `min` impede escolher uma data anterior ao início já no
                       seletor do navegador, antes mesmo do submit. */}
-                  <input required type="date" min={formData.inicio || undefined} value={formData.fim} onChange={e => setFormData({...formData, fim: e.target.value})} className="w-full bg-[#070b14] border border-[#1e293b] rounded-xl px-4 py-3 text-white focus:border-indigo-500 outline-none [color-scheme:dark]" />
+                  <input required type="date" min={formData.inicio || undefined} value={formData.fim} onChange={e => setFormData({...formData, fim: e.target.value})} className="w-full bg-app border border-hairline rounded-xl px-4 py-3 text-white focus:border-indigo-500 outline-none [color-scheme:dark]" />
                 </div>
               </div>
 
@@ -497,8 +497,8 @@ export default function CiclosInvestimento() {
       {/* MODAL REGISTRAR APORTE */}
       {aporteCiclo && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-[#101623] border border-[#1e293b] rounded-2xl w-full max-w-md overflow-hidden shadow-2xl">
-            <div className="p-6 border-b border-[#1e293b] flex justify-between items-center">
+          <div className="bg-surface border border-hairline rounded-2xl w-full max-w-md overflow-hidden shadow-2xl">
+            <div className="p-6 border-b border-hairline flex justify-between items-center">
               <div>
                 <h2 className="text-xl font-bold text-white">Registrar aporte</h2>
                 <p className="text-xs text-slate-400 mt-1">{aporteCiclo.nome}</p>
@@ -523,7 +523,7 @@ export default function CiclosInvestimento() {
                   min="0.01"
                   value={aporteValor}
                   onChange={(e) => setAporteValor(e.target.value)}
-                  className="w-full bg-[#070b14] border border-[#1e293b] rounded-xl px-4 py-3 text-white focus:border-indigo-500 outline-none"
+                  className="w-full bg-app border border-hairline rounded-xl px-4 py-3 text-white focus:border-indigo-500 outline-none"
                   placeholder="0,00"
                 />
               </div>
@@ -535,7 +535,7 @@ export default function CiclosInvestimento() {
                   type="date"
                   value={aporteData}
                   onChange={(e) => setAporteData(e.target.value)}
-                  className="w-full bg-[#070b14] border border-[#1e293b] rounded-xl px-4 py-3 text-white focus:border-indigo-500 outline-none [color-scheme:dark]"
+                  className="w-full bg-app border border-hairline rounded-xl px-4 py-3 text-white focus:border-indigo-500 outline-none [color-scheme:dark]"
                 />
               </div>
 

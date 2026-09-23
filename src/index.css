@@ -2,6 +2,92 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ==========================================================================
+   Linguagem visual do painel autenticado
+
+   Medida em `referencia/dashboard.PNG` (1901x1080) e convertida para a
+   escala de 1440, que e a viewport de trabalho do painel:
+
+     raio do card ........ 19 -> 14px  (usa-se 16px, o rounded-2xl ja adotado)
+     borda ............... 1px em #181b1f
+     fundo do card ....... #070b14 sobre um app #03060d
+     gap entre cards ..... 30 -> 23px  (usa-se 24px)
+     gap entre blocos .... 43 -> 33px  (usa-se 32px)
+     padding interno ..... ~28px
+
+   Estas classes existem para que as sete telas do painel compartilhem a
+   MESMA superficie em vez de cada uma repetir `bg-... border ... rounded...`.
+   Sao so aparencia: nenhuma delas posiciona ou dimensiona conteudo, entao
+   aplicar em uma pagina nao mexe no layout dela.
+   ========================================================================== */
+
+/* Geometria do shell do painel.
+
+   A referencia tem 1901x1080 e 1901/1440 = 1,320 — ou seja, e uma captura
+   de um layout de 1440 em ~132%. Por isso as medidas dela batem com as de
+   1440 quando divididas por 1,32:
+
+     sidebar  358 / 1,32 = 271px      topbar  117 / 1,32 = 88,6px
+
+   Escritas em `vw` com teto e piso, as duas reproduzem a referencia na
+   largura dela (18,83vw de 1901 = 358px) e continuam corretas em 1440
+   (271px), sem virar uma sidebar gigante em monitor ultralargo nem sumir
+   no limite do breakpoint. */
+:root {
+  --cc-sidebar: clamp(15rem, 18.83vw, 23rem);
+  --cc-topbar: clamp(4.25rem, 6.155vw, 7.5rem);
+  /* Recuo lateral do conteudo: 55px na referencia (2,894vw de 1901),
+     41,7px em 1440. */
+  --cc-gutter: clamp(1.5rem, 2.894vw, 3.75rem);
+  /* Altura do item de navegacao: 59px na referencia, 44,7px em 1440. */
+  --cc-nav-item: clamp(2.5rem, 3.103vw, 4rem);
+  /* Respiro entre os blocos da pagina: 43px na referencia, 32,6px em 1440. */
+  --cc-gap: clamp(1.25rem, 2.262vw, 3rem);
+  /* Respiro entre cards da mesma linha: 30px na referencia, 22,7px em 1440. */
+  --cc-gap-card: clamp(1rem, 1.578vw, 2rem);
+
+  /* Tipografia do shell, medida na referencia pela altura de caixa alta:
+       lockup CAPITAL CYCLE .. 27,8px em 1901 -> 21,0px em 1440
+       rotulo de navegacao ... 19,0px em 1901 -> 14,4px em 1440
+       titulo da topbar ...... 34,7px em 1901 -> 26,3px em 1440 */
+  --cc-fs-logo: clamp(1rem, 1.462vw, 2rem);
+  --cc-fs-nav: clamp(0.8125rem, 1vw, 1.25rem);
+  --cc-fs-titulo: clamp(1.25rem, 1.825vw, 2.25rem);
+}
+
+@layer components {
+  /* Superficie padrao do painel. */
+  .cc-card {
+    @apply bg-surface border border-hairline rounded-2xl;
+  }
+
+  /* Card com o respiro interno da referencia. */
+  .cc-card-p {
+    @apply cc-card p-7;
+  }
+
+  /* Rotulo de KPI: caixa alta, pequeno, tracking aberto, cinza. */
+  .cc-label {
+    @apply text-xs uppercase font-semibold tracking-[0.12em] text-textSecondary;
+  }
+
+  /* Titulo de bloco dentro de um card. */
+  .cc-card-title {
+    @apply text-base font-bold text-textMain;
+  }
+
+  /* Estado vazio: a referencia desenha um retangulo tracejado. */
+  .cc-empty {
+    @apply border border-dashed border-hairline rounded-xl text-center;
+  }
+
+  /* Campo de formulario, para as telas que coletam dados. */
+  .cc-field {
+    @apply w-full bg-app border border-hairline text-textMain rounded-xl px-4 py-3
+           focus:outline-none focus:border-primary transition-colors;
+  }
+}
+
 /* ==========================================
    AUTOPREENCHIMENTO (Chrome/Safari)
    O navegador pinta o campo de azul claro quando preenche

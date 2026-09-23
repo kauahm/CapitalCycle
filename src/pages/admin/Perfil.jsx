@@ -300,7 +300,7 @@ export default function Perfil() {
       </div>
 
       {/* ── INFORMAÇÕES DA CONTA ─────────────────────── */}
-      <div className="bg-[#101623] border border-[#1e293b] rounded-2xl p-6">
+      <div className="bg-surface border border-hairline rounded-2xl p-6">
         <h3 className="text-sm font-semibold text-slate-300 flex items-center gap-2 mb-6">
           <User size={16} className="text-slate-500" /> Informações da conta
         </h3>
@@ -363,14 +363,14 @@ export default function Perfil() {
         </div>
 
         {membroDesde && (
-          <p className="mt-6 pt-4 border-t border-[#1e293b] text-xs text-slate-500">
+          <p className="mt-6 pt-4 border-t border-hairline text-xs text-slate-500">
             Membro desde {membroDesde}
           </p>
         )}
       </div>
 
       {/* ── RENDA MENSAL (Fase 1) ────────────────────── */}
-      <div className="bg-[#101623] border border-[#1e293b] rounded-2xl p-6">
+      <div className="bg-surface border border-hairline rounded-2xl p-6">
         <h3 className="text-sm font-semibold text-slate-300 flex items-center gap-2 mb-4">
           <Wallet size={16} className="text-slate-500" /> Renda mensal
         </h3>
@@ -386,7 +386,7 @@ export default function Perfil() {
                 min="0"
                 value={rendaInput}
                 onChange={(e) => setRendaInput(e.target.value)}
-                className="w-full bg-[#070b14] border border-[#1e293b] rounded-xl px-4 py-3 text-white focus:border-indigo-500 outline-none"
+                className="w-full bg-app border border-hairline rounded-xl px-4 py-3 text-white focus:border-indigo-500 outline-none"
                 placeholder="0,00"
               />
             </div>
@@ -401,7 +401,7 @@ export default function Perfil() {
               <button
                 type="button"
                 onClick={() => setEditandoRenda(false)}
-                className="flex items-center gap-1.5 bg-[#1a2234] border border-[#1e293b] hover:border-indigo-500/40 text-slate-300 text-sm font-bold px-4 py-3 rounded-xl transition-colors"
+                className="flex items-center gap-1.5 bg-surfaceLight border border-hairline hover:border-indigo-500/40 text-slate-300 text-sm font-bold px-4 py-3 rounded-xl transition-colors"
               >
                 <X size={15} /> Cancelar
               </button>
@@ -422,7 +422,7 @@ export default function Perfil() {
             </div>
             <button
               onClick={abrirEdicaoRenda}
-              className="shrink-0 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-[#1a2234] border border-[#1e293b] hover:border-indigo-500/40 hover:bg-[#1e293b] text-white text-sm font-bold transition-colors"
+              className="shrink-0 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-surfaceLight border border-hairline hover:border-indigo-500/40 hover:bg-hairline text-white text-sm font-bold transition-colors"
             >
               {userProfile?.renda_mensal ? 'Editar' : 'Definir renda'}
             </button>
@@ -434,7 +434,7 @@ export default function Perfil() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
         {/* Seu plano */}
-        <div className="bg-[#101623] border border-[#1e293b] rounded-2xl p-6 flex flex-col">
+        <div className="bg-surface border border-hairline rounded-2xl p-6 flex flex-col">
           <h3 className="text-sm font-semibold text-slate-300 flex items-center gap-2 mb-4">
             <Crown size={16} className="text-slate-500" /> Seu plano
           </h3>
@@ -465,7 +465,7 @@ export default function Perfil() {
         </div>
 
         {/* Segurança */}
-        <div className="bg-[#101623] border border-[#1e293b] rounded-2xl p-6 flex flex-col">
+        <div className="bg-surface border border-hairline rounded-2xl p-6 flex flex-col">
           <h3 className="text-sm font-semibold text-slate-300 flex items-center gap-2 mb-4">
             <ShieldCheck size={16} className="text-slate-500" /> Segurança
           </h3>
@@ -477,7 +477,7 @@ export default function Perfil() {
               </p>
               <button
                 onClick={abrirModal}
-                className="mt-auto flex items-center justify-center gap-2 py-3 rounded-xl bg-[#1a2234] border border-[#1e293b] hover:border-indigo-500/40 hover:bg-[#1e293b] text-white text-sm font-bold transition-colors"
+                className="mt-auto flex items-center justify-center gap-2 py-3 rounded-xl bg-surfaceLight border border-hairline hover:border-indigo-500/40 hover:bg-hairline text-white text-sm font-bold transition-colors"
               >
                 <Lock size={15} /> Trocar senha
               </button>
@@ -491,7 +491,7 @@ export default function Perfil() {
       </div>
 
       {/* ── EXCLUIR CONTA ────────────────────────────── */}
-      <div className="bg-[#101623] border border-rose-500/25 rounded-2xl p-6">
+      <div className="bg-surface border border-rose-500/25 rounded-2xl p-6">
         <h3 className="text-sm font-semibold text-rose-300 flex items-center gap-2 mb-4">
           <AlertTriangle size={16} className="text-rose-400" /> Zona de perigo
         </h3>
@@ -518,8 +518,8 @@ export default function Perfil() {
       {/* ── MODAL EXCLUIR CONTA ──────────────────────── */}
       {delOpen && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-[#101623] border border-[#1e293b] rounded-3xl w-full max-w-md max-h-[90vh] overflow-y-auto shadow-2xl animate-in fade-in zoom-in duration-200">
-            <div className="p-6 border-b border-[#1e293b] flex justify-between items-center gap-3">
+          <div className="bg-surface border border-hairline rounded-3xl w-full max-w-md max-h-[90vh] overflow-y-auto shadow-2xl animate-in fade-in zoom-in duration-200">
+            <div className="p-6 border-b border-hairline flex justify-between items-center gap-3">
               <h2 className="text-xl font-bold text-white">Excluir conta</h2>
               <button
                 type="button"
@@ -560,7 +560,7 @@ export default function Perfil() {
                   disabled={excluindo}
                   autoComplete="off"
                   spellCheck="false"
-                  className="w-full bg-[#070b14] border border-[#1e293b] rounded-xl px-4 py-3 text-white focus:border-rose-500 outline-none disabled:opacity-50"
+                  className="w-full bg-app border border-hairline rounded-xl px-4 py-3 text-white focus:border-rose-500 outline-none disabled:opacity-50"
                   placeholder="seu e-mail"
                 />
               </div>
@@ -577,7 +577,7 @@ export default function Perfil() {
                     onChange={(e) => setDelSenha(e.target.value)}
                     disabled={excluindo}
                     autoComplete="current-password"
-                    className="w-full bg-[#070b14] border border-[#1e293b] rounded-xl px-4 py-3 text-white focus:border-rose-500 outline-none disabled:opacity-50"
+                    className="w-full bg-app border border-hairline rounded-xl px-4 py-3 text-white focus:border-rose-500 outline-none disabled:opacity-50"
                     placeholder="••••••••"
                   />
                 </div>
@@ -593,7 +593,7 @@ export default function Perfil() {
                   type="button"
                   onClick={fecharExclusao}
                   disabled={excluindo}
-                  className="flex-1 py-3.5 rounded-xl bg-[#1a2234] border border-[#1e293b] hover:bg-[#1e293b] text-white text-sm font-bold transition-colors disabled:opacity-50"
+                  className="flex-1 py-3.5 rounded-xl bg-surfaceLight border border-hairline hover:bg-hairline text-white text-sm font-bold transition-colors disabled:opacity-50"
                 >
                   Cancelar
                 </button>
@@ -613,8 +613,8 @@ export default function Perfil() {
       {/* ── MODAL TROCAR SENHA ───────────────────────── */}
       {pwdOpen && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-[#101623] border border-[#1e293b] rounded-3xl w-full max-w-md overflow-hidden shadow-2xl animate-in fade-in zoom-in duration-200">
-            <div className="p-6 border-b border-[#1e293b] flex justify-between items-center">
+          <div className="bg-surface border border-hairline rounded-3xl w-full max-w-md overflow-hidden shadow-2xl animate-in fade-in zoom-in duration-200">
+            <div className="p-6 border-b border-hairline flex justify-between items-center">
               <h2 className="text-xl font-bold text-white">Trocar senha</h2>
               <button onClick={() => setPwdOpen(false)} className="text-slate-400 hover:text-white">
                 <X size={24} />
@@ -638,7 +638,7 @@ export default function Perfil() {
                     value={senhaAtual}
                     onChange={(e) => setSenhaAtual(e.target.value)}
                     autoComplete="current-password"
-                    className="w-full bg-[#070b14] border border-[#1e293b] rounded-xl px-4 py-3 text-white focus:border-indigo-500 outline-none"
+                    className="w-full bg-app border border-hairline rounded-xl px-4 py-3 text-white focus:border-indigo-500 outline-none"
                     placeholder="••••••••"
                   />
                 </div>
@@ -654,7 +654,7 @@ export default function Perfil() {
                     value={novaSenha}
                     onChange={(e) => setNovaSenha(e.target.value)}
                     autoComplete="new-password"
-                    className="w-full bg-[#070b14] border border-[#1e293b] rounded-xl pl-4 pr-10 py-3 text-white focus:border-indigo-500 outline-none"
+                    className="w-full bg-app border border-hairline rounded-xl pl-4 pr-10 py-3 text-white focus:border-indigo-500 outline-none"
                     placeholder="Mínimo 6 caracteres"
                   />
                   <button
@@ -675,7 +675,7 @@ export default function Perfil() {
                   value={confirmar}
                   onChange={(e) => setConfirmar(e.target.value)}
                   autoComplete="new-password"
-                  className="w-full bg-[#070b14] border border-[#1e293b] rounded-xl px-4 py-3 text-white focus:border-indigo-500 outline-none"
+                  className="w-full bg-app border border-hairline rounded-xl px-4 py-3 text-white focus:border-indigo-500 outline-none"
                   placeholder="Repita a nova senha"
                 />
               </div>

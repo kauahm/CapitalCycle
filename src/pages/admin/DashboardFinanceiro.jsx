@@ -172,49 +172,59 @@ export default function DashboardFinanceiro() {
   const primeiroNome = userProfile && userProfile.nome ? userProfile.nome.split(' ')[0] : 'Investidor';
 
   return (
-    <div className="space-y-10">
+    <div className="space-y-[var(--cc-gap)]">
 
-      {/* ── CABEÇALHO: saldo é o dado hero, o resto orbita em escala menor ── */}
-      <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-8">
-        <div>
-          <p className="text-sm text-slate-500 mb-4">Olá, {primeiroNome}. Aqui está o resumo do seu capital.</p>
-          <p className="text-xs uppercase font-semibold tracking-widest text-slate-500 mb-1">Saldo disponível</p>
-          <CurrencyValue value={saldoDisponivel} size="6xl" align="left" className="font-bold text-white tracking-tight" />
-          <div className={`mt-3 inline-flex items-center gap-1.5 text-sm font-medium ${fluxoPositivo ? 'text-emerald-400' : 'text-rose-400'}`}>
+      <p className="text-sm text-textSecondary">Olá, {primeiroNome}. Aqui está o resumo do seu capital.</p>
+
+      {/* ── HERO FINANCEIRO: tres cards, como na referencia ──
+
+          A proporcao 1,5fr / 1fr / 1fr foi medida na imagem: os cards
+          ocupam 580 / 392 / 393px dos 1425px uteis, com 30px de gap (aqui
+          24px na escala de 1440). O primeiro e mais largo porque carrega
+          tres linhas de conteudo; os outros dois centralizam as suas duas.
+
+          Os dados continuam sendo os reais da conta — a referencia serve de
+          forma, nao de conteudo. */}
+      <div className="grid grid-cols-1 lg:grid-cols-[1.478fr_1fr_1fr] gap-[var(--cc-gap-card)]">
+
+        <div className="cc-card-p">
+          <p className="cc-label mb-3">Saldo disponível</p>
+          <CurrencyValue value={saldoDisponivel} size="5xl" align="left" className="font-bold text-textMain tracking-tight" />
+          <div className={`mt-4 inline-flex items-center gap-1.5 text-sm font-medium ${fluxoPositivo ? 'text-success' : 'text-rose-400'}`}>
             {fluxoPositivo ? <TrendingUp size={16} /> : <TrendingDown size={16} />}
             {fluxoPositivo
               ? `Sobrou ${formatarMoeda(Math.abs(diferencaMes))} este mês`
               : `Faltaram ${formatarMoeda(Math.abs(diferencaMes))} este mês`}
           </div>
           {/* Total gasto no mês — reaproveita totalSaidasMes, já derivado das
-              mesmas transações. Tom neutro (slate) de propósito: o julgamento
-              de bom/ruim é da linha acima; aqui é só o fato. Sempre visível,
+              mesmas transações. Tom neutro de propósito: o julgamento de
+              bom/ruim é da linha acima; aqui é só o fato. Sempre visível,
               inclusive em R$ 0,00, para o bloco não mudar de altura entre meses. */}
-          <p className="mt-1.5 text-sm text-slate-500">
+          <p className="mt-1.5 text-sm text-textSecondary">
             Foram gastos {formatarMoeda(totalSaidasMes)} este mês
           </p>
         </div>
 
-        <div className="flex gap-10 shrink-0">
-          <div>
-            <p className="text-xs uppercase font-semibold tracking-widest text-slate-500 mb-1">Investido</p>
-            <CurrencyValue value={totalInvestido} size="2xl" align="left" className="font-semibold text-emerald-400" />
-          </div>
-          <div>
-            <p className="text-xs uppercase font-semibold tracking-widest text-slate-500 mb-1">Contas ativas</p>
-            <p className="text-2xl font-semibold text-white tabular-nums">{contas.length}</p>
-          </div>
+        <div className="cc-card-p flex flex-col justify-center">
+          <p className="cc-label mb-3">Investido</p>
+          <CurrencyValue value={totalInvestido} size="3xl" align="left" className="font-bold text-success" />
+        </div>
+
+        <div className="cc-card-p flex flex-col justify-center">
+          <p className="cc-label mb-3">Contas ativas</p>
+          <p className="text-3xl font-bold text-textMain tabular-nums">{contas.length}</p>
         </div>
       </div>
 
-      <div className="h-px bg-[#1e293b]" />
+      {/* ── EVOLUÇÃO MENSAL + METAS ──
 
-      {/* ── EVOLUÇÃO MENSAL + METAS ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
+          Na referencia sao dois cards de 811 e 584px dentro dos 1425px
+          uteis: 1,4fr / 1fr com o mesmo gap de 24px da linha de cima. */}
+      <div className="grid grid-cols-1 lg:grid-cols-[1.389fr_1fr] gap-[var(--cc-gap-card)]">
 
         {/* Evolução: fluxo líquido dos últimos 6 meses, com dado real */}
-        <div className="lg:col-span-2">
-          <h3 className="text-sm font-semibold text-slate-300 mb-6">Fluxo líquido — últimos 6 meses</h3>
+        <div className="cc-card-p">
+          <h3 className="cc-card-title mb-7">Fluxo líquido — últimos 6 meses</h3>
           <div className="flex items-end gap-4 h-32">
             {evolucaoMensal.map((m) => {
               const alturaPct = Math.max(4, (Math.abs(m.liquido) / maiorMovimentoMes) * 100);
@@ -223,12 +233,16 @@ export default function DashboardFinanceiro() {
                 <div key={m.chave} className="flex-1 flex flex-col items-center gap-2 h-full justify-end">
                   <div
                     title={formatarMoeda(m.liquido)}
-                    className={`w-full rounded-sm transition-all duration-500 ${
-                      positivo ? 'bg-emerald-500/70' : 'bg-rose-500/70'
-                    } ${m.atual ? 'ring-1 ring-offset-2 ring-offset-[#070b14] ring-slate-500' : ''}`}
+                    /* A referencia desenha barras de canto arredondado, em
+                       verde escuro, com o mes corrente em verde claro. */
+                    className={`w-full rounded-lg transition-all duration-500 ${
+                      positivo
+                        ? (m.atual ? 'bg-success' : 'bg-emerald-800')
+                        : 'bg-rose-500/70'
+                    }`}
                     style={{ height: `${alturaPct}%` }}
                   />
-                  <span className={`text-xs capitalize ${m.atual ? 'text-slate-300 font-semibold' : 'text-slate-600'}`}>
+                  <span className={`text-xs capitalize ${m.atual ? 'text-textMain font-semibold' : 'text-textSecondary'}`}>
                     {m.label}
                   </span>
                 </div>
@@ -238,22 +252,22 @@ export default function DashboardFinanceiro() {
         </div>
 
         {/* Metas em andamento */}
-        <div>
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-sm font-semibold text-slate-300 flex items-center gap-2">
-              <Target size={16} className="text-slate-500" /> Metas em andamento
+        <div className="cc-card-p">
+          <div className="flex items-center justify-between mb-7">
+            <h3 className="cc-card-title flex items-center gap-2.5">
+              <Target size={18} className="text-textSecondary" /> Metas em andamento
             </h3>
             {ciclos.length > 0 && (
-              <Link to="/capital/ciclos" className="text-xs text-slate-500 hover:text-indigo-400 transition-colors flex items-center gap-1">
+              <Link to="/capital/ciclos" className="text-xs text-textSecondary hover:text-primary transition-colors flex items-center gap-1">
                 Ver todas <ArrowRight size={12} />
               </Link>
             )}
           </div>
 
           {ciclos.length === 0 ? (
-            <div className="border border-dashed border-[#1e293b] rounded-xl p-6 text-center">
-              <p className="text-slate-500 text-sm mb-3">Nenhuma meta cadastrada ainda.</p>
-              <Link to="/capital/ciclos" className="text-sm text-indigo-400 hover:text-indigo-300 font-medium inline-flex items-center gap-1">
+            <div className="cc-empty p-10">
+              <p className="text-textSecondary text-sm mb-3">Nenhuma meta cadastrada ainda.</p>
+              <Link to="/capital/ciclos" className="text-sm text-primary hover:text-indigo-300 font-medium inline-flex items-center gap-1">
                 Criar minha primeira meta <ArrowRight size={14} />
               </Link>
             </div>
@@ -264,13 +278,13 @@ export default function DashboardFinanceiro() {
                   // Progresso vem dos aportes registrados, não de transações (Fase 1)
                   const p = calcularProgressoMeta(ciclo, aportesMap[ciclo.id] || []);
                   return (
-                    <div key={ciclo.id} className="bg-[#101623] border border-[#1e293b] rounded-xl p-5">
+                    <div key={ciclo.id} className="bg-app border border-hairline rounded-xl p-5">
                       <div className="flex justify-between items-baseline mb-3">
                         <h4 className="font-medium text-white text-sm">{ciclo.nome}</h4>
                         <span className="text-xs text-slate-500 tabular-nums">Alvo: {formatarMoeda(p.valorMeta)}</span>
                       </div>
-                      <div className="w-full bg-[#1e293b] h-1.5 rounded-full overflow-hidden mb-2">
-                        <div className="h-full rounded-full bg-indigo-500 transition-all duration-700" style={{ width: `${p.progressoPct}%` }} />
+                      <div className="w-full bg-hairline h-1.5 rounded-full overflow-hidden mb-2">
+                        <div className="h-full rounded-full bg-primary transition-all duration-700" style={{ width: `${p.progressoPct}%` }} />
                       </div>
                       <div className="flex justify-between items-baseline">
                         <span className="text-xs font-medium text-slate-400">{p.progressoPct.toFixed(0)}% concluído</span>
@@ -288,12 +302,12 @@ export default function DashboardFinanceiro() {
                 const estourado = porcentagem >= 100;
 
                 return (
-                  <div key={ciclo.id} className="bg-[#101623] border border-[#1e293b] rounded-xl p-5">
+                  <div key={ciclo.id} className="bg-app border border-hairline rounded-xl p-5">
                     <div className="flex justify-between items-baseline mb-3">
                       <h4 className="font-medium text-white text-sm">{ciclo.nome}</h4>
                       <span className="text-xs text-slate-500 tabular-nums">Teto: {formatarMoeda(ciclo.orcamento)}</span>
                     </div>
-                    <div className="w-full bg-[#1e293b] h-1.5 rounded-full overflow-hidden mb-2">
+                    <div className="w-full bg-hairline h-1.5 rounded-full overflow-hidden mb-2">
                       <div
                         className={`h-full rounded-full transition-all duration-700 ${estourado ? 'bg-rose-500' : 'bg-indigo-500'}`}
                         style={{ width: `${porcentagem}%` }}
@@ -313,62 +327,62 @@ export default function DashboardFinanceiro() {
         </div>
       </div>
 
-      <div className="h-px bg-[#1e293b]" />
+      {/* ── RENDA MENSAL: ECONOMIA E % COMPROMETIDA (Fase 1) ──
 
-      {/* ── RENDA MENSAL: ECONOMIA E % COMPROMETIDA (Fase 1) ── */}
+          Na referencia este e um bloco de largura cheia com container
+          proprio. O estado vazio (sem renda definida) e o que a imagem
+          mostra: icone, frase e o link de acao, centralizados. */}
       {temRenda ? (
-        <div>
-          <h3 className="text-sm font-semibold text-slate-300 mb-6 flex items-center gap-2">
-            <Wallet size={16} className="text-slate-500" /> Renda do mês
+        <div className="cc-card-p">
+          <h3 className="cc-card-title mb-7 flex items-center gap-2.5">
+            <Wallet size={18} className="text-textSecondary" /> Renda do mês
           </h3>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-8">
             <div>
-              <p className="text-xs uppercase font-semibold tracking-widest text-slate-500 mb-1">Renda mensal</p>
-              <CurrencyValue value={rendaMensal} size="2xl" align="left" className="font-bold text-white" />
+              <p className="cc-label mb-2">Renda mensal</p>
+              <CurrencyValue value={rendaMensal} size="2xl" align="left" className="font-bold text-textMain" />
             </div>
             <div>
-              <p className="text-xs uppercase font-semibold tracking-widest text-slate-500 mb-1">Economia do mês</p>
-              <CurrencyValue value={economiaMes} size="2xl" align="left" className={`font-bold ${economiaMes >= 0 ? 'text-emerald-400' : 'text-rose-400'}`} />
+              <p className="cc-label mb-2">Economia do mês</p>
+              <CurrencyValue value={economiaMes} size="2xl" align="left" className={`font-bold ${economiaMes >= 0 ? 'text-success' : 'text-rose-400'}`} />
               {variacaoEconomiaPct != null && (
-                <p className={`text-xs mt-1 flex items-center gap-1 ${variacaoEconomiaPct >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                <p className={`text-xs mt-1 flex items-center gap-1 ${variacaoEconomiaPct >= 0 ? 'text-success' : 'text-rose-400'}`}>
                   {variacaoEconomiaPct >= 0 ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
                   {variacaoEconomiaPct >= 0 ? '+' : ''}{variacaoEconomiaPct.toFixed(0)}% vs. mês anterior
                 </p>
               )}
             </div>
             <div>
-              <p className="text-xs uppercase font-semibold tracking-widest text-slate-500 mb-1">Renda comprometida</p>
-              <p className={`text-2xl font-bold tabular-nums ${rendaComprometidaPct > 100 ? 'text-rose-400' : rendaComprometidaPct >= 80 ? 'text-amber-400' : 'text-white'}`}>
+              <p className="cc-label mb-2">Renda comprometida</p>
+              <p className={`text-2xl font-bold tabular-nums ${rendaComprometidaPct > 100 ? 'text-rose-400' : rendaComprometidaPct >= 80 ? 'text-amber-400' : 'text-textMain'}`}>
                 {rendaComprometidaPct.toFixed(0)}%
               </p>
             </div>
           </div>
         </div>
       ) : (
-        <div className="border border-dashed border-[#1e293b] rounded-xl p-6 text-center">
-          <Wallet size={20} className="text-slate-600 mx-auto mb-3" />
-          <p className="text-slate-400 text-sm mb-3">Defina sua renda mensal para acompanhar economia e % da renda comprometida.</p>
-          <Link to="/capital/perfil" className="text-sm text-indigo-400 hover:text-indigo-300 font-medium inline-flex items-center gap-1">
+        <div className="cc-card-p text-center py-14">
+          <Wallet size={22} className="text-textSecondary mx-auto mb-4" />
+          <p className="text-textSecondary text-sm mb-3">Defina sua renda mensal para acompanhar economia e % da renda comprometida.</p>
+          <Link to="/capital/perfil" className="text-sm text-primary hover:text-indigo-300 font-medium inline-flex items-center gap-1">
             Definir renda mensal <ArrowRight size={14} />
           </Link>
         </div>
       )}
 
-      <div className="h-px bg-[#1e293b]" />
-
       {/* ── META EM DESTAQUE: RITMO E PREVISÃO (Fase 1) ── */}
       {metaDestaque && progressoMetaDestaque && (
-        <div>
+        <div className="cc-card-p">
           <div className="flex items-center justify-between mb-6">
-            <h3 className="text-sm font-semibold text-slate-300 flex items-center gap-2">
+            <h3 className="cc-card-title flex items-center gap-2.5">
               <Target size={16} className="text-slate-500" /> Meta em destaque
             </h3>
-            <Link to="/capital/ciclos" className="text-xs text-slate-500 hover:text-indigo-400 transition-colors flex items-center gap-1">
+            <Link to="/capital/ciclos" className="text-xs text-slate-500 hover:text-primary transition-colors flex items-center gap-1">
               Ver todas <ArrowRight size={12} />
             </Link>
           </div>
 
-          <div className="bg-[#101623] border border-[#1e293b] rounded-2xl p-6">
+          <div className="bg-surface border border-hairline rounded-2xl p-6">
             <div className="flex justify-between items-baseline mb-4">
               <h4 className="font-bold text-white">{metaDestaque.nome}</h4>
               {progressoMetaDestaque.prazoEncerrado && <span className="text-xs text-rose-400 font-semibold">Prazo encerrado</span>}
@@ -380,7 +394,7 @@ export default function DashboardFinanceiro() {
                   <span className="text-xs text-slate-400">{progressoMetaDestaque.progressoPct.toFixed(0)}% concluído</span>
                   <CurrencyValue value={progressoMetaDestaque.valorAcumulado} size="lg" className="font-bold min-w-0 text-white" />
                 </div>
-                <div className="w-full bg-[#1e293b] h-2 rounded-full overflow-hidden mb-2">
+                <div className="w-full bg-hairline h-2 rounded-full overflow-hidden mb-2">
                   <div className="h-full bg-indigo-500 transition-all duration-1000" style={{ width: `${progressoMetaDestaque.progressoPct}%` }} />
                 </div>
                 <p className="text-xs text-slate-500">
@@ -424,23 +438,21 @@ export default function DashboardFinanceiro() {
         </div>
       )}
 
-      <div className="h-px bg-[#1e293b]" />
-
       {/* ── ORÇAMENTO POR CATEGORIA (Fase 1) ── */}
-      <div>
+      <div className="cc-card-p">
         <div className="flex items-center justify-between mb-6">
-          <h3 className="text-sm font-semibold text-slate-300 flex items-center gap-2">
+          <h3 className="cc-card-title flex items-center gap-2.5">
             <PieChart size={16} className="text-slate-500" /> Orçamento por categoria
           </h3>
-          <Link to="/capital/orcamento" className="text-xs text-slate-500 hover:text-indigo-400 transition-colors flex items-center gap-1">
+          <Link to="/capital/orcamento" className="text-xs text-slate-500 hover:text-primary transition-colors flex items-center gap-1">
             Ver todas <ArrowRight size={12} />
           </Link>
         </div>
 
         {progressoCategorias.length === 0 ? (
-          <div className="border border-dashed border-[#1e293b] rounded-xl p-6 text-center">
+          <div className="cc-empty p-8">
             <p className="text-slate-500 text-sm mb-3">Nenhum limite por categoria definido ainda.</p>
-            <Link to="/capital/orcamento" className="text-sm text-indigo-400 hover:text-indigo-300 font-medium inline-flex items-center gap-1">
+            <Link to="/capital/orcamento" className="text-sm text-primary hover:text-indigo-300 font-medium inline-flex items-center gap-1">
               Definir limites por categoria <ArrowRight size={14} />
             </Link>
           </div>
@@ -452,7 +464,7 @@ export default function DashboardFinanceiro() {
                   <span className="text-slate-400 text-sm">{c.categoria}</span>
                   <span className="font-semibold text-white tabular-nums">{formatarMoeda(c.gasto)}</span>
                 </div>
-                <div className="w-full bg-[#1e293b] h-1.5 rounded-full overflow-hidden">
+                <div className="w-full bg-hairline h-1.5 rounded-full overflow-hidden">
                   <div
                     className={`h-full transition-all duration-700 ${c.estado === 'estourado' ? 'bg-rose-500' : c.estado === 'alerta' ? 'bg-amber-500' : 'bg-emerald-400'}`}
                     style={{ width: `${Math.min(100, c.pct)}%` }}
@@ -468,14 +480,12 @@ export default function DashboardFinanceiro() {
         )}
       </div>
 
-      <div className="h-px bg-[#1e293b]" />
-
       {/* ── COMPARAÇÃO COM O MÊS ANTERIOR (Fase 1) ── */}
-      <div>
-        <h3 className="text-sm font-semibold text-slate-300 mb-6">Comparação com o mês anterior</h3>
+      <div className="cc-card-p">
+        <h3 className="cc-card-title mb-7">Comparação com o mês anterior</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
           <div>
-            <p className="text-xs uppercase font-semibold tracking-widest text-slate-500 mb-1">Gasto total</p>
+            <p className="cc-label mb-2">Gasto total</p>
             {variacaoGastoPct != null ? (
               <p className={`text-sm font-medium flex items-center gap-1.5 ${variacaoGastoPct <= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
                 {variacaoGastoPct <= 0 ? <TrendingDown size={14} /> : <TrendingUp size={14} />}
@@ -486,7 +496,7 @@ export default function DashboardFinanceiro() {
             )}
           </div>
           <div>
-            <p className="text-xs uppercase font-semibold tracking-widest text-slate-500 mb-1">Economia</p>
+            <p className="cc-label mb-2">Economia</p>
             {variacaoEconomiaPct != null ? (
               <p className={`text-sm font-medium flex items-center gap-1.5 ${variacaoEconomiaPct >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
                 {variacaoEconomiaPct >= 0 ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
@@ -499,12 +509,10 @@ export default function DashboardFinanceiro() {
         </div>
       </div>
 
-      <div className="h-px bg-[#1e293b]" />
-
       {/* ── MAIORES DESPESAS DO MÊS ── */}
-      <div>
+      <div className="cc-card-p">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-3">
-          <h3 className="text-sm font-semibold text-slate-300">Maiores despesas no mês</h3>
+          <h3 className="cc-card-title">Maiores despesas no mês</h3>
           {maioresGastos.length > 0 && maioresGastos[0].valor > totalEntradasMes * 0.5 && (
             <div className="flex items-center gap-1.5 text-rose-400 text-xs font-medium">
               <AlertTriangle size={13} /> Gasto elevado em {maioresGastos[0].categoria}
@@ -513,9 +521,9 @@ export default function DashboardFinanceiro() {
         </div>
 
         {maioresGastos.length === 0 ? (
-          <div className="border border-dashed border-[#1e293b] rounded-xl p-6 text-center">
+          <div className="cc-empty p-8">
             <p className="text-slate-500 text-sm mb-3">Nenhuma despesa registrada neste mês.</p>
-            <Link to="/capital/transacoes" className="text-sm text-indigo-400 hover:text-indigo-300 font-medium inline-flex items-center gap-1">
+            <Link to="/capital/transacoes" className="text-sm text-primary hover:text-indigo-300 font-medium inline-flex items-center gap-1">
               Lançar uma transação <ArrowRight size={14} />
             </Link>
           </div>
@@ -540,10 +548,10 @@ export default function DashboardFinanceiro() {
 
       {/* Estado especial: usuário sem nenhuma conta cadastrada ainda */}
       {contas.length === 0 && (
-        <div className="border border-dashed border-[#1e293b] rounded-xl p-8 text-center">
+        <div className="border border-dashed border-hairline rounded-xl p-8 text-center">
           <Wallet size={22} className="text-slate-600 mx-auto mb-3" />
           <p className="text-slate-400 text-sm mb-3">Cadastre sua primeira conta para começar a ver seu saldo aqui.</p>
-          <Link to="/capital/contas" className="text-sm text-indigo-400 hover:text-indigo-300 font-medium inline-flex items-center gap-1">
+          <Link to="/capital/contas" className="text-sm text-primary hover:text-indigo-300 font-medium inline-flex items-center gap-1">
             Cadastrar conta <ArrowRight size={14} />
           </Link>
         </div>
@@ -562,7 +570,7 @@ function LimitCard({ label, atual, limite, color }) {
         <span className="text-slate-400 text-sm">{label}</span>
         <span className="font-semibold text-white tabular-nums">{format(atual)}</span>
       </div>
-      <div className="w-full bg-[#1e293b] h-1.5 rounded-full overflow-hidden">
+      <div className="w-full bg-hairline h-1.5 rounded-full overflow-hidden">
         <div className={`h-full ${color} transition-all duration-700`} style={{ width: `${porcentagem > 100 ? 100 : porcentagem}%` }} />
       </div>
     </div>

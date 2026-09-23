@@ -182,7 +182,7 @@ export default function ContasBancarias() {
             <CurrencyValue value={totalGeral} size="xl" className="font-black text-emerald-400" />
           </div>
           {limiteContas != null && (
-            <span className="text-xs font-semibold text-slate-500 whitespace-nowrap bg-[#101623] border border-[#1e293b] px-3 py-2 rounded-xl">
+            <span className="text-xs font-semibold text-slate-500 whitespace-nowrap bg-surface border border-hairline px-3 py-2 rounded-xl">
               {contas.length}/{limiteContas} contas
             </span>
           )}
@@ -200,7 +200,7 @@ export default function ContasBancarias() {
 
       {/* GRID DE CARTÕES DE CONTA */}
       {contas.length === 0 ? (
-        <div className="bg-[#101623] border border-[#1e293b] rounded-3xl p-12 text-center">
+        <div className="bg-surface border border-hairline rounded-3xl p-12 text-center">
           <Landmark size={48} className="mx-auto text-slate-600 mb-4" />
           <h3 className="text-lg font-bold text-white mb-2">Nenhuma conta cadastrada</h3>
           <p className="text-slate-400">Adicione sua primeira conta bancária ou carteira para começar.</p>
@@ -214,7 +214,7 @@ export default function ContasBancarias() {
             const temHistorico = vinculados > 0;
 
             return (
-              <div key={conta.id} className={`bg-[#101623] border border-[#1e293b] p-6 rounded-3xl relative overflow-hidden group transition-all duration-300 ${Estilo.border}`}>
+              <div key={conta.id} className={`bg-surface border border-hairline p-6 rounded-3xl relative overflow-hidden group transition-all duration-300 ${Estilo.border}`}>
                 
                 <div className="flex items-center gap-4 mb-6">
                   <div className={`p-4 rounded-2xl ${Estilo.bg} ${Estilo.cor}`}>
@@ -246,7 +246,7 @@ export default function ContasBancarias() {
                 <div className="relative z-10 mt-5 flex items-center justify-end gap-2 md:mt-0 md:absolute md:top-4 md:right-4 md:opacity-0 md:transition-opacity md:group-hover:opacity-100 md:group-focus-within:opacity-100">
                   <button
                     onClick={() => handleEdit(conta)}
-                    className="text-slate-600 hover:text-indigo-400 bg-[#070b14] p-2 rounded-lg"
+                    className="text-slate-600 hover:text-indigo-400 bg-app p-2 rounded-lg"
                     title="Editar Conta"
                   >
                     <Pencil size={16} />
@@ -255,7 +255,7 @@ export default function ContasBancarias() {
                       bloqueio, em vez de não fazer nada. */}
                   <button
                     onClick={() => handleDelete(conta.id)}
-                    className={`bg-[#070b14] p-2 rounded-lg ${temHistorico ? 'text-slate-700 cursor-not-allowed' : 'text-slate-600 hover:text-rose-400'}`}
+                    className={`bg-app p-2 rounded-lg ${temHistorico ? 'text-slate-700 cursor-not-allowed' : 'text-slate-600 hover:text-rose-400'}`}
                     title={temHistorico
                       ? `Não é possível excluir: ${vinculados} ${vinculados === 1 ? 'lançamento vinculado' : 'lançamentos vinculados'}`
                       : 'Excluir Conta'}
@@ -277,8 +277,8 @@ export default function ContasBancarias() {
       {/* MODAL DE NOVA CONTA */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-[#101623] border border-[#1e293b] rounded-3xl w-full max-w-md overflow-hidden shadow-2xl animate-in fade-in zoom-in duration-200">
-            <div className="p-6 border-b border-[#1e293b] flex justify-between items-center">
+          <div className="bg-surface border border-hairline rounded-3xl w-full max-w-md overflow-hidden shadow-2xl animate-in fade-in zoom-in duration-200">
+            <div className="p-6 border-b border-hairline flex justify-between items-center">
               <h2 className="text-xl font-bold text-white">{editingId ? 'Editar Conta' : 'Adicionar Conta'}</h2>
               <button onClick={closeModal} className="text-slate-400 hover:text-white">
                 <X size={24} />
@@ -288,18 +288,18 @@ export default function ContasBancarias() {
             <form onSubmit={handleSubmit} className="p-6 space-y-4">
               <div>
                 <label className="block text-xs font-medium text-slate-400 mb-1">Nome (Apelido)</label>
-                <input required type="text" value={formData.nome} onChange={e => setFormData({...formData, nome: e.target.value})} className="w-full bg-[#070b14] border border-[#1e293b] rounded-xl px-4 py-3 text-white focus:border-indigo-500 outline-none" placeholder="Ex: Reserva Nu" />
+                <input required type="text" value={formData.nome} onChange={e => setFormData({...formData, nome: e.target.value})} className="w-full bg-app border border-hairline rounded-xl px-4 py-3 text-white focus:border-indigo-500 outline-none" placeholder="Ex: Reserva Nu" />
               </div>
               
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   {/* Opcional: dinheiro em espécie não tem instituição. */}
                   <label className="block text-xs font-medium text-slate-400 mb-1">Instituição</label>
-                  <input type="text" value={formData.banco} onChange={e => setFormData({...formData, banco: e.target.value})} className="w-full bg-[#070b14] border border-[#1e293b] rounded-xl px-4 py-3 text-white focus:border-indigo-500 outline-none" placeholder="Opcional" />
+                  <input type="text" value={formData.banco} onChange={e => setFormData({...formData, banco: e.target.value})} className="w-full bg-app border border-hairline rounded-xl px-4 py-3 text-white focus:border-indigo-500 outline-none" placeholder="Opcional" />
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-slate-400 mb-1">Tipo de Conta</label>
-                  <select required value={formData.tipo} onChange={e => setFormData({...formData, tipo: e.target.value})} className="w-full bg-[#070b14] border border-[#1e293b] rounded-xl px-4 py-3 text-white focus:border-indigo-500 outline-none">
+                  <select required value={formData.tipo} onChange={e => setFormData({...formData, tipo: e.target.value})} className="w-full bg-app border border-hairline rounded-xl px-4 py-3 text-white focus:border-indigo-500 outline-none">
                     {tiposConta.map(({ valor, rotulo }) => <option key={valor} value={valor}>{rotulo}</option>)}
                   </select>
                 </div>
@@ -307,7 +307,7 @@ export default function ContasBancarias() {
 
               <div>
                 <label className="block text-xs font-medium text-slate-400 mb-1">Saldo Inicial (R$)</label>
-                <input required type="number" step="0.01" value={formData.saldo} onChange={e => setFormData({...formData, saldo: e.target.value})} className="w-full bg-[#070b14] border border-[#1e293b] rounded-xl px-4 py-3 text-white focus:border-indigo-500 outline-none" placeholder="0,00" />
+                <input required type="number" step="0.01" value={formData.saldo} onChange={e => setFormData({...formData, saldo: e.target.value})} className="w-full bg-app border border-hairline rounded-xl px-4 py-3 text-white focus:border-indigo-500 outline-none" placeholder="0,00" />
               </div>
 
               <button
