@@ -725,9 +725,10 @@
   left: calc(120 / 1440 * 100%);
   top: calc(160 / 900 * 100%);
   margin: 0;
-  /* Medido, nao escolhido: entre 668 e 852 a linha quebra depois de
-     "evolui" no corpo de 88px do S1 e continua inteira em 52 e 46px. A
-     quebra do Showcase aparece sozinha quando o corpo cresce. */
+  /* Teto de seguranca, nao mecanismo de composicao. O valor existia para
+     controlar onde a linha quebrava no corpo de 88px do S1 centralizado;
+     com o S1 revogado o titulo e sempre uma linha de 629px em 1440, bem
+     abaixo deste limite. Fica so para segurar a linha caso a copy cresca. */
   max-width: 760px;
   font-family: 'Playfair Display', serif;
   font-size: clamp(30px, 3.611vw, 52px);
@@ -735,9 +736,9 @@
   line-height: 1.08;
   letter-spacing: -0.026em;
   color: #14141a;
-  /* Em linha unica a caixa abraca o texto, entao centralizar aqui nao
-     muda nada no D5 nem no S2 — so vale quando o titulo quebra, no S1. */
-  text-align: center;
+  /* Alinhado a esquerda, como o resto do lockup. O `center` daqui servia
+     ao S1 centralizado, que foi revogado. */
+  text-align: left;
 }
 
 .cc-recursos__realce {

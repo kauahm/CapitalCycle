@@ -1,73 +1,54 @@
 /* ==========================================================================
-   Keyframes oficiais do Recursos Showcase — S1 a S4
+   Keyframes do Recursos Showcase — S1 a S4
 
-   Transcritos de `referencia/designer/Recursos Showcase.dc.html` e medidos
-   no próprio arquivo renderizado (as posições do S1 saem de um flex column,
-   não de coordenadas escritas à mão na prancha).
+   Transcritos de `referencia/designer/Recursos Showcase.dc.html`, com duas
+   decisoes do storyboard REVOGADAS depois de verem a transicao rodando.
 
-   Precedência: nesta fase o SHOWCASE manda. `RecursosPanel.dc.html` e
-   `RecursosTrack.dc.html` são componentes subordinados a ele.
+   Revogacao 1 — o vaivem tipografico
+   ----------------------------------
+   As pranchas desenhavam tres corpos para o mesmo titulo: 52px no D5, 88px
+   centralizado no S1 e 46px no S2. Animado no scrub, lia como defeito.
+   Corpo, entrelinha e tracking nao existem mais nestes keyframes nem no
+   hook — quem define tipografia e so o CSS, pelo `clamp()`.
 
-   Tipografia FORA da narrativa — o vaivém foi REVOGADO
-   ----------------------------------------------------
-   As pranchas desenhavam três corpos para o mesmo título:
+   Revogacao 2 — a coreografia centralizada do lockup
+   --------------------------------------------------
+   Tirar o corpo da fonte da timeline nao resolveu a percepcao: o titulo
+   continuava parecendo crescer, diminuir e travar. A causa era o TRAJETO,
+   nao o tamanho. O lockup fazia, em 1440x900:
 
-     D→R F5 (RecursosPanel) ....... 52px, à esquerda
-     Showcase S1 .................. 88px, centralizado, em duas linhas
-     Showcase S2 .................. 46px, à esquerda
+     D5 .... x 119,6   y 159,7    (esquerda, no alto)
+     S1 .... x 402,5   y 288,7    (centro, embaixo)
+     S2 .... x 119,6   y 176,4    (esquerda, no alto de novo)
 
-   Animado no scrub, isso lia como defeito: o título começava menor,
-   crescia demais, voltava a diminuir e parecia travar antes dos cards.
-   A decisão está revogada.
+   Ou seja, 283px de ida e volta na horizontal e 129px de descida e subida
+   na vertical, dentro de um pin. Um bloco de texto que atravessa a tela e
+   volta le como zoom, e a chegada em S2 — onde ele fica parado enquanto o
+   trilho corre — le como travamento.
 
-   A primeira correção igualou os três corpos em 52px, mas manteve o corpo
-   da fonte DENTRO dos keyframes — o tween continuava existindo, só que de
-   52 para 52. Funcionava, e ainda assim era frágil: bastava alguém editar
-   um número para o vaivém voltar, e a tipografia ficava descrita em dois
-   lugares (aqui e no CSS).
+   A direcao agora e outra: o H2 e uma ANCORA VISUAL. Ele aparece ja na
+   posicao definitiva, com um assentamento curto de 16,7px, e nao sai mais
+   de la. Quem se move sao os cards, o trilho e o indicador.
 
-   Agora a garantia é estrutural. Corpo, entrelinha e tracking NÃO EXISTEM
-   mais nestes keyframes, e a timeline não tem como tocá-los. Quem define
-   tipografia é só o CSS — `.cc-recursos__titulo` já traz
-   `clamp(30px, 3.611vw, 52px)`, que dá 52px em 1440 e acompanha a largura
-   sozinho.
+     D5 .... x 120   y 160     (posicao estrutural do CSS)
+     S1 .... x 120   y 176,7   (assentamento de 16,7px — so isto)
+     S2 .... x 120   y 176,7   (identico)
+     S3 .... x 120   y 176,7   (identico)
+     S4 .... x 120   y 176,7   (identico)
 
-   O que a narrativa transforma é POSIÇÃO e OPACIDADE, e nada mais:
-   x / xPercent / y / opacity. Não há scale em peça nenhuma do lockup, nem
-   wrapper escalando, nem largura animada.
-
-   Como o título de 52px ocupa uma linha só (629px) em toda a sequência, o
-   S1 foi recomposto para não deixar o vão que a caixa menor abriria.
+   Nao ha mais `xPercent: -50` em peca nenhuma do lockup, nem x grande,
+   nem y grande, nem morph de layout. O S1 continua existindo como marco
+   de progresso — e o ponto onde a navbar aterrissa —, mas deixou de ser
+   uma composicao propria.
 
    Curso do trilho
    ---------------
-   4 painéis de 520 + 3 gaps de 28 = 2164px. O trilho vai de `left:120` a
-   `left:-844`, ou seja 964px, o que deixa margem de 120px no começo e
-   120px no fim (1440 − (−844 + 2164) = 120). Aqui isso vira `x` relativo
-   ao repouso em 120: 0 → −964.
-
-   Trilho e indicador têm curvas diferentes
-   ----------------------------------------
-   No S3 o trilho está em −362, exatamente 50% do curso — mas o indicador
-   está em 99 de 180, ou seja 55%. Não é arredondamento e não se conserta
-   para 90px: são dois tweens separados, cada um com os seus keyframes.
-
-   Centramento sem depender da largura
-   -----------------------------------
-   Cada peça do lockup mora em `left: 120px`. Para centralizar, em vez de
-   medir a largura (que muda junto com o corpo da fonte), usa-se
-   `x: 600` + `xPercent: -50`:
-
-     120 + 600 − largura/2 = 720 − largura/2
-
-   que é o centro de 1440 para qualquer largura. Os dois valores
-   interpolam juntos, então a ida da esquerda para o centro é contínua e
-   fica toda no compositor.
+   4 paineis de 520 + 3 gaps de 28 = 2164px. O trilho vai de `left:120` a
+   `left:-844`, ou seja 964px, que deixa 120px de margem nas duas pontas.
+   Aqui isso vira `x` relativo ao repouso: 0 -> -964. Esse curso esta
+   intacto; o que saiu foi o mergulho vertical ate 864 que existia so para
+   compor o S1 antigo.
    ========================================================================== */
-
-/* Quanto o `x` precisa valer, junto de `xPercent: -50`, para centralizar
-   uma peça ancorada em `left: 120px` numa viewport de 1440. */
-export const X_CENTRALIZADO = 600;
 
 /* Posições estruturais (CSS) de cada peça — o estado D→R F5, que a H3 já
    deixou pronto. Todo `y` daqui para a frente é relativo a estas. */
@@ -75,16 +56,9 @@ export const BASE = {
   eyebrowTop: 132,
   tituloTop: 160,
   subTop: 250,
-  ctaTop: 569.8, // o CTA só existe no S1; a base é a própria posição dele lá
+  ctaTop: 569.8, // posicao estrutural do CTA no CSS; ele nao e mais animado
   trilhoTop: 364,
 };
-
-/* `max-width` do título. Com o corpo fixo em 52px a linha inteira mede
-   629px e cabe folgada aqui, em linha única, do D5 ao S4 — que é
-   justamente o ponto da tipografia estável: a caixa não muda de altura
-   no meio do scrub. O valor é mantido em 760 por ser o teto já aprovado
-   e por continuar segurando a linha caso a copy cresça. */
-export const TITULO_MAX_WIDTH = 760;
 
 /* 4 painéis de 520 + 3 gaps de 28. */
 export const LARGURA_TRILHO = 4 * 520 + 3 * 28;
@@ -96,40 +70,44 @@ export const SHOWCASE_KEYFRAMES = [
     id: 'D5',
     nome: 'RECURSOS ESTABELECIDA (fim da H3)',
     progresso: 0,
-    eyebrow: { x: 0, xPercent: 0, y: 0 },
-    titulo: { x: 0, xPercent: 0, y: 0 },
-    sub: { x: 0, xPercent: 0, y: 0, opacity: 1 },
-    cta: { x: X_CENTRALIZADO, xPercent: -50, y: 0, opacity: 0 },
+    /* Posicao estrutural do CSS. O lockup chega aqui carregado pela subida
+       do painel no ato 2 — nao ha fade nem entrada propria, porque isso
+       seria mais animacao, e o pedido e menos. */
+    eyebrow: { x: 0, y: 0 },
+    titulo: { x: 0, y: 0 },
+    sub: { x: 0, y: 0, opacity: 1 },
+    cta: { x: 0, y: 0, opacity: 0 },
     hairline: { opacity: 0, fill: 0 },
     trilho: { x: 0, y: 0 },
   },
   {
     id: 'S1',
-    nome: 'INTRODUÇÃO',
+    nome: 'LOCKUP ASSENTADO',
     progresso: 0.2,
-    /* Recomposto para o título de uma linha. O de 88px ocupava duas e
-       empurrava o subtítulo para 467,5; com 56px de caixa aquele valor
-       deixaria um vão de mais de 100px no meio do lockup. Agora as quatro
-       peças se distribuem a partir de 206 com respiros declarados:
-       eyebrow → 70 → título → 50 → subtítulo → CTA. */
-    eyebrow: { x: X_CENTRALIZADO, xPercent: -50, y: y(206, BASE.eyebrowTop) },
-    titulo: { x: X_CENTRALIZADO, xPercent: -50, y: y(289, BASE.tituloTop) },
-    sub: { x: X_CENTRALIZADO, xPercent: -50, y: y(395.2, BASE.subTop), opacity: 1 },
-    /* O CTA sobe junto: preso nos 569,8 do CSS ele ficaria 116px abaixo do
-       subtítulo, isolado do lockup que acabou de encolher. */
-    cta: { x: X_CENTRALIZADO, xPercent: -50, y: -60, opacity: 1 },
+    /* O unico movimento do lockup na narrativa inteira: 10px no eyebrow e
+       16,7px no titulo, para baixo, uma vez. Daqui em diante os dois ficam
+       parados. O S1 deixou de ser uma composicao centralizada e virou so
+       este assentamento — mas segue sendo o marco de progresso para onde a
+       navbar aponta (ver `landingRunways`). */
+    eyebrow: { x: 0, y: y(142, BASE.eyebrowTop) },
+    titulo: { x: 0, y: y(176.7, BASE.tituloTop) },
+    sub: { x: 0, y: 0, opacity: 1 },
+    cta: { x: 0, y: 0, opacity: 0 },
     hairline: { opacity: 0, fill: 0 },
-    // O trilho desce para o rodapé: no S1 ele só assoma 36px (900 − 864).
-    trilho: { x: 0, y: y(864, BASE.trilhoTop) },
+    trilho: { x: 0, y: 0 },
   },
   {
     id: 'S2',
     nome: 'PIN ENGATA — TRILHO EM 0%',
     progresso: 0.4,
-    eyebrow: { x: 0, xPercent: 0, y: y(142, BASE.eyebrowTop) },
-    titulo: { x: 0, xPercent: 0, y: y(176.7, BASE.tituloTop) },
-    sub: { x: X_CENTRALIZADO, xPercent: -50, y: y(467.5, BASE.subTop), opacity: 0 },
-    cta: { x: X_CENTRALIZADO, xPercent: -50, y: -60, opacity: 0 },
+    /* Titulo e eyebrow repetem o S1 na virgula: o tween e de X para X e
+       nada se move. O subtitulo sai por opacidade, sem deslocamento, para
+       nao empurrar nada. O trilho sobe os 34px que o encaixam na faixa de
+       leitura e o indicador entra. */
+    eyebrow: { x: 0, y: y(142, BASE.eyebrowTop) },
+    titulo: { x: 0, y: y(176.7, BASE.tituloTop) },
+    sub: { x: 0, y: 0, opacity: 0 },
+    cta: { x: 0, y: 0, opacity: 0 },
     hairline: { opacity: 1, fill: 0 },
     trilho: { x: 0, y: y(330, BASE.trilhoTop) },
   },
@@ -137,10 +115,10 @@ export const SHOWCASE_KEYFRAMES = [
     id: 'S3',
     nome: 'TRILHO EM CURSO',
     progresso: 0.7,
-    eyebrow: { x: 0, xPercent: 0, y: y(142, BASE.eyebrowTop) },
-    titulo: { x: 0, xPercent: 0, y: y(176.7, BASE.tituloTop) },
-    sub: { x: X_CENTRALIZADO, xPercent: -50, y: y(467.5, BASE.subTop), opacity: 0 },
-    cta: { x: X_CENTRALIZADO, xPercent: -50, y: -60, opacity: 0 },
+    eyebrow: { x: 0, y: y(142, BASE.eyebrowTop) },
+    titulo: { x: 0, y: y(176.7, BASE.tituloTop) },
+    sub: { x: 0, y: 0, opacity: 0 },
+    cta: { x: 0, y: 0, opacity: 0 },
     // 99 de 180 = 55%, enquanto o trilho está em 50%. Intencional.
     hairline: { opacity: 1, fill: 99 },
     trilho: { x: -482, y: y(330, BASE.trilhoTop) },
@@ -149,10 +127,10 @@ export const SHOWCASE_KEYFRAMES = [
     id: 'S4',
     nome: 'CLÍMAX — CAPITAL ADVISOR',
     progresso: 1,
-    eyebrow: { x: 0, xPercent: 0, y: y(142, BASE.eyebrowTop) },
-    titulo: { x: 0, xPercent: 0, y: y(176.7, BASE.tituloTop) },
-    sub: { x: X_CENTRALIZADO, xPercent: -50, y: y(467.5, BASE.subTop), opacity: 0 },
-    cta: { x: X_CENTRALIZADO, xPercent: -50, y: -60, opacity: 0 },
+    eyebrow: { x: 0, y: y(142, BASE.eyebrowTop) },
+    titulo: { x: 0, y: y(176.7, BASE.tituloTop) },
+    sub: { x: 0, y: 0, opacity: 0 },
+    cta: { x: 0, y: 0, opacity: 0 },
     hairline: { opacity: 1, fill: 180 },
     trilho: { x: -964, y: y(330, BASE.trilhoTop) },
   },

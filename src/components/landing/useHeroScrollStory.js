@@ -319,14 +319,18 @@ export default function useHeroScrollStory(storyRef, rootRef, modoFluxo) {
          ATO 3 — Recursos Showcase (D5 → S1 → S2 → S3 → S4)
 
          O painel já é a viewport desde o fim do ato 2 e fica parado aqui;
-         o que se transforma é o conteúdo dele. Mesmos nós, sempre: o
-         lockup encolhe e cresce de volta, o trilho desce até o rodapé,
-         sobe para o trilho de leitura e então atravessa a tela.
+         o que se transforma é o conteúdo dele.
 
-         O lockup vai da esquerda ao centro e volta sem que nada meça
-         largura: `x` e `xPercent` interpolam juntos e o resultado é
-         `120 + x − largura·|xPercent|`, que dá o centro de 1440 quando
-         x = 600 e xPercent = −50, seja qual for o corpo da fonte.
+         O LOCKUP É ÂNCORA, NÃO PROTAGONISTA. Eyebrow e título assentam
+         16,7px uma única vez, entre o D5 e o S1, e ficam parados até o
+         fim; o subtítulo sai só por opacidade, sem deslocar. Não há
+         `xPercent`, nem centralização, nem escala — a travessia horizontal
+         do lockup foi revogada porque era ela, e não o corpo da fonte, que
+         fazia o título parecer crescer, encolher e travar.
+
+         Quem carrega a progressão é o resto: o trilho sobe 34px para a
+         faixa de leitura, atravessa os 964px do curso, e o indicador
+         preenche junto.
          ------------------------------------------------------------------ */
       const eyebrow = q('.cc-recursos__eyebrow')[0];
       const titulo = q('.cc-recursos__titulo')[0];
@@ -423,17 +427,6 @@ export default function useHeroScrollStory(storyRef, rootRef, modoFluxo) {
         );
         tlShow.fromTo(trilho, escalaTrilho(ant.trilho), { ...escalaTrilho(kf.trilho), ...trecho }, at);
       });
-
-      /* O subtítulo é alinhado à esquerda no painel de Recursos e
-         centralizado no S1 — a prancha muda as duas coisas. `text-align`
-         não interpola, então a troca acontece no meio do primeiro trecho,
-         quando o bloco inteiro já está em movimento e o deslocamento da
-         segunda linha passa despercebido. */
-      tlShow.set(
-        subRecursos,
-        { textAlign: 'center' },
-        SHOWCASE_KEYFRAMES[1].progresso / 2,
-      );
 
       return () => {
         pin.kill();
