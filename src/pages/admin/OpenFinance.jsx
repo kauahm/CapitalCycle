@@ -1,6 +1,6 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Plus, Landmark, CreditCard, PiggyBank, RefreshCw, Unplug, ShieldCheck, AlertTriangle,
+  Plus, Landmark, CreditCard, PiggyBank, RefreshCw, Unplug, ShieldCheck, AlertTriangle, Wallet,
 } from 'lucide-react';
 import { collection, onSnapshot, query, where } from 'firebase/firestore';
 import { PluggyConnect } from 'react-pluggy-connect';
@@ -9,12 +9,18 @@ import {
   PLUGGY_SANDBOX, atualizarItem, criarConnectToken, pluggyConfigurado,
 } from '../../services/pluggy';
 import { ORIGEM_OPEN_FINANCE, desconectarItem, sincronizarItem } from '../../utils/openFinance';
-import LoadingSpinner from '../../components/ui/LoadingSpinner';
+import { formatarMoeda } from '../../utils/moeda';
+import { useAuth } from '../../hooks/useAuth';
+import { useToast } from '../../hooks/useToast';
+import { canAddConta, getLimits } from '../../components/ui/plans';
 import CurrencyValue from '../../components/ui/CurrencyValue';
 import UpgradeModal from '../../components/ui/UpgradeModal';
-import Toast from '../../components/ui/Toast';
-import { canAddConta, getLimits } from '../../components/ui/plans';
-import { useAuth } from '../../hooks/useAuth';
+import Button from '../../components/ui/Button';
+import Badge from '../../components/ui/Badge';
+import ConfirmDialog from '../../components/ui/ConfirmDialog';
+import EmptyState from '../../components/ui/EmptyState';
+import PageHeader from '../../components/ui/PageHeader';
+import { SkeletonCard } from '../../components/ui/Skeleton';
 
 /* ==========================================================================
    Open Finance — substitui a antiga aba "Contas".
@@ -28,8 +34,8 @@ import { useAuth } from '../../hooks/useAuth';
      3. Cada banco tem "Atualizar" (pede dados novos ao banco e sincroniza)
         e "Desconectar" (revoga e apaga o que foi importado dele)
 
-   Limite do plano: no Jovem, `limits.contas` passa a contar BANCOS
-   conectados (um banco pode trazer conta corrente + cartão).
+   Limite do plano: no Jovem, `limits.contas` conta BANCOS conectados (um
+   banco pode trazer conta corrente + cartão).
    ========================================================================== */
 
 const ICONE_TIPO = {
@@ -39,12 +45,13 @@ const ICONE_TIPO = {
 
 function formatarSincronizacao(valor) {
   const data = valor?.toDate ? valor.toDate() : valor ? new Date(valor) : null;
-  if (!data) return '';
+  if (!data || Number.isNaN(data.getTime())) return '';
   return data.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
 }
 
 export default function OpenFinance() {
   const { currentUser, userProfile } = useAuth();
+  const toast = useToast();
   const [contas, setContas] = useState([]);
   const [loading, setLoading] = useState(true);
   const [connectToken, setConnectToken] = useState(null);
@@ -52,8 +59,7 @@ export default function OpenFinance() {
   // itemId → 'sincronizando' | 'desconectando'
   const [ocupados, setOcupados] = useState({});
   const [upgradeOpen, setUpgradeOpen] = useState(false);
-  const [toast, setToast] = useState(null);
-  const fecharToast = useCallback(() => setToast(null), []);
+  const [bancoParaDesconectar, setBancoParaDesconectar] = useState(null);
 
   // O onSuccess do widget pode disparar mais de uma vez para o mesmo item.
   const itensEmSincronizacao = useRef(new Set());
@@ -73,7 +79,7 @@ export default function OpenFinance() {
       setContas(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
       setLoading(false);
     }, (erro) => {
-      console.error('Erro ao ler contas Open Finance:', erro);
+      console.error('[Open Finance] Erro ao ler contas:', erro);
       setLoading(false);
     });
   }, [currentUser]);
@@ -97,7 +103,8 @@ export default function OpenFinance() {
     return [...porItem.values()];
   }, [contas]);
 
-  const patrimonio = contas.reduce((acc, c) => acc + (Number(c.saldo) || 0), 0);
+  const saldoDisponivel = contas.filter((c) => c.tipo !== 'Cartão de crédito').reduce((acc, c) => acc + (Number(c.saldo) || 0), 0);
+  const faturas = Math.abs(contas.filter((c) => c.tipo === 'Cartão de crédito').reduce((acc, c) => acc + (Number(c.saldo) || 0), 0));
 
   const marcar = (itemId, estado) => setOcupados((o) => {
     const novo = { ...o };
@@ -112,14 +119,13 @@ export default function OpenFinance() {
     try {
       const pedidoAceito = pedirAoBanco ? await atualizarItem(itemId) : true;
       const { contas: qtdContas, novas } = await sincronizarItem(currentUser.uid, itemId);
-      setToast({
-        type: 'success',
-        message: `${qtdContas} ${qtdContas === 1 ? 'conta sincronizada' : 'contas sincronizadas'} · ${novas} ${novas === 1 ? 'lançamento novo' : 'lançamentos novos'}.`
-          + (pedidoAceito ? '' : ' O banco só pode ser consultado de novo daqui a até 1 hora.'),
-      });
+      toast.success(
+        `${qtdContas} ${qtdContas === 1 ? 'conta sincronizada' : 'contas sincronizadas'} · ${novas} ${novas === 1 ? 'lançamento novo' : 'lançamentos novos'}.`
+        + (pedidoAceito ? '' : ' O banco só pode ser consultado de novo daqui a até 1 hora.'),
+      );
     } catch (erro) {
-      console.error('Erro ao sincronizar Open Finance:', erro);
-      setToast({ type: 'error', message: `Não foi possível sincronizar: ${erro.message}` });
+      console.error('[Open Finance] Erro ao sincronizar:', erro);
+      toast.error(`Não foi possível sincronizar: ${erro.message}`);
     } finally {
       itensEmSincronizacao.current.delete(itemId);
       marcar(itemId, null);
@@ -135,67 +141,50 @@ export default function OpenFinance() {
     try {
       setConnectToken(await criarConnectToken({ clientUserId: currentUser.uid }));
     } catch (erro) {
-      console.error('Erro ao abrir o Pluggy Connect:', erro);
-      setToast({ type: 'error', message: erro.message });
+      console.error('[Open Finance] Erro ao abrir o Pluggy Connect:', erro);
+      toast.error(erro.message);
     } finally {
       setAbrindoWidget(false);
     }
   };
 
-  const desconectar = async (banco) => {
-    const ok = window.confirm(
-      `Desconectar ${banco.nome}?\n\n` +
-      'As contas e os lançamentos importados deste banco serão removidos do CapitalCycle. ' +
-      'Seus dados no banco não são afetados.',
-    );
-    if (!ok) return;
+  const desconectar = async () => {
+    const banco = bancoParaDesconectar;
+    if (!banco) return;
     marcar(banco.itemId, 'desconectando');
     try {
       await desconectarItem(currentUser.uid, banco.itemId);
-      setToast({ type: 'success', message: `${banco.nome} desconectado.` });
+      toast.success(`${banco.nome} desconectado.`);
     } catch (erro) {
-      console.error('Erro ao desconectar banco:', erro);
-      setToast({ type: 'error', message: `Não foi possível desconectar: ${erro.message}` });
+      console.error('[Open Finance] Erro ao desconectar:', erro);
+      toast.error(`Não foi possível desconectar: ${erro.message}`);
+      throw erro;
     } finally {
       marcar(banco.itemId, null);
     }
   };
 
-  if (loading) {
-    return <div className="h-[80vh] flex items-center justify-center"><LoadingSpinner size="lg" color="text-indigo-500" /></div>;
-  }
-
   return (
     <div className="space-y-6">
-      {/* HEADER */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <p className="text-sm text-slate-400 max-w-xl">
-          Conecte seus bancos pelo Open Finance e seus saldos e gastos entram no CapitalCycle automaticamente.
-        </p>
-
-        <div className="flex items-center gap-4">
-          <div className="text-right hidden sm:block mr-4">
-            <p className="text-xs text-slate-400 uppercase tracking-widest font-bold">Patrimônio Total</p>
-            <CurrencyValue value={patrimonio} size="xl" className="font-black text-emerald-400" />
-          </div>
-          {limiteBancos != null && (
-            <span className="text-xs font-semibold text-slate-500 whitespace-nowrap bg-surface border border-hairline px-3 py-2 rounded-xl">
-              {bancos.length}/{limiteBancos} {limiteBancos === 1 ? 'banco' : 'bancos'}
-            </span>
-          )}
-          <button
-            onClick={conectarBanco}
-            disabled={!configurado || abrindoWidget}
-            className="bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-white px-4 py-2.5 rounded-xl font-medium transition-colors flex items-center gap-2 shadow-lg shadow-indigo-600/20"
-          >
-            {abrindoWidget ? <RefreshCw size={18} className="animate-spin" /> : <Plus size={18} />}
-            Conectar banco
-          </button>
-        </div>
-      </div>
+      <PageHeader
+        actions={(
+          <>
+            {limiteBancos != null && !loading && (
+              <Badge tone={bancos.length >= limiteBancos ? 'warning' : 'neutral'} className="px-3 py-2 text-xs">
+                {bancos.length}/{limiteBancos} {limiteBancos === 1 ? 'banco' : 'bancos'}
+              </Badge>
+            )}
+            <Button icon={Plus} onClick={conectarBanco} disabled={!configurado} loading={abrindoWidget}>
+              Conectar banco
+            </Button>
+          </>
+        )}
+      >
+        Conecte seus bancos pelo Open Finance e seus saldos e lançamentos entram no CapitalCycle automaticamente.
+      </PageHeader>
 
       {!configurado && (
-        <div className="flex items-start gap-3 bg-amber-500/10 border border-amber-500/30 text-amber-200 rounded-2xl p-4 text-sm">
+        <div className="flex items-start gap-3 bg-amber-500/10 border border-amber-500/30 text-amber-200 rounded-2xl p-4 text-sm" role="alert">
           <AlertTriangle size={18} className="shrink-0 mt-0.5" />
           <p>
             Open Finance ainda não configurado. Defina <code>VITE_PLUGGY_CLIENT_ID</code> e{' '}
@@ -211,96 +200,120 @@ export default function OpenFinance() {
         </p>
       )}
 
-      {/* BANCOS CONECTADOS */}
-      {bancos.length === 0 ? (
-        <div className="bg-surface border border-hairline rounded-3xl p-12 text-center">
-          <Landmark size={48} className="mx-auto text-slate-600 mb-4" />
-          <h3 className="text-lg font-bold text-white mb-2">Nenhum banco conectado</h3>
-          <p className="text-slate-400 max-w-md mx-auto">
-            Conecte seu primeiro banco para importar saldos e lançamentos dos últimos 90 dias.
-          </p>
-          <p className="text-xs text-slate-500 mt-4 inline-flex items-center gap-1.5">
-            <ShieldCheck size={14} /> Conexão via Open Finance Brasil, autorizada por você no app do banco.
-          </p>
+      {loading ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-[var(--cc-gap-card)]">
+          <SkeletonCard /><SkeletonCard />
         </div>
+      ) : bancos.length === 0 ? (
+        <EmptyState
+          icon={Landmark}
+          title="Nenhum banco conectado"
+          description="Conecte seu primeiro banco para importar saldos e os lançamentos dos últimos 90 dias. A conexão é autorizada por você no ambiente do próprio banco."
+          actionLabel={configurado ? 'Conectar banco' : undefined}
+          onAction={configurado ? conectarBanco : undefined}
+        >
+        </EmptyState>
       ) : (
-        <div className="space-y-6">
-          {bancos.map((banco) => {
-            const estado = ocupados[banco.itemId];
-            return (
-              <section key={banco.itemId} className="bg-surface border border-hairline rounded-3xl p-6">
-                <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-                  <div className="flex items-center gap-4">
-                    <div
-                      className="w-12 h-12 rounded-2xl flex items-center justify-center overflow-hidden bg-white/5"
-                      style={banco.cor ? { backgroundColor: `${banco.cor}22` } : undefined}
-                    >
-                      {banco.logo
-                        ? <img src={banco.logo} alt="" className="w-8 h-8 object-contain" />
-                        : <Landmark size={22} className="text-slate-300" />}
-                    </div>
-                    <div>
-                      <h3 className="text-lg font-bold text-white">{banco.nome}</h3>
-                      <p className="text-xs text-slate-500">
-                        {estado === 'sincronizando'
-                          ? 'Sincronizando…'
-                          : `Atualizado em ${formatarSincronizacao(banco.sincronizadoEm)}`}
-                      </p>
-                    </div>
-                  </div>
+        <>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-[var(--cc-gap-card)]">
+            <div className="cc-card-p">
+              <p className="cc-label mb-3 flex items-center gap-2"><Wallet size={13} /> Saldo disponível</p>
+              <CurrencyValue value={saldoDisponivel} size="3xl" align="left" className="font-bold text-success" />
+              <p className="mt-2 text-xs text-textSecondary">Soma das contas correntes e poupanças conectadas.</p>
+            </div>
+            <div className="cc-card-p">
+              <p className="cc-label mb-3 flex items-center gap-2"><CreditCard size={13} /> Faturas em aberto</p>
+              <CurrencyValue value={faturas} size="3xl" align="left" className="font-bold text-textMain" />
+              <p className="mt-2 text-xs text-textSecondary">{faturas > 0 ? 'Total devido nos cartões conectados.' : 'Nenhum cartão com fatura em aberto.'}</p>
+            </div>
+          </div>
 
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => sincronizar(banco.itemId, { pedirAoBanco: true })}
-                      disabled={Boolean(estado)}
-                      className="text-sm text-slate-300 hover:text-white bg-app border border-hairline px-3 py-2 rounded-xl flex items-center gap-2 disabled:opacity-50"
-                    >
-                      <RefreshCw size={15} className={estado === 'sincronizando' ? 'animate-spin' : ''} />
-                      Atualizar
-                    </button>
-                    <button
-                      onClick={() => desconectar(banco)}
-                      disabled={Boolean(estado)}
-                      className="text-sm text-slate-400 hover:text-rose-400 bg-app border border-hairline px-3 py-2 rounded-xl flex items-center gap-2 disabled:opacity-50"
-                    >
-                      <Unplug size={15} />
-                      {estado === 'desconectando' ? 'Desconectando…' : 'Desconectar'}
-                    </button>
-                  </div>
-                </header>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                  {banco.contas.map((conta) => {
-                    const { icon: Icone, cor } = ICONE_TIPO[conta.tipo] || { icon: Landmark, cor: 'text-slate-200' };
-                    return (
-                      <div key={conta.id} className="bg-app border border-hairline rounded-2xl p-5">
-                        <div className="flex items-center gap-3 mb-4">
-                          <Icone size={20} className={cor} />
-                          <div className="min-w-0">
-                            <p className="text-sm font-semibold text-white truncate">{conta.nome}</p>
-                            <p className="text-xs text-slate-500">
-                              {[conta.tipo, conta.numero].filter(Boolean).join(' • ')}
-                            </p>
-                          </div>
-                        </div>
-                        <p className="text-xs text-slate-500 font-medium uppercase tracking-wider mb-1">
-                          {conta.tipo === 'Cartão de crédito' ? 'Fatura atual' : 'Saldo'}
-                        </p>
-                        <CurrencyValue
-                          value={conta.tipo === 'Cartão de crédito' ? Math.abs(conta.saldo) : conta.saldo}
-                          size="2xl"
-                          align="left"
-                          className={`font-black ${cor}`}
-                        />
+          <div className="space-y-[var(--cc-gap-card)]">
+            {bancos.map((banco) => {
+              const estado = ocupados[banco.itemId];
+              return (
+                <section key={banco.itemId} className="cc-card p-6" aria-label={banco.nome}>
+                  <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                    <div className="flex items-center gap-4">
+                      <div
+                        className="w-12 h-12 rounded-2xl flex items-center justify-center overflow-hidden bg-white/5"
+                        style={banco.cor ? { backgroundColor: `${banco.cor}22` } : undefined}
+                      >
+                        {banco.logo
+                          ? <img src={banco.logo} alt="" className="w-8 h-8 object-contain" />
+                          : <Landmark size={22} className="text-slate-300" />}
                       </div>
-                    );
-                  })}
-                </div>
-              </section>
-            );
-          })}
-        </div>
+                      <div>
+                        <h3 className="text-lg font-bold text-textMain">{banco.nome}</h3>
+                        <p className="text-xs text-textSecondary">
+                          {estado === 'sincronizando'
+                            ? 'Sincronizando…'
+                            : `Atualizado em ${formatarSincronizacao(banco.sincronizadoEm)}`}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => sincronizar(banco.itemId, { pedirAoBanco: true })}
+                        disabled={Boolean(estado)}
+                        loading={estado === 'sincronizando'}
+                        icon={RefreshCw}
+                      >
+                        Atualizar
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setBancoParaDesconectar(banco)}
+                        disabled={Boolean(estado)}
+                        loading={estado === 'desconectando'}
+                        icon={Unplug}
+                        className="hover:!text-rose-400"
+                      >
+                        Desconectar
+                      </Button>
+                    </div>
+                  </header>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                    {banco.contas.map((conta) => {
+                      const { icon: Icone, cor } = ICONE_TIPO[conta.tipo] || { icon: Landmark, cor: 'text-slate-200' };
+                      const cartao = conta.tipo === 'Cartão de crédito';
+                      return (
+                        <div key={conta.id} className="bg-app border border-hairline rounded-2xl p-5">
+                          <div className="flex items-center gap-3 mb-4">
+                            <Icone size={20} className={cor} aria-hidden="true" />
+                            <div className="min-w-0">
+                              <p className="text-sm font-semibold text-textMain truncate">{conta.nome}</p>
+                              <p className="text-xs text-textSecondary">
+                                {[conta.tipo, conta.numero].filter(Boolean).join(' • ')}
+                              </p>
+                            </div>
+                          </div>
+                          <p className="cc-label mb-1">{cartao ? 'Fatura atual' : 'Saldo'}</p>
+                          <CurrencyValue
+                            value={cartao ? Math.abs(conta.saldo) : conta.saldo}
+                            size="2xl"
+                            align="left"
+                            className={`font-bold ${cor}`}
+                          />
+                        </div>
+                      );
+                    })}
+                  </div>
+                </section>
+              );
+            })}
+          </div>
+        </>
       )}
+
+      <p className="text-xs text-slate-500 inline-flex items-center gap-1.5">
+        <ShieldCheck size={14} aria-hidden="true" /> Conexão via Open Finance Brasil, autorizada por você no app do banco. Suas credenciais nunca passam pelo CapitalCycle.
+      </p>
 
       {connectToken && (
         <PluggyConnect
@@ -314,13 +327,20 @@ export default function OpenFinance() {
           }}
           onError={(erro) => {
             console.error('Pluggy Connect:', erro);
-            setToast({ type: 'error', message: erro?.message || 'Não foi possível conectar o banco.' });
+            toast.error(erro?.message || 'Não foi possível conectar o banco.');
           }}
           onClose={() => setConnectToken(null)}
         />
       )}
 
-      {toast && <Toast message={toast.message} type={toast.type} onClose={fecharToast} />}
+      <ConfirmDialog
+        open={Boolean(bancoParaDesconectar)}
+        onClose={() => setBancoParaDesconectar(null)}
+        onConfirm={desconectar}
+        title={`Desconectar ${bancoParaDesconectar?.nome || 'banco'}?`}
+        confirmLabel="Desconectar"
+        message={`As contas e os lançamentos importados deste banco (${bancoParaDesconectar ? formatarMoeda(bancoParaDesconectar.contas.reduce((a, c) => a + Math.abs(Number(c.saldo) || 0), 0)) : ''} em saldos) serão removidos do CapitalCycle. Seus dados no banco não são afetados.`}
+      />
       <UpgradeModal feature="contas" open={upgradeOpen} onClose={() => setUpgradeOpen(false)} />
     </div>
   );

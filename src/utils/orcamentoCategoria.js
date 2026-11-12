@@ -25,3 +25,10 @@ export function calcularProgressoCategorias(limites, transacoes, mesPrefixo) {
     })
     .sort((a, b) => b.pct - a.pct);
 }
+
+/** Tom visual (ProgressBar/Badge) correspondente ao estado do orçamento. */
+export function tomDoEstado(estado) {
+  if (estado === 'estourado') return 'danger';
+  if (estado === 'alerta') return 'warning';
+  return 'success';
+}

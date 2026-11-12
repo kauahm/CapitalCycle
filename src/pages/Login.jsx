@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion, useReducedMotion } from 'framer-motion';
 import { useAuth } from '../hooks/useAuth';
 import useTypewriter from '../hooks/useTypewriter';
-import Toast from '../components/ui/Toast';
+import { useToast } from '../hooks/useToast';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
 import { ArrowLeft, Lock, Mail, Eye, EyeOff } from 'lucide-react';
 import logoPreta from '../assets/logo-black.png';
@@ -73,10 +73,10 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [remember, setRemember] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
 
   const { login, loginWithGoogle, resetPassword } = useAuth();
   const navigate = useNavigate();
+  const toast = useToast();
   const location = useLocation();
   const reduceMotion = useReducedMotion();
 
@@ -120,13 +120,9 @@ export default function Login() {
       navigate('/capital/dashboard');
     } catch (error) {
       console.error("Erro no login:", error);
-      setToast({
-        show: true,
-        message: error.code === 'auth/account-disabled'
+      toast.error(error.code === 'auth/account-disabled'
           ? 'Esta conta está desativada. Fale com o suporte para reativá-la.'
-          : 'Credenciais inválidas ou erro de conexão.',
-        type: 'error'
-      });
+          : 'Credenciais inválidas ou erro de conexão.');
       setLoading(false);
     }
   };
@@ -134,21 +130,17 @@ export default function Login() {
   // Redefinição de senha: usa o e-mail já digitado no formulário.
   const handleResetPassword = async () => {
     if (!email.trim()) {
-      setToast({ show: true, message: 'Digite seu e-mail no campo acima para receber o link de redefinição.', type: 'warning' });
+      toast.warning('Digite seu e-mail no campo acima para receber o link de redefinição.');
       return;
     }
     try {
       await resetPassword(email.trim());
-      setToast({ show: true, message: 'Enviamos um link de redefinição para o seu e-mail.', type: 'success' });
+      toast.success('Enviamos um link de redefinição para o seu e-mail.');
     } catch (error) {
       console.error('Erro ao enviar redefinição de senha:', error);
-      setToast({
-        show: true,
-        message: error.code === 'auth/invalid-email'
+      toast.error(error.code === 'auth/invalid-email'
           ? 'E-mail inválido.'
-          : 'Não foi possível enviar o e-mail de redefinição.',
-        type: 'error',
-      });
+          : 'Não foi possível enviar o e-mail de redefinição.');
     }
   };
 
@@ -160,10 +152,10 @@ export default function Login() {
     } catch (error) {
       console.error("Erro no login com Google:", error);
       if (error.code === 'auth/new-google-user') {
-        setToast({ show: true, message: 'Não encontramos uma conta com esse Google. Escolha um plano para se cadastrar.', type: 'warning' });
+        toast.warning('Não encontramos uma conta com esse Google. Escolha um plano para se cadastrar.');
         navigate('/cadastro');
       } else if (error.code !== 'auth/popup-closed-by-user' && error.code !== 'auth/cancelled-popup-request') {
-        setToast({ show: true, message: 'Erro ao entrar com Google. Tente novamente.', type: 'error' });
+        toast.error('Erro ao entrar com Google. Tente novamente.');
       }
       setLoading(false);
     }
@@ -409,15 +401,6 @@ export default function Login() {
           </p>
         </motion.div>
       </div>
-
-      {/* Toast Notification */}
-      {toast.show && (
-        <Toast
-          message={toast.message}
-          type={toast.type}
-          onClose={() => setToast({ ...toast, show: false })}
-        />
-      )}
     </motion.div>
   );
 }

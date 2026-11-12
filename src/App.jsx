@@ -1,9 +1,13 @@
 import React, { Suspense, lazy } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider, useAuth } from './hooks/useAuth';
+import { AuthProvider } from './context/AuthProvider';
+import { useAuth } from './hooks/useAuth';
+import { ToastProvider } from './components/ui/Toast';
+import ErrorBoundary from './components/ui/ErrorBoundary';
 import DashboardLayout from './components/layout/DashboardLayout';
+import { PageSkeleton } from './components/ui/Skeleton';
 import Login from './pages/Login';
-import HomePage from './pages/HomePage'; // ← NOVO
+import HomePage from './pages/HomePage';
 import Register from './pages/Register';
 import Payment from './pages/Payment';
 
@@ -19,79 +23,80 @@ const Perfil = lazy(() => import('./pages/admin/Perfil'));
 // Páginas públicas de texto — raramente abertas, então ficam fora do bundle inicial
 const Termos = lazy(() => import('./pages/legal/Termos'));
 const Privacidade = lazy(() => import('./pages/legal/Privacidade'));
+const NotFound = lazy(() => import('./pages/NotFound'));
 
 function RouteLoading() {
   return (
-    <div className="h-[80vh] flex items-center justify-center text-slate-400">
+    <div className="h-[80vh] flex items-center justify-center text-slate-400" role="status">
       Carregando...
     </div>
   );
 }
 
-// Protetor de Rotas Inteligente
+/* Protetor de rotas: o AuthProvider já segura a árvore inteira atrás do
+   Splash enquanto a sessão é resolvida, então aqui só resta decidir entre
+   deixar passar e mandar para o login. */
 function PrivateRoute({ children }) {
-  const { currentUser, loading } = useAuth();
-
-  if (loading) {
-    return (
-      <div className="h-screen flex items-center justify-center bg-slate-900 text-white font-bold">
-        Carregando CapitalCycle...
-      </div>
-    );
-  }
-
-  if (!currentUser) {
-    return <Navigate to="/login" replace />;
-  }
-
+  const { currentUser } = useAuth();
+  if (!currentUser) return <Navigate to="/login" replace />;
   return children;
 }
 
+/* Páginas do painel entram com o esqueleto da própria página, não com um
+   spinner solto. */
+const painel = (Pagina) => (
+  <Suspense fallback={<PageSkeleton />}>
+    <Pagina />
+  </Suspense>
+);
+
 export default function App() {
   return (
-    <AuthProvider>
-      <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-        <Routes>
-          {/* Página inicial pública */}
-          <Route path="/" element={<HomePage />} />
+    <ErrorBoundary>
+      <ToastProvider>
+        <AuthProvider>
+          <BrowserRouter>
+            <Routes>
+              {/* Página inicial pública */}
+              <Route path="/" element={<HomePage />} />
 
-          {/* Login */}
-          <Route path="/login" element={<Login />} />
+              {/* Acesso e cadastro */}
+              <Route path="/login" element={<Login />} />
+              <Route path="/cadastro" element={<Register />} />
+              {/* Tela de pagamento do cadastro — só acessível se houver dados de cadastro no state */}
+              <Route path="/pagamento" element={<Payment />} />
 
-          {/* Cadastro — deve vir ANTES do wildcard * */}
-          <Route path="/cadastro" element={<Register />} />
+              {/* Páginas legais — públicas, sem exigir login */}
+              <Route path="/termos" element={<Suspense fallback={<RouteLoading />}><Termos /></Suspense>} />
+              <Route path="/privacidade" element={<Suspense fallback={<RouteLoading />}><Privacidade /></Suspense>} />
 
-          {/* Tela de pagamento do cadastro — só acessível se houver dados de cadastro no state */}
-          <Route path="/pagamento" element={<Payment />} />
+              {/* Rotas protegidas do painel financeiro */}
+              <Route
+                path="/capital"
+                element={(
+                  <PrivateRoute>
+                    <DashboardLayout />
+                  </PrivateRoute>
+                )}
+              >
+                <Route index element={<Navigate to="/capital/dashboard" replace />} />
+                <Route path="dashboard" element={painel(DashboardFinanceiro)} />
+                <Route path="transacoes" element={painel(Transacoes)} />
+                <Route path="open-finance" element={painel(OpenFinance)} />
+                {/* Antiga aba Contas — links salvos caem no Open Finance */}
+                <Route path="contas" element={<Navigate to="/capital/open-finance" replace />} />
+                <Route path="ciclos" element={painel(CiclosInvestimento)} />
+                <Route path="orcamento" element={painel(OrcamentoCategoria)} />
+                <Route path="analise-ia" element={painel(AnaliseIA)} />
+                <Route path="perfil" element={painel(Perfil)} />
+              </Route>
 
-          {/* Páginas legais — públicas, sem exigir login, e declaradas antes do wildcard */}
-          <Route path="/termos" element={<Suspense fallback={<RouteLoading />}><Termos /></Suspense>} />
-          <Route path="/privacidade" element={<Suspense fallback={<RouteLoading />}><Privacidade /></Suspense>} />
-
-          {/* Rotas Protegidas do Sistema Financeiro */}
-          <Route
-            path="/capital"
-            element={
-              <PrivateRoute>
-                <DashboardLayout />
-              </PrivateRoute>
-            }
-          >
-            <Route path="dashboard" element={<Suspense fallback={<RouteLoading />}><DashboardFinanceiro /></Suspense>} />
-            <Route path="transacoes" element={<Suspense fallback={<RouteLoading />}><Transacoes /></Suspense>} />
-            <Route path="open-finance" element={<Suspense fallback={<RouteLoading />}><OpenFinance /></Suspense>} />
-            {/* Antiga aba Contas — links salvos caem no Open Finance */}
-            <Route path="contas" element={<Navigate to="/capital/open-finance" replace />} />
-            <Route path="ciclos" element={<Suspense fallback={<RouteLoading />}><CiclosInvestimento /></Suspense>} />
-            <Route path="orcamento" element={<Suspense fallback={<RouteLoading />}><OrcamentoCategoria /></Suspense>} />
-            <Route path="analise-ia" element={<Suspense fallback={<RouteLoading />}><AnaliseIA /></Suspense>} />
-            <Route path="perfil" element={<Suspense fallback={<RouteLoading />}><Perfil /></Suspense>} />
-          </Route>
-
-          {/* Wildcard — redireciona qualquer rota desconhecida para home */}
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </BrowserRouter>
-    </AuthProvider>
+              {/* Rota desconhecida: página 404 com caminho de volta */}
+              <Route path="*" element={<Suspense fallback={<RouteLoading />}><NotFound /></Suspense>} />
+            </Routes>
+          </BrowserRouter>
+        </AuthProvider>
+      </ToastProvider>
+    </ErrorBoundary>
   );
 }

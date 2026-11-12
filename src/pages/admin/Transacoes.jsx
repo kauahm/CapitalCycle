@@ -1,410 +1,574 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Plus, ArrowUpCircle, ArrowDownCircle, Trash2, Pencil, Search, Filter, X } from 'lucide-react';
-import { collection, onSnapshot, deleteDoc, doc, query, where, runTransaction } from 'firebase/firestore';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  Plus, ArrowUpCircle, ArrowDownCircle, Trash2, Pencil, Search, Download, Landmark, Receipt, Lock,
+} from 'lucide-react';
+import { collection, onSnapshot, deleteDoc, doc, query, where, runTransaction, setDoc } from 'firebase/firestore';
 import { db } from '../../services/firebase';
-import LoadingSpinner from '../../components/ui/LoadingSpinner';
-import UpgradeModal from '../../components/ui/UpgradeModal';
-import { canAddTransacao, mesAtualKey } from '../../components/ui/plans';
 import { useAuth } from '../../hooks/useAuth';
+import { useToast } from '../../hooks/useToast';
+import { canAddTransacao, mesAtualKey } from '../../components/ui/plans';
 import { CATEGORIAS_ENTRADA, CATEGORIAS_SAIDA } from '../../utils/categorias';
+import { formatarMoeda, formatarDataBR, parseValor } from '../../utils/moeda';
+import { hojeStr } from '../../utils/data';
+import { gerarCsvTransacoes, baixarArquivo } from '../../utils/csv';
+import {
+  dadosCarteiraManual, idCarteiraManual, rotuloConta, saldoGeridoPeloApp,
+} from '../../utils/contaManual';
+import UpgradeModal from '../../components/ui/UpgradeModal';
+import Button from '../../components/ui/Button';
+import Dialog from '../../components/ui/Dialog';
+import ConfirmDialog from '../../components/ui/ConfirmDialog';
+import Badge from '../../components/ui/Badge';
+import EmptyState from '../../components/ui/EmptyState';
+import PageHeader from '../../components/ui/PageHeader';
+import { Field, Input, Select, Segmented } from '../../components/ui/Field';
+import { SkeletonLista } from '../../components/ui/Skeleton';
+
+/* ==========================================================================
+   Transações
+
+   Lançamentos manuais e importados do Open Finance na mesma lista.
+
+   Regras de saldo
+   ---------------
+   Só contas geridas pelo app (a carteira manual) têm saldo recalculado a
+   cada lançamento. Nas contas importadas o saldo vem do banco e é
+   sobrescrito pela sincronização — mexer nele aqui faria o número divergir
+   do extrato real até a próxima sincronização.
+
+   Lançamentos importados só aceitam edição de descrição e categoria: valor,
+   data, tipo e conta são fatos do banco.
+   ========================================================================== */
+
+const CATEGORIAS = { entrada: CATEGORIAS_ENTRADA, saida: CATEGORIAS_SAIDA };
+const OPCAO_CARTEIRA = '__carteira__';
+const PAGINA = 60;
+
+const formVazio = () => ({
+  descricao: '',
+  valor: '',
+  tipo: 'saida',
+  categoria: CATEGORIAS_SAIDA[0],
+  conta_id: '',
+  data: hojeStr(),
+});
+
+function rotuloMes(chave) {
+  const [ano, mes] = chave.split('-').map(Number);
+  const nome = new Date(ano, mes - 1, 1).toLocaleDateString('pt-BR', { month: 'long' });
+  return `${nome.charAt(0).toUpperCase()}${nome.slice(1)} de ${ano}`;
+}
 
 export default function Transacoes() {
   const { currentUser, userProfile } = useAuth();
+  const toast = useToast();
+
   const [transacoes, setTransacoes] = useState([]);
   const [contas, setContas] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingId, setEditingId] = useState(null);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [upgradeOpen, setUpgradeOpen] = useState(false);
+  const [erroCarga, setErroCarga] = useState(null);
 
-  // Trava de submissão: o ref é o lock lógico (síncrono, fecha a janela entre
-  // dois cliques antes de qualquer re-render); o state é só o retorno visual.
+  const [modalAberto, setModalAberto] = useState(false);
+  const [editando, setEditando] = useState(null); // transação em edição ou null
+  const [excluindo, setExcluindo] = useState(null); // transação a excluir ou null
+  const [upgradeOpen, setUpgradeOpen] = useState(false);
+  const [formData, setFormData] = useState(formVazio);
+  const [erros, setErros] = useState({});
+
+  const [busca, setBusca] = useState('');
+  const [filtroMes, setFiltroMes] = useState('todos');
+  const [filtroTipo, setFiltroTipo] = useState('todos');
+  const [limite, setLimite] = useState(PAGINA);
+
+  // Trava de submissão: o ref é o lock lógico (síncrono); o state é só visual.
   const submitLockRef = useRef(false);
   const [salvando, setSalvando] = useState(false);
 
-  // Estados do formulário
-  const [formData, setFormData] = useState({
-    descricao: '',
-    valor: '',
-    tipo: 'saida', // entrada ou saida
-    categoria: 'Alimentação',
-    conta_id: '',
-    data: new Date().toISOString().split('T')[0]
-  });
-
-  // Categorias predefinidas (fonte única em utils/categorias.js — também
-  // usada em Orçamento por Categoria)
-  const categorias = {
-    entrada: CATEGORIAS_ENTRADA,
-    saida: CATEGORIAS_SAIDA
-  };
-
-  // Trava por plano: cota mensal de lançamentos do plano Jovem
   const planId = userProfile?.plan || 'jovem';
-  const mesKey = mesAtualKey();
-  const lancamentosNoMes = transacoes.filter((t) => t.data && t.data.startsWith(mesKey)).length;
+  const lancamentosNoMes = transacoes.filter((t) => t.data && t.data.startsWith(mesAtualKey())).length;
+  const podeLancar = canAddTransacao(planId, lancamentosNoMes);
 
   useEffect(() => {
-    if (!currentUser) return;
-
-    // Buscar Contas (para o select do formulário) — apenas as do usuário logado
-    const qContas = query(collection(db, 'accounts'), where('uid', '==', currentUser.uid));
-    const unsubContas = onSnapshot(qContas, (snapshot) => {
-      setContas(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-    });
-
-    // Buscar Transações do usuário logado (ordenadas das mais recentes para as mais antigas)
-    const qTransacoes = query(
-      collection(db, 'transactions'),
-      where('uid', '==', currentUser.uid)
-    );
-    const unsubTransacoes = onSnapshot(qTransacoes, (snapshot) => {
-      const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      docs.sort((a, b) => (b.data || '').localeCompare(a.data || ''));
-      setTransacoes(docs);
+    if (!currentUser) return undefined;
+    const onErro = (erro) => {
+      console.error('[Transações] Falha ao ler dados:', erro?.code || erro?.message);
+      setErroCarga('Não foi possível carregar seus lançamentos. Recarregue a página.');
       setLoading(false);
-    });
-
-    return () => {
-      unsubContas();
-      unsubTransacoes();
     };
+
+    const unsubContas = onSnapshot(
+      query(collection(db, 'accounts'), where('uid', '==', currentUser.uid)),
+      (snap) => setContas(snap.docs.map((d) => ({ id: d.id, ...d.data() }))),
+      onErro,
+    );
+    const unsubTx = onSnapshot(
+      query(collection(db, 'transactions'), where('uid', '==', currentUser.uid)),
+      (snap) => {
+        const docs = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+        docs.sort((a, b) => (b.data || '').localeCompare(a.data || '') || String(b.id).localeCompare(String(a.id)));
+        setTransacoes(docs);
+        setLoading(false);
+      },
+      onErro,
+    );
+    return () => { unsubContas(); unsubTx(); };
   }, [currentUser]);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const contasPorId = useMemo(() => Object.fromEntries(contas.map((c) => [c.id, c])), [contas]);
 
-    // Trava por plano: não cria lançamento além da cota mensal do plano Jovem
-    if (!editingId && !canAddTransacao(planId, lancamentosNoMes)) {
-      setUpgradeOpen(true);
-      return;
-    }
+  const mesesDisponiveis = useMemo(() => {
+    const set = new Set(transacoes.map((t) => (t.data || '').slice(0, 7)).filter(Boolean));
+    return [...set].sort().reverse();
+  }, [transacoes]);
 
-    const valorNumerico = parseFloat(formData.valor);
-    const novaContaRef = doc(db, 'accounts', formData.conta_id);
+  const filtradas = useMemo(() => {
+    const termo = busca.trim().toLowerCase();
+    return transacoes.filter((t) => {
+      if (filtroMes !== 'todos' && !(t.data || '').startsWith(filtroMes)) return false;
+      if (filtroTipo !== 'todos' && t.tipo !== filtroTipo) return false;
+      if (!termo) return true;
+      return (t.descricao || '').toLowerCase().includes(termo) || (t.categoria || '').toLowerCase().includes(termo);
+    });
+  }, [transacoes, busca, filtroMes, filtroTipo]);
 
-    // Lock adquirido aqui de propósito: depois da saída antecipada do plano
-    // (que não inicia operação nenhuma) e imediatamente antes do try. Como não
-    // há instrução entre a aquisição e o try, todo caminho a partir daqui passa
-    // pelo finally e libera a trava.
+  const totais = useMemo(() => {
+    const entradas = filtradas.filter((t) => t.tipo === 'entrada').reduce((a, t) => a + (parseFloat(t.valor) || 0), 0);
+    const saidas = filtradas.filter((t) => t.tipo === 'saida').reduce((a, t) => a + (parseFloat(t.valor) || 0), 0);
+    return { entradas, saidas, liquido: entradas - saidas };
+  }, [filtradas]);
+
+  useEffect(() => { setLimite(PAGINA); }, [busca, filtroMes, filtroTipo]);
+
+  // ── Formulário ──────────────────────────────────────────────────────
+  const abrirNovo = () => {
+    if (!podeLancar) { setUpgradeOpen(true); return; }
+    setEditando(null);
+    setFormData({ ...formVazio(), conta_id: contas[0]?.id || OPCAO_CARTEIRA });
+    setErros({});
+    setModalAberto(true);
+  };
+
+  const abrirEdicao = (t) => {
+    setEditando(t);
+    setFormData({
+      descricao: t.descricao || '',
+      valor: String(t.valor ?? ''),
+      tipo: t.tipo || 'saida',
+      categoria: t.categoria || CATEGORIAS[t.tipo || 'saida'][0],
+      conta_id: t.conta_id || OPCAO_CARTEIRA,
+      data: t.data || hojeStr(),
+    });
+    setErros({});
+    setModalAberto(true);
+  };
+
+  const fecharModal = () => {
+    if (salvando) return;
+    setModalAberto(false);
+    setEditando(null);
+    setErros({});
+  };
+
+  const importada = editando?.origem === 'openfinance';
+
+  const validar = () => {
+    const e = {};
+    const valor = parseValor(formData.valor);
+    if (!formData.descricao.trim()) e.descricao = 'Dê um nome ao lançamento.';
+    if (Number.isNaN(valor) || valor <= 0) e.valor = 'Informe um valor maior que zero.';
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(formData.data)) e.data = 'Informe uma data válida.';
+    else if (formData.data > hojeStr()) e.data = 'A data não pode estar no futuro.';
+    if (!formData.conta_id) e.conta_id = 'Escolha a conta.';
+    setErros(e);
+    return Object.keys(e).length === 0;
+  };
+
+  const handleSubmit = async (ev) => {
+    ev.preventDefault();
+    if (!editando && !podeLancar) { setUpgradeOpen(true); return; }
+    if (!validar()) return;
+
     if (submitLockRef.current) return;
     submitLockRef.current = true;
     setSalvando(true);
 
+    const valorNumerico = Math.round(parseValor(formData.valor) * 100) / 100;
+    const usaCarteira = formData.conta_id === OPCAO_CARTEIRA;
+    const contaId = usaCarteira ? idCarteiraManual(currentUser.uid) : formData.conta_id;
+    const contaRef = doc(db, 'accounts', contaId);
+
     try {
-      if (editingId) {
-        // EDIÇÃO: precisa reverter o efeito antigo no saldo e aplicar o novo,
-        // inclusive se o usuário trocou a transação de conta.
-        const original = transacoes.find(t => t.id === editingId);
-        const transacaoRef = doc(db, 'transactions', editingId);
+      // A carteira manual nasce aqui, fora da transação: as regras do
+      // Firestore não deixam ler um documento que ainda não existe dentro
+      // dela (não há `resource.data.uid` para comparar). O id é
+      // determinístico, então criar duas vezes nunca duplica.
+      if (usaCarteira && !temCarteira) {
+        await setDoc(contaRef, dadosCarteiraManual(currentUser.uid));
+      }
 
-        await runTransaction(db, async (transaction) => {
-          const mesmaConta = original && original.conta_id === formData.conta_id;
+      await runTransaction(db, async (tx) => {
+        // Lê tudo primeiro (exigência do Firestore: leituras antes das escritas).
+        const contaSnap = await tx.get(contaRef);
+        const contaAntigaId = editando?.conta_id && editando.conta_id !== contaId ? editando.conta_id : null;
+        const contaAntigaSnap = contaAntigaId ? await tx.get(doc(db, 'accounts', contaAntigaId)) : null;
 
-          if (mesmaConta) {
-            const contaSnap = await transaction.get(novaContaRef);
-            if (!contaSnap.exists()) throw new Error('Conta selecionada não existe mais.');
+        if (!contaSnap.exists()) throw new Error('A conta selecionada não existe mais.');
+        const contaDados = contaSnap.data();
 
-            const saldoAtual = parseFloat(contaSnap.data().saldo) || 0;
-            const deltaReversao = original.tipo === 'entrada' ? -(parseFloat(original.valor) || 0) : (parseFloat(original.valor) || 0);
-            const deltaNovo = formData.tipo === 'entrada' ? valorNumerico : -valorNumerico;
-
-            transaction.update(novaContaRef, { saldo: saldoAtual + deltaReversao + deltaNovo });
-          } else {
-            const contaAntigaRef = original && original.conta_id ? doc(db, 'accounts', original.conta_id) : null;
-            const contaAntigaSnap = contaAntigaRef ? await transaction.get(contaAntigaRef) : null;
-            const contaNovaSnap = await transaction.get(novaContaRef);
-
-            if (!contaNovaSnap.exists()) throw new Error('Conta selecionada não existe mais.');
-
-            if (contaAntigaSnap && contaAntigaSnap.exists()) {
-              const saldoAntigo = parseFloat(contaAntigaSnap.data().saldo) || 0;
-              const deltaReversao = original.tipo === 'entrada' ? -(parseFloat(original.valor) || 0) : (parseFloat(original.valor) || 0);
-              transaction.update(contaAntigaRef, { saldo: saldoAntigo + deltaReversao });
-            }
-
-            const saldoNovo = parseFloat(contaNovaSnap.data().saldo) || 0;
-            const deltaAplicacao = formData.tipo === 'entrada' ? valorNumerico : -valorNumerico;
-            transaction.update(novaContaRef, { saldo: saldoNovo + deltaAplicacao });
+        if (editando) {
+          if (importada) {
+            // Fatos do banco não mudam; só o que é da pessoa.
+            tx.update(doc(db, 'transactions', editando.id), {
+              descricao: formData.descricao.trim(),
+              categoria: formData.categoria,
+            });
+            return;
           }
 
-          transaction.update(transacaoRef, {
-            descricao: formData.descricao,
+          const valorAntigo = parseFloat(editando.valor) || 0;
+          const reversao = editando.tipo === 'entrada' ? -valorAntigo : valorAntigo;
+          const aplicacao = formData.tipo === 'entrada' ? valorNumerico : -valorNumerico;
+
+          if (contaAntigaSnap) {
+            if (contaAntigaSnap.exists() && saldoGeridoPeloApp(contaAntigaSnap.data())) {
+              tx.update(contaAntigaSnap.ref, { saldo: (parseFloat(contaAntigaSnap.data().saldo) || 0) + reversao });
+            }
+            if (saldoGeridoPeloApp(contaDados)) {
+              tx.update(contaRef, { saldo: (parseFloat(contaDados.saldo) || 0) + aplicacao });
+            }
+          } else if (saldoGeridoPeloApp(contaDados)) {
+            tx.update(contaRef, { saldo: (parseFloat(contaDados.saldo) || 0) + reversao + aplicacao });
+          }
+
+          tx.update(doc(db, 'transactions', editando.id), {
+            descricao: formData.descricao.trim(),
             valor: valorNumerico,
             tipo: formData.tipo,
             categoria: formData.categoria,
-            conta_id: formData.conta_id,
+            conta_id: contaId,
             data: formData.data,
           });
-        });
-      } else {
-        // CRIAÇÃO
-        const novaTransacaoRef = doc(collection(db, 'transactions'));
-        await runTransaction(db, async (transaction) => {
-          const contaSnap = await transaction.get(novaContaRef);
-          if (!contaSnap.exists()) {
-            throw new Error('Conta selecionada não existe mais.');
-          }
+          return;
+        }
 
-          const saldoAtual = parseFloat(contaSnap.data().saldo) || 0;
-          // Entrada soma ao saldo da conta, saída subtrai
+        // Criação
+        const novaRef = doc(collection(db, 'transactions'));
+        tx.set(novaRef, {
+          descricao: formData.descricao.trim(),
+          valor: valorNumerico,
+          tipo: formData.tipo,
+          categoria: formData.categoria,
+          conta_id: contaId,
+          data: formData.data,
+          uid: currentUser.uid,
+          origem: 'manual',
+          identificador_externo: null,
+          criadoEm: new Date(),
+        });
+        if (saldoGeridoPeloApp(contaDados)) {
           const delta = formData.tipo === 'entrada' ? valorNumerico : -valorNumerico;
-          const novoSaldo = saldoAtual + delta;
+          tx.update(contaRef, { saldo: (parseFloat(contaDados.saldo) || 0) + delta });
+        }
+      });
 
-          transaction.set(novaTransacaoRef, {
-            ...formData,
-            valor: valorNumerico,
-            uid: currentUser.uid,
-            origem: 'manual',
-            identificador_externo: null,
-            criadoEm: new Date()
-          });
-          transaction.update(novaContaRef, { saldo: novoSaldo });
-        });
-      }
-
-      closeModal();
+      toast.success(editando ? 'Lançamento atualizado.' : 'Lançamento salvo.');
+      setModalAberto(false);
+      setEditando(null);
     } catch (error) {
-      console.error("Erro ao salvar transação: ", error);
-      alert("Erro ao salvar transação: " + error.message);
+      console.error('[Transações] Erro ao salvar:', error);
+      toast.error(`Não foi possível salvar: ${error.message}`);
     } finally {
       submitLockRef.current = false;
       setSalvando(false);
     }
   };
 
-  const handleEdit = (t) => {
-    setFormData({
-      descricao: t.descricao || '',
-      valor: String(t.valor ?? ''),
-      tipo: t.tipo || 'saida',
-      categoria: t.categoria || categorias[t.tipo || 'saida'][0],
-      conta_id: t.conta_id || '',
-      data: t.data || new Date().toISOString().split('T')[0]
-    });
-    setEditingId(t.id);
-    setIsModalOpen(true);
-  };
-
-  const closeModal = () => {
-    setIsModalOpen(false);
-    setEditingId(null);
-    setFormData({
-      descricao: '',
-      valor: '',
-      tipo: 'saida',
-      categoria: 'Alimentação',
-      conta_id: '',
-      data: new Date().toISOString().split('T')[0]
-    });
-  };
-
-  const handleDelete = async (id) => {
-    if (!window.confirm("Tem certeza que deseja excluir esta transação?")) return;
-
-    const transacao = transacoes.find(t => t.id === id);
-    const transacaoRef = doc(db, 'transactions', id);
-
+  const confirmarExclusao = async () => {
+    const t = excluindo;
+    if (!t) return;
+    const txRef = doc(db, 'transactions', t.id);
     try {
-      if (transacao && transacao.conta_id) {
-        // Reverte o efeito da transação no saldo da conta antes de excluir
-        const contaRef = doc(db, 'accounts', transacao.conta_id);
-        await runTransaction(db, async (transaction) => {
-          const contaSnap = await transaction.get(contaRef);
-          if (contaSnap.exists()) {
-            const saldoAtual = parseFloat(contaSnap.data().saldo) || 0;
-            const valor = parseFloat(transacao.valor) || 0;
-            const delta = transacao.tipo === 'entrada' ? -valor : valor;
-            transaction.update(contaRef, { saldo: saldoAtual + delta });
+      const conta = contasPorId[t.conta_id];
+      if (t.conta_id && saldoGeridoPeloApp(conta)) {
+        const contaRef = doc(db, 'accounts', t.conta_id);
+        await runTransaction(db, async (tx) => {
+          const snap = await tx.get(contaRef);
+          if (snap.exists()) {
+            const valor = parseFloat(t.valor) || 0;
+            const delta = t.tipo === 'entrada' ? -valor : valor;
+            tx.update(contaRef, { saldo: (parseFloat(snap.data().saldo) || 0) + delta });
           }
-          transaction.delete(transacaoRef);
+          tx.delete(txRef);
         });
       } else {
-        await deleteDoc(transacaoRef);
+        await deleteDoc(txRef);
       }
+      toast.success('Lançamento excluído.');
     } catch (error) {
-      console.error("Erro ao excluir transação: ", error);
-      alert("Erro ao excluir transação: " + error.message);
+      console.error('[Transações] Erro ao excluir:', error);
+      toast.error(`Não foi possível excluir: ${error.message}`);
+      throw error;
     }
   };
 
-  const formatarMoeda = (valor) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor);
-  const formatarData = (dataStr) => {
-    const [ano, mes, dia] = dataStr.split('-');
-    return `${dia}/${mes}/${ano}`;
+  const exportarCsv = () => {
+    if (!filtradas.length) { toast.warning('Nada para exportar com os filtros atuais.'); return; }
+    const sufixo = filtroMes !== 'todos' ? filtroMes : hojeStr();
+    baixarArquivo(`capitalcycle-lancamentos-${sufixo}.csv`, gerarCsvTransacoes(filtradas, contasPorId));
+    toast.success(`${filtradas.length} lançamento${filtradas.length === 1 ? '' : 's'} exportado${filtradas.length === 1 ? '' : 's'}.`);
   };
 
-  // Filtro de busca simples
-  const transacoesFiltradas = transacoes.filter(t => 
-    (t.descricao || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
-    (t.categoria || '').toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  if (loading) return <div className="h-[80vh] flex items-center justify-center"><LoadingSpinner size="lg" color="text-indigo-500" /></div>;
+  // ── Render ──────────────────────────────────────────────────────────
+  const visiveis = filtradas.slice(0, limite);
+  const temFiltro = busca || filtroMes !== 'todos' || filtroTipo !== 'todos';
+  const temCarteira = contas.some((c) => c.id === idCarteiraManual(currentUser?.uid));
 
   return (
     <div className="space-y-6">
-      
-      {/* HEADER E BARRA DE BUSCA */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <p className="text-sm text-slate-400">Gerencie suas entradas e saídas.</p>
-        
-        <div className="flex items-center gap-3 w-full md:w-auto">
-          <div className="relative flex-1 md:w-64">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
-            <input 
-              type="text" 
-              placeholder="Buscar..." 
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full bg-surface border border-hairline rounded-xl pl-10 pr-4 py-2.5 text-white focus:outline-none focus:border-indigo-500 transition-colors"
-            />
-          </div>
-          <button
-            onClick={() => {
-              if (!canAddTransacao(planId, lancamentosNoMes)) { setUpgradeOpen(true); return; }
-              setEditingId(null); setIsModalOpen(true);
-            }}
-            className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-xl font-medium transition-colors flex items-center gap-2 whitespace-nowrap"
-          >
-            <Plus size={18} />
-            Nova
-          </button>
+      <PageHeader
+        actions={(
+          <>
+            <Button variant="secondary" icon={Download} onClick={exportarCsv} disabled={loading || !transacoes.length}>
+              Exportar CSV
+            </Button>
+            <Button icon={Plus} onClick={abrirNovo} disabled={loading}>
+              Novo lançamento
+            </Button>
+          </>
+        )}
+      >
+        Entradas e saídas, manuais ou importadas pelo Open Finance.
+      </PageHeader>
+
+      {/* Filtros */}
+      <div className="cc-card p-3 flex flex-col lg:flex-row gap-3">
+        <div className="relative flex-1 min-w-0">
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" size={17} aria-hidden="true" />
+          <Input
+            type="search"
+            aria-label="Buscar por descrição ou categoria"
+            placeholder="Buscar por descrição ou categoria…"
+            value={busca}
+            onChange={(e) => setBusca(e.target.value)}
+            className="pl-10"
+          />
+        </div>
+        <div className="grid grid-cols-2 gap-3 lg:w-[26rem]">
+          <Select aria-label="Filtrar por mês" value={filtroMes} onChange={(e) => setFiltroMes(e.target.value)}>
+            <option value="todos">Todos os meses</option>
+            {mesesDisponiveis.map((m) => <option key={m} value={m}>{rotuloMes(m)}</option>)}
+          </Select>
+          <Select aria-label="Filtrar por tipo" value={filtroTipo} onChange={(e) => setFiltroTipo(e.target.value)}>
+            <option value="todos">Entradas e saídas</option>
+            <option value="entrada">Só entradas</option>
+            <option value="saida">Só saídas</option>
+          </Select>
         </div>
       </div>
 
-      {/* LISTA DE TRANSAÇÕES (ESTILO EXTRATO) */}
-      <div className="bg-surface border border-hairline rounded-2xl overflow-hidden">
-        {transacoesFiltradas.length === 0 ? (
-          <div className="p-10 text-center">
-            <p className="text-slate-500 text-sm">
-              {searchTerm ? 'Nenhuma transação encontrada para essa busca.' : 'Nenhuma transação lançada ainda.'}
+      {/* Totais do recorte */}
+      {!loading && transacoes.length > 0 && (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-[var(--cc-gap-card)]">
+          <div className="cc-card px-6 py-5">
+            <p className="cc-label mb-1.5">Entradas</p>
+            <p className="text-xl font-bold text-success tabular-nums">{formatarMoeda(totais.entradas)}</p>
+          </div>
+          <div className="cc-card px-6 py-5">
+            <p className="cc-label mb-1.5">Saídas</p>
+            <p className="text-xl font-bold text-rose-400 tabular-nums">{formatarMoeda(totais.saidas)}</p>
+          </div>
+          <div className="cc-card px-6 py-5">
+            <p className="cc-label mb-1.5">Resultado {temFiltro ? 'do recorte' : 'geral'}</p>
+            <p className={`text-xl font-bold tabular-nums ${totais.liquido >= 0 ? 'text-textMain' : 'text-rose-400'}`}>
+              {formatarMoeda(totais.liquido)}
             </p>
-          </div>
-        ) : (
-          <div className="divide-y divide-hairline">
-            {/* No mobile a linha quebra em duas: sem isso, os botões de ação
-                ficam fora da área visível do card e são cortados pelo
-                overflow-hidden. A partir de md volta a ser uma linha só. */}
-            {transacoesFiltradas.map((t) => (
-              <div key={t.id} className="p-4 md:p-5 flex flex-wrap md:flex-nowrap items-center justify-between gap-3 md:gap-0 hover:bg-[#151d2d] transition-colors group">
-
-                <div className="flex items-center gap-4 min-w-0">
-                  <div className={`p-3 rounded-2xl shrink-0 ${t.tipo === 'entrada' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400'}`}>
-                    {t.tipo === 'entrada' ? <ArrowUpCircle size={24} /> : <ArrowDownCircle size={24} />}
-                  </div>
-                  <div className="min-w-0">
-                    <h4 className="text-white font-medium">{t.descricao}</h4>
-                    <div className="flex items-center gap-2 text-xs text-slate-400 mt-1">
-                      <span className="bg-hairline px-2 py-0.5 rounded-md">{t.categoria}</span>
-                      <span>•</span>
-                      <span>{formatarData(t.data)}</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-4 shrink-0 ml-auto">
-                  <span className={`font-bold whitespace-nowrap ${t.tipo === 'entrada' ? 'text-emerald-400' : 'text-white'}`}>
-                    {t.tipo === 'entrada' ? '+ ' : '- '}{formatarMoeda(t.valor)}
-                  </span>
-                  <button
-                    onClick={() => handleEdit(t)}
-                    className="text-slate-600 hover:text-indigo-400 opacity-100 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100 transition-all p-2"
-                    title="Editar"
-                  >
-                    <Pencil size={18} />
-                  </button>
-                  <button
-                    onClick={() => handleDelete(t.id)}
-                    className="text-slate-600 hover:text-rose-400 opacity-100 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100 transition-all p-2"
-                    title="Excluir"
-                  >
-                    <Trash2 size={18} />
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* MODAL DE NOVA TRANSAÇÃO */}
-      {isModalOpen && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-surface border border-hairline rounded-2xl w-full max-w-md overflow-hidden shadow-2xl">
-            <div className="p-6 border-b border-hairline flex justify-between items-center">
-              <h2 className="text-xl font-bold text-white">{editingId ? 'Editar Transação' : 'Nova Transação'}</h2>
-              <button onClick={closeModal} className="text-slate-400 hover:text-white">
-                <X size={24} />
-              </button>
-            </div>
-            
-            <form onSubmit={handleSubmit} className="p-6 space-y-4">
-              {/* Tipo (Toggle) */}
-              <div className="flex p-1 bg-app rounded-xl border border-hairline">
-                <button
-                  type="button"
-                  onClick={() => setFormData({ ...formData, tipo: 'saida', categoria: categorias.saida[0] })}
-                  className={`flex-1 py-2 text-sm font-bold rounded-lg transition-colors ${formData.tipo === 'saida' ? 'bg-rose-500 text-white' : 'text-slate-400 hover:text-white'}`}
-                >
-                  Saída
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setFormData({ ...formData, tipo: 'entrada', categoria: categorias.entrada[0] })}
-                  className={`flex-1 py-2 text-sm font-bold rounded-lg transition-colors ${formData.tipo === 'entrada' ? 'bg-emerald-500 text-white' : 'text-slate-400 hover:text-white'}`}
-                >
-                  Entrada
-                </button>
-              </div>
-
-              {/* Descrição e Valor */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="col-span-2">
-                  <label className="block text-xs font-medium text-slate-400 mb-1">Descrição</label>
-                  <input required type="text" value={formData.descricao} onChange={e => setFormData({...formData, descricao: e.target.value})} className="w-full bg-app border border-hairline rounded-xl px-4 py-3 text-white focus:border-indigo-500 outline-none" placeholder="Ex: Supermercado" />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-slate-400 mb-1">Valor (R$)</label>
-                  <input required type="number" step="0.01" min="0" value={formData.valor} onChange={e => setFormData({...formData, valor: e.target.value})} className="w-full bg-app border border-hairline rounded-xl px-4 py-3 text-white focus:border-indigo-500 outline-none" placeholder="0,00" />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-slate-400 mb-1">Data</label>
-                  <input required type="date" value={formData.data} onChange={e => setFormData({...formData, data: e.target.value})} className="w-full bg-app border border-hairline rounded-xl px-4 py-3 text-white focus:border-indigo-500 outline-none [color-scheme:dark]" />
-                </div>
-              </div>
-
-              {/* Conta e Categoria */}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-medium text-slate-400 mb-1">Categoria</label>
-                  <select required value={formData.categoria} onChange={e => setFormData({...formData, categoria: e.target.value})} className="w-full bg-app border border-hairline rounded-xl px-4 py-3 text-white focus:border-indigo-500 outline-none">
-                    {categorias[formData.tipo].map(cat => <option key={cat} value={cat}>{cat}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-slate-400 mb-1">Conta/Carteira</label>
-                  <select required value={formData.conta_id} onChange={e => setFormData({...formData, conta_id: e.target.value})} className="w-full bg-app border border-hairline rounded-xl px-4 py-3 text-white focus:border-indigo-500 outline-none">
-                    <option value="">Selecione...</option>
-                    {contas.map(c => <option key={c.id} value={c.id}>{c.nome} ({c.banco})</option>)}
-                  </select>
-                </div>
-              </div>
-
-              <button
-                type="submit"
-                disabled={salvando}
-                className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-bold py-3.5 rounded-xl transition-colors mt-4"
-              >
-                {salvando ? 'Salvando...' : (editingId ? 'Salvar Alterações' : 'Salvar Transação')}
-              </button>
-            </form>
           </div>
         </div>
       )}
 
-      {/* Modal de upgrade */}
+      {erroCarga && (
+        <div className="cc-card p-5 border-rose-500/30 text-sm text-rose-300">{erroCarga}</div>
+      )}
+
+      {/* Lista */}
+      {loading ? (
+        <SkeletonLista itens={6} />
+      ) : transacoes.length === 0 ? (
+        <EmptyState
+          icon={Receipt}
+          title="Nenhum lançamento ainda"
+          description="Registre sua primeira entrada ou saída. Se preferir, conecte um banco pelo Open Finance e os lançamentos entram sozinhos."
+          actionLabel="Fazer o primeiro lançamento"
+          onAction={abrirNovo}
+        />
+      ) : filtradas.length === 0 ? (
+        <EmptyState
+          compact
+          icon={Search}
+          title="Nada encontrado"
+          description="Nenhum lançamento corresponde à busca e aos filtros escolhidos."
+        />
+      ) : (
+        <div className="cc-card overflow-hidden">
+          <ul className="divide-y divide-hairline">
+            {visiveis.map((t) => {
+              const entrada = t.tipo === 'entrada';
+              const conta = contasPorId[t.conta_id];
+              const ehOF = t.origem === 'openfinance';
+              return (
+                <li key={t.id} className="p-4 md:px-6 md:py-4 flex flex-wrap md:flex-nowrap items-center gap-3 md:gap-4 hover:bg-surfaceLight/60 transition-colors group">
+                  <div className={`p-2.5 rounded-xl shrink-0 ${entrada ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400'}`} aria-hidden="true">
+                    {entrada ? <ArrowUpCircle size={22} /> : <ArrowDownCircle size={22} />}
+                  </div>
+
+                  <div className="min-w-0 basis-[calc(100%-3.5rem)] md:basis-0 md:flex-1">
+                    <p className="text-textMain font-medium truncate">{t.descricao}</p>
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-textSecondary mt-1">
+                      <Badge>{t.categoria}</Badge>
+                      <span>{formatarDataBR(t.data)}</span>
+                      {conta && <span className="hidden sm:inline">· {rotuloConta(conta)}</span>}
+                      {ehOF && <Badge tone="info" icon={Landmark} title="Importado pelo Open Finance">Open Finance</Badge>}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-1 shrink-0 ml-auto">
+                    <span className={`font-bold tabular-nums whitespace-nowrap mr-2 ${entrada ? 'text-emerald-400' : 'text-textMain'}`}>
+                      {entrada ? '+ ' : '− '}{formatarMoeda(t.valor)}
+                    </span>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      aria-label={`Editar ${t.descricao}`}
+                      title="Editar"
+                      onClick={() => abrirEdicao(t)}
+                      className="md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100 hover:!text-indigo-300"
+                    >
+                      <Pencil size={16} />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      aria-label={`Excluir ${t.descricao}`}
+                      title="Excluir"
+                      onClick={() => setExcluindo(t)}
+                      className="md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100 hover:!text-rose-400"
+                    >
+                      <Trash2 size={16} />
+                    </Button>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+          {filtradas.length > visiveis.length && (
+            <div className="p-4 border-t border-hairline flex items-center justify-between gap-4 text-xs text-textSecondary">
+              <span>Mostrando {visiveis.length} de {filtradas.length}</span>
+              <Button variant="secondary" size="sm" onClick={() => setLimite((l) => l + PAGINA)}>
+                Mostrar mais
+              </Button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Formulário */}
+      <Dialog
+        open={modalAberto}
+        onClose={fecharModal}
+        bloqueado={salvando}
+        title={editando ? 'Editar lançamento' : 'Novo lançamento'}
+        description={importada ? 'Lançamento importado do banco: valor, data e conta não podem ser alterados aqui.' : undefined}
+        footer={(
+          <>
+            <Button variant="secondary" onClick={fecharModal} disabled={salvando}>Cancelar</Button>
+            <Button type="submit" form="form-transacao" loading={salvando}>
+              {editando ? 'Salvar alterações' : 'Salvar lançamento'}
+            </Button>
+          </>
+        )}
+      >
+        <form id="form-transacao" onSubmit={handleSubmit} className="space-y-4" noValidate>
+          {!importada && (
+            <Segmented
+              ariaLabel="Tipo do lançamento"
+              value={formData.tipo}
+              onChange={(tipo) => setFormData({ ...formData, tipo, categoria: CATEGORIAS[tipo][0] })}
+              options={[
+                { value: 'saida', label: 'Saída', activeClass: 'bg-rose-500' },
+                { value: 'entrada', label: 'Entrada', activeClass: 'bg-emerald-500' },
+              ]}
+            />
+          )}
+
+          <Field label="Descrição" error={erros.descricao}>
+            <Input
+              data-autofocus
+              type="text"
+              value={formData.descricao}
+              onChange={(e) => setFormData({ ...formData, descricao: e.target.value })}
+              placeholder="Ex.: Supermercado"
+              maxLength={80}
+            />
+          </Field>
+
+          <div className="grid grid-cols-2 gap-4">
+            <Field label="Valor (R$)" error={erros.valor}>
+              <Input
+                type="text"
+                inputMode="decimal"
+                value={formData.valor}
+                onChange={(e) => setFormData({ ...formData, valor: e.target.value })}
+                placeholder="0,00"
+                disabled={importada}
+              />
+            </Field>
+            <Field label="Data" error={erros.data}>
+              <Input
+                type="date"
+                value={formData.data}
+                max={hojeStr()}
+                onChange={(e) => setFormData({ ...formData, data: e.target.value })}
+                disabled={importada}
+              />
+            </Field>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <Field label="Categoria">
+              <Select value={formData.categoria} onChange={(e) => setFormData({ ...formData, categoria: e.target.value })}>
+                {CATEGORIAS[formData.tipo].map((cat) => <option key={cat} value={cat}>{cat}</option>)}
+              </Select>
+            </Field>
+            <Field
+              label="Conta"
+              error={erros.conta_id}
+              hint={!temCarteira && formData.conta_id === OPCAO_CARTEIRA ? 'A carteira manual é criada no primeiro lançamento.' : undefined}
+            >
+              <Select value={formData.conta_id} onChange={(e) => setFormData({ ...formData, conta_id: e.target.value })} disabled={importada}>
+                {!temCarteira && <option value={OPCAO_CARTEIRA}>Carteira (manual)</option>}
+                {contas.map((c) => <option key={c.id} value={c.id}>{rotuloConta(c)}</option>)}
+              </Select>
+            </Field>
+          </div>
+
+          {importada && (
+            <p className="flex items-start gap-2 text-xs text-textSecondary leading-relaxed">
+              <Lock size={13} className="mt-0.5 shrink-0" aria-hidden="true" />
+              A categoria que você escolher é preservada nas próximas sincronizações.
+            </p>
+          )}
+        </form>
+      </Dialog>
+
+      <ConfirmDialog
+        open={Boolean(excluindo)}
+        onClose={() => setExcluindo(null)}
+        onConfirm={confirmarExclusao}
+        title="Excluir lançamento"
+        confirmLabel="Excluir"
+        message={excluindo ? `"${excluindo.descricao}" (${formatarMoeda(excluindo.valor)}) será removido${excluindo.origem === 'openfinance' ? '. Como veio do banco, pode voltar na próxima sincronização' : ' e o saldo da conta será ajustado'}.` : ''}
+      />
+
       <UpgradeModal feature="transacoes" open={upgradeOpen} onClose={() => setUpgradeOpen(false)} />
     </div>
   );

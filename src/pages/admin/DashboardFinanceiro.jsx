@@ -1,20 +1,60 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { TrendingUp, TrendingDown, AlertTriangle, ArrowRight, Target, Wallet, PiggyBank, Clock, PieChart } from 'lucide-react';
+import {
+  TrendingUp, TrendingDown, AlertTriangle, ArrowRight, Target, Wallet, PiggyBank, Clock, PieChart,
+  CreditCard, Receipt, Landmark, Sparkles, CheckCircle2, Circle,
+} from 'lucide-react';
 import { collection, doc, onSnapshot, query, where } from 'firebase/firestore';
 import { db } from '../../services/firebase';
-import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import CurrencyValue from '../../components/ui/CurrencyValue';
+import ProgressBar from '../../components/ui/ProgressBar';
+import { PageSkeleton } from '../../components/ui/Skeleton';
 import { useAuth } from '../../hooks/useAuth';
 import { useAportesPorMeta } from '../../hooks/useAportesPorMeta';
 import { calcularProgressoMeta } from '../../utils/metas';
-import { calcularProgressoCategorias } from '../../utils/orcamentoCategoria';
+import { calcularProgressoCategorias, tomDoEstado } from '../../utils/orcamentoCategoria';
 import { calcularVariacaoPct } from '../../utils/comparativoMensal';
 import { hojeStr, mesAnteriorPrefixo } from '../../utils/data';
+import { formatarMoeda, formatarPct } from '../../utils/moeda';
+
+/* ==========================================================================
+   Dashboard
+
+   Todos os números saem das coleções reais da conta. A estrutura segue a
+   referência visual do painel (três KPIs, fluxo + metas, blocos de largura
+   cheia); o que mudou nesta revisão foi o CONTEÚDO dos indicadores:
+
+     - "Saldo disponível" exclui cartões de crédito: a fatura é dívida, não
+       dinheiro em caixa. Ela aparece à parte, quando existe.
+     - "Investido" saiu: dependia de um tipo de conta ("Investimentos") que
+       deixou de existir com o Open Finance e ficava sempre em R$ 0,00.
+       No lugar entram entradas e saídas do mês, que respondem a pergunta
+       mais frequente ("quanto entrou e quanto saiu?").
+     - "Maiores despesas" mostra a fatia de cada categoria no total gasto,
+       em vez de uma barra contra um limite inventado (valor × 1,2).
+   ========================================================================== */
+
+const LinkVerTodas = ({ to, children = 'Ver todas' }) => (
+  <Link to={to} className="text-xs text-textSecondary hover:text-primary transition-colors inline-flex items-center gap-1">
+    {children} <ArrowRight size={12} />
+  </Link>
+);
+
+function Tendencia({ pct, inverter = false, sufixo = 'vs. mês anterior' }) {
+  if (pct == null) return <p className="text-xs text-slate-500">Sem base de comparação</p>;
+  const bom = inverter ? pct <= 0 : pct >= 0;
+  return (
+    <p className={`text-xs flex items-center gap-1 ${bom ? 'text-emerald-400' : 'text-rose-400'}`}>
+      {pct >= 0 ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
+      {formatarPct(pct)} {sufixo}
+    </p>
+  );
+}
 
 export default function DashboardFinanceiro() {
   const { userProfile, currentUser } = useAuth();
   const [loading, setLoading] = useState(true);
+  const [erro, setErro] = useState(null);
 
   const [contas, setContas] = useState([]);
   const [transacoes, setTransacoes] = useState([]);
@@ -22,302 +62,301 @@ export default function DashboardFinanceiro() {
   const [limitesCategorias, setLimitesCategorias] = useState({});
 
   useEffect(() => {
-    if (!currentUser) return;
-
-    // 1. Buscar Contas do usuário logado
-    const qContas = query(collection(db, 'accounts'), where('uid', '==', currentUser.uid));
-    const unsubContas = onSnapshot(qContas, (snapshot) => {
-      setContas(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-    });
-
-    // 2. Buscar Transações do usuário logado
-    const qTransacoes = query(
-      collection(db, 'transactions'),
-      where('uid', '==', currentUser.uid)
-    );
-    const unsubTransacoes = onSnapshot(qTransacoes, (snapshot) => {
-      const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      docs.sort((a, b) => (b.data || '').localeCompare(a.data || ''));
-      setTransacoes(docs);
-    });
-
-    // 3. Buscar Ciclos/Metas do usuário logado
-    const qCiclos = query(
-      collection(db, 'ciclos'),
-      where('uid', '==', currentUser.uid)
-    );
-    const unsubCiclos = onSnapshot(qCiclos, (snapshot) => {
-      const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      docs.sort((a, b) => (a.fim || '').localeCompare(b.fim || ''));
-      setCiclos(docs);
-      setLoading(false); // Para o loading quando tudo carregar
-    });
-
-    // 4. Buscar limites de orçamento por categoria (Fase 1)
-    const unsubOrcamento = onSnapshot(doc(db, 'orcamentosPorCategoria', currentUser.uid), (snap) => {
-      setLimitesCategorias(snap.exists() ? (snap.data().limites || {}) : {});
-    });
-
-    return () => {
-      unsubContas();
-      unsubTransacoes();
-      unsubCiclos();
-      unsubOrcamento();
+    if (!currentUser) return undefined;
+    // O loading só termina quando as três coleções principais responderam
+    // (antes dependia só de `ciclos`, e um erro deixava o spinner eterno).
+    const prontos = new Set();
+    const marcar = (nome) => { prontos.add(nome); if (prontos.size >= 3) setLoading(false); };
+    const onErro = (nome) => (e) => {
+      console.error(`[Dashboard] Falha ao ler ${nome}:`, e?.code || e?.message);
+      setErro('Não foi possível carregar parte dos dados. Recarregue a página.');
+      marcar(nome);
     };
+
+    const unsubContas = onSnapshot(
+      query(collection(db, 'accounts'), where('uid', '==', currentUser.uid)),
+      (snap) => { setContas(snap.docs.map((d) => ({ id: d.id, ...d.data() }))); marcar('contas'); },
+      onErro('contas'),
+    );
+    const unsubTransacoes = onSnapshot(
+      query(collection(db, 'transactions'), where('uid', '==', currentUser.uid)),
+      (snap) => {
+        const docs = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+        docs.sort((a, b) => (b.data || '').localeCompare(a.data || ''));
+        setTransacoes(docs);
+        marcar('transacoes');
+      },
+      onErro('transacoes'),
+    );
+    const unsubCiclos = onSnapshot(
+      query(collection(db, 'ciclos'), where('uid', '==', currentUser.uid)),
+      (snap) => {
+        const docs = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+        docs.sort((a, b) => (a.fim || '').localeCompare(b.fim || ''));
+        setCiclos(docs);
+        marcar('ciclos');
+      },
+      onErro('ciclos'),
+    );
+    const unsubOrcamento = onSnapshot(
+      doc(db, 'orcamentosPorCategoria', currentUser.uid),
+      (snap) => setLimitesCategorias(snap.exists() ? (snap.data().limites || {}) : {}),
+      (e) => console.error('[Dashboard] Falha ao ler orçamento:', e?.code || e?.message),
+    );
+
+    return () => { unsubContas(); unsubTransacoes(); unsubCiclos(); unsubOrcamento(); };
   }, [currentUser]);
 
-  // Aportes das metas — usados para o progresso real das metas (não mais
-  // inferido de transações de entrada, ver especificação Fase 1 item 2).
-  const metaIds = ciclos.filter((c) => c.tipo === 'Meta').map((c) => c.id);
+  const metaIds = useMemo(() => ciclos.filter((c) => c.tipo === 'Meta').map((c) => c.id), [ciclos]);
   const aportesMap = useAportesPorMeta(metaIds, currentUser?.uid);
 
-  // Formatador de Moeda
-  const formatarMoeda = (valor) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor || 0);
+  // ── Cálculos ────────────────────────────────────────────────────────
+  const dados = useMemo(() => {
+    const hoje = hojeStr();
+    const mesAtual = hoje.slice(0, 7);
+    const mesAnterior = mesAnteriorPrefixo(mesAtual);
+    const soma = (lista) => lista.reduce((acc, t) => acc + (parseFloat(t.valor) || 0), 0);
 
-  // ==========================================
-  // CÁLCULOS DINÂMICOS COM OS DADOS REAIS
-  // (mesma lógica de antes — apenas a apresentação visual mudou)
-  // ==========================================
+    const saldoDisponivel = contas.filter((c) => c.tipo !== 'Cartão de crédito').reduce((acc, c) => acc + (parseFloat(c.saldo) || 0), 0);
+    const fatura = Math.abs(contas.filter((c) => c.tipo === 'Cartão de crédito').reduce((acc, c) => acc + (parseFloat(c.saldo) || 0), 0));
+    const temCartao = contas.some((c) => c.tipo === 'Cartão de crédito');
 
-  // 1. Saldos
-  const saldoDisponivel = contas
-    .filter(c => c.tipo !== 'Investimentos')
-    .reduce((acc, c) => acc + (parseFloat(c.saldo) || 0), 0);
+    const doMes = transacoes.filter((t) => t.data && t.data.startsWith(mesAtual));
+    const doMesAnterior = transacoes.filter((t) => t.data && t.data.startsWith(mesAnterior));
 
-  const totalInvestido = contas
-    .filter(c => c.tipo === 'Investimentos')
-    .reduce((acc, c) => acc + (parseFloat(c.saldo) || 0), 0);
+    const entradasMes = soma(doMes.filter((t) => t.tipo === 'entrada'));
+    const saidasMes = soma(doMes.filter((t) => t.tipo === 'saida'));
+    const entradasMesAnterior = soma(doMesAnterior.filter((t) => t.tipo === 'entrada'));
+    const saidasMesAnterior = soma(doMesAnterior.filter((t) => t.tipo === 'saida'));
+    const houveMesAnterior = doMesAnterior.length > 0;
 
-  // 2. Gastos do Mês Atual por Categoria
-  const dataAtual = new Date();
-  const mesAtualPrefixo = `${dataAtual.getFullYear()}-${String(dataAtual.getMonth() + 1).padStart(2, '0')}`;
-
-  const gastosPorCategoria = transacoes
-    .filter(t => t.tipo === 'saida' && t.data && t.data.startsWith(mesAtualPrefixo))
-    .reduce((acc, t) => {
-      acc[t.categoria] = (acc[t.categoria] || 0) + (parseFloat(t.valor) || 0);
+    const gastosPorCategoria = doMes.filter((t) => t.tipo === 'saida').reduce((acc, t) => {
+      acc[t.categoria || 'Outros'] = (acc[t.categoria || 'Outros'] || 0) + (parseFloat(t.valor) || 0);
       return acc;
     }, {});
+    const maioresGastos = Object.entries(gastosPorCategoria)
+      .map(([categoria, valor]) => ({ categoria, valor, fatia: saidasMes > 0 ? (valor / saidasMes) * 100 : 0 }))
+      .sort((a, b) => b.valor - a.valor)
+      .slice(0, 3);
 
-  // Transformar o objeto em um array ordenado pelos maiores gastos
-  const maioresGastos = Object.entries(gastosPorCategoria)
-    .map(([categoria, valor]) => ({ categoria, valor }))
-    .sort((a, b) => b.valor - a.valor)
-    .slice(0, 3); // Pegar os 3 maiores
+    const rendaMensal = parseFloat(userProfile?.renda_mensal) || 0;
+    const temRenda = rendaMensal > 0;
+    const economiaMes = temRenda ? rendaMensal - saidasMes : null;
+    const rendaComprometidaPct = temRenda ? (saidasMes / rendaMensal) * 100 : null;
+    const economiaMesAnterior = temRenda && houveMesAnterior ? rendaMensal - saidasMesAnterior : null;
 
-  // Calcular o total de entradas e saídas do mês para a porcentagem (Exemplo de Fluxo)
-  const totalEntradasMes = transacoes
-    .filter(t => t.tipo === 'entrada' && t.data && t.data.startsWith(mesAtualPrefixo))
-    .reduce((acc, t) => acc + (parseFloat(t.valor) || 0), 0);
+    const variacaoGastoPct = houveMesAnterior ? calcularVariacaoPct(saidasMes, saidasMesAnterior) : null;
+    const variacaoEntradaPct = houveMesAnterior ? calcularVariacaoPct(entradasMes, entradasMesAnterior) : null;
+    const variacaoEconomiaPct = economiaMesAnterior != null && economiaMes != null ? calcularVariacaoPct(economiaMes, economiaMesAnterior) : null;
 
-  const totalSaidasMes = Object.values(gastosPorCategoria).reduce((a, b) => a + b, 0);
-  const fluxoPositivo = totalEntradasMes >= totalSaidasMes;
-  const diferencaMes = totalEntradasMes - totalSaidasMes;
+    const metasTipo = ciclos.filter((c) => c.tipo === 'Meta');
+    const metaDestaque = metasTipo.find((c) => !c.fim || c.fim >= hoje) || metasTipo[0] || null;
+    const progressoMetaDestaque = metaDestaque ? calcularProgressoMeta(metaDestaque, aportesMap[metaDestaque.id] || []) : null;
 
-  // ── Renda mensal, economia e % da renda comprometida (Fase 1) ──
-  const rendaMensal = parseFloat(userProfile?.renda_mensal) || 0;
-  const temRenda = rendaMensal > 0;
-  const economiaMes = temRenda ? rendaMensal - totalSaidasMes : null;
-  const rendaComprometidaPct = temRenda ? (totalSaidasMes / rendaMensal) * 100 : null;
+    const progressoCategorias = calcularProgressoCategorias(limitesCategorias, transacoes, mesAtual);
 
-  // ── Comparação com o mês anterior (Fase 1) ──
-  const mesAnteriorPrefixoStr = mesAnteriorPrefixo(mesAtualPrefixo);
-  const gastoMesAnterior = transacoes
-    .filter(t => t.tipo === 'saida' && t.data && t.data.startsWith(mesAnteriorPrefixoStr))
-    .reduce((acc, t) => acc + (parseFloat(t.valor) || 0), 0);
-  const houveMesAnterior = transacoes.some(t => t.data && t.data.startsWith(mesAnteriorPrefixoStr));
-  const variacaoGastoPct = houveMesAnterior ? calcularVariacaoPct(totalSaidasMes, gastoMesAnterior) : null;
-
-  const economiaMesAnterior = temRenda && houveMesAnterior ? rendaMensal - gastoMesAnterior : null;
-  const variacaoEconomiaPct = economiaMesAnterior != null && economiaMes != null
-    ? calcularVariacaoPct(economiaMes, economiaMesAnterior)
-    : null;
-
-  // ── Meta em destaque: primeira meta com prazo em aberto (ou a mais recente, se todas encerradas) ──
-  const metasTipo = ciclos.filter(c => c.tipo === 'Meta');
-  const hoje = hojeStr();
-  const metaDestaque = metasTipo.find(c => !c.fim || c.fim >= hoje) || metasTipo[0] || null;
-  const progressoMetaDestaque = metaDestaque
-    ? calcularProgressoMeta(metaDestaque, aportesMap[metaDestaque.id] || [])
-    : null;
-
-  // ── Orçamento por categoria (Fase 1) ──
-  const progressoCategorias = calcularProgressoCategorias(limitesCategorias, transacoes, mesAtualPrefixo);
-
-  // 3. Evolução dos últimos 6 meses (entradas - saídas) — usa só transações reais,
-  //    substitui as barras decorativas que existiam antes.
-  const evolucaoMensal = (() => {
-    const meses = [];
+    const agora = new Date();
+    const evolucaoMensal = [];
     for (let i = 5; i >= 0; i--) {
-      const d = new Date(dataAtual.getFullYear(), dataAtual.getMonth() - i, 1);
+      const d = new Date(agora.getFullYear(), agora.getMonth() - i, 1);
       const chave = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-      const doMes = transacoes.filter(t => t.data && t.data.startsWith(chave));
-      const entradas = doMes.filter(t => t.tipo === 'entrada').reduce((a, t) => a + (parseFloat(t.valor) || 0), 0);
-      const saidas = doMes.filter(t => t.tipo === 'saida').reduce((a, t) => a + (parseFloat(t.valor) || 0), 0);
-      meses.push({
+      const lista = transacoes.filter((t) => t.data && t.data.startsWith(chave));
+      const entradas = soma(lista.filter((t) => t.tipo === 'entrada'));
+      const saidas = soma(lista.filter((t) => t.tipo === 'saida'));
+      evolucaoMensal.push({
         chave,
         label: d.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', ''),
+        entradas,
+        saidas,
         liquido: entradas - saidas,
         atual: i === 0,
       });
     }
-    return meses;
+    const maiorMovimentoMes = Math.max(1, ...evolucaoMensal.map((m) => Math.abs(m.liquido)));
+
+    const ultimas = transacoes.slice(0, 5);
+
+    return {
+      hoje, mesAtual, saldoDisponivel, fatura, temCartao, entradasMes, saidasMes, houveMesAnterior,
+      saidasMesAnterior, maioresGastos, rendaMensal, temRenda, economiaMes, rendaComprometidaPct,
+      variacaoGastoPct, variacaoEntradaPct, variacaoEconomiaPct, metaDestaque, progressoMetaDestaque,
+      progressoCategorias, evolucaoMensal, maiorMovimentoMes, ultimas,
+    };
+  }, [contas, transacoes, ciclos, limitesCategorias, aportesMap, userProfile]);
+
+  if (loading) return <PageSkeleton />;
+
+  const d = dados;
+  const primeiroNome = userProfile?.nome ? userProfile.nome.split(' ')[0] : 'Investidor';
+  const saudacao = (() => {
+    const h = new Date().getHours();
+    if (h < 6) return 'Boa madrugada';
+    if (h < 12) return 'Bom dia';
+    if (h < 18) return 'Boa tarde';
+    return 'Boa noite';
   })();
-  const maiorMovimentoMes = Math.max(1, ...evolucaoMensal.map(m => Math.abs(m.liquido)));
+  const dataBruta = new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
+  const dataLonga = dataBruta.charAt(0).toUpperCase() + dataBruta.slice(1);
 
-  if (loading) {
-    return <div className="h-[80vh] flex items-center justify-center"><LoadingSpinner size="lg" color="text-indigo-500" /></div>;
-  }
-
-  const primeiroNome = userProfile && userProfile.nome ? userProfile.nome.split(' ')[0] : 'Investidor';
+  // Primeiros passos: só aparece enquanto faltar algo essencial.
+  const passos = [
+    { feito: transacoes.length > 0, rotulo: 'Fazer o primeiro lançamento', to: '/capital/transacoes', icon: Receipt },
+    { feito: contas.some((c) => c.origem === 'openfinance'), rotulo: 'Conectar um banco pelo Open Finance', to: '/capital/open-finance', icon: Landmark, opcional: true },
+    { feito: d.temRenda, rotulo: 'Definir sua renda mensal', to: '/capital/perfil', icon: Wallet },
+    { feito: ciclos.length > 0, rotulo: 'Criar uma meta ou orçamento', to: '/capital/ciclos', icon: Target },
+    { feito: Object.keys(limitesCategorias).length > 0, rotulo: 'Definir limites por categoria', to: '/capital/orcamento', icon: PieChart },
+  ];
+  const pendentes = passos.filter((p) => !p.feito && !p.opcional).length;
+  const mostrarPassos = pendentes > 0;
 
   return (
     <div className="space-y-[var(--cc-gap)]">
 
-      <p className="text-sm text-textSecondary">Olá, {primeiroNome}. Aqui está o resumo do seu capital.</p>
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-2">
+        <p className="text-sm text-textSecondary">
+          {saudacao}, <span className="text-textMain font-medium">{primeiroNome}</span>. Aqui está o resumo do seu capital.
+        </p>
+        <p className="text-xs text-slate-500">{dataLonga}</p>
+      </div>
 
-      {/* ── HERO FINANCEIRO: tres cards, como na referencia ──
+      {erro && <div className="cc-card p-4 border-rose-500/30 text-sm text-rose-300" role="alert">{erro}</div>}
 
-          A proporcao 1,5fr / 1fr / 1fr foi medida na imagem: os cards
-          ocupam 580 / 392 / 393px dos 1425px uteis, com 30px de gap (aqui
-          24px na escala de 1440). O primeiro e mais largo porque carrega
-          tres linhas de conteudo; os outros dois centralizam as suas duas.
-
-          Os dados continuam sendo os reais da conta — a referencia serve de
-          forma, nao de conteudo. */}
-      <div className="grid grid-cols-1 lg:grid-cols-[1.478fr_1fr_1fr] gap-[var(--cc-gap-card)]">
-
-        <div className="cc-card-p">
+      {/* ── KPIs ── */}
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-[1.478fr_1fr_1fr] gap-[var(--cc-gap-card)]">
+        <div className="cc-card-p min-w-0 md:col-span-2 xl:col-span-1">
           <p className="cc-label mb-3">Saldo disponível</p>
-          <CurrencyValue value={saldoDisponivel} size="5xl" align="left" className="font-bold text-textMain tracking-tight" />
-          <div className={`mt-4 inline-flex items-center gap-1.5 text-sm font-medium ${fluxoPositivo ? 'text-success' : 'text-rose-400'}`}>
-            {fluxoPositivo ? <TrendingUp size={16} /> : <TrendingDown size={16} />}
-            {fluxoPositivo
-              ? `Sobrou ${formatarMoeda(Math.abs(diferencaMes))} este mês`
-              : `Faltaram ${formatarMoeda(Math.abs(diferencaMes))} este mês`}
+          <CurrencyValue value={d.saldoDisponivel} size="5xl" align="left" className="font-bold text-textMain tracking-tight" />
+          <div className={`mt-4 inline-flex items-center gap-1.5 text-sm font-medium ${d.entradasMes - d.saidasMes >= 0 ? 'text-success' : 'text-rose-400'}`}>
+            {d.entradasMes - d.saidasMes >= 0 ? <TrendingUp size={16} /> : <TrendingDown size={16} />}
+            {d.entradasMes - d.saidasMes >= 0
+              ? `Sobrou ${formatarMoeda(d.entradasMes - d.saidasMes)} este mês`
+              : `Faltaram ${formatarMoeda(Math.abs(d.entradasMes - d.saidasMes))} este mês`}
           </div>
-          {/* Total gasto no mês — reaproveita totalSaidasMes, já derivado das
-              mesmas transações. Tom neutro de propósito: o julgamento de
-              bom/ruim é da linha acima; aqui é só o fato. Sempre visível,
-              inclusive em R$ 0,00, para o bloco não mudar de altura entre meses. */}
           <p className="mt-1.5 text-sm text-textSecondary">
-            Foram gastos {formatarMoeda(totalSaidasMes)} este mês
+            {contas.length === 0
+              ? 'Nenhuma conta ainda — o saldo acompanha seus lançamentos.'
+              : d.temCartao
+                ? `Fatura de cartão em aberto: ${formatarMoeda(d.fatura)}`
+                : `${contas.length} ${contas.length === 1 ? 'conta' : 'contas'} somada${contas.length === 1 ? '' : 's'}, sem cartões.`}
           </p>
         </div>
 
-        <div className="cc-card-p flex flex-col justify-center">
-          <p className="cc-label mb-3">Investido</p>
-          <CurrencyValue value={totalInvestido} size="3xl" align="left" className="font-bold text-success" />
+        <div className="cc-card-p min-w-0 flex flex-col justify-center">
+          <p className="cc-label mb-3">Entradas do mês</p>
+          <CurrencyValue value={d.entradasMes} size="3xl" align="left" className="font-bold text-success" />
+          <div className="mt-2"><Tendencia pct={d.variacaoEntradaPct} /></div>
         </div>
 
-        <div className="cc-card-p flex flex-col justify-center">
-          <p className="cc-label mb-3">Contas ativas</p>
-          <p className="text-3xl font-bold text-textMain tabular-nums">{contas.length}</p>
+        <div className="cc-card-p min-w-0 flex flex-col justify-center">
+          <p className="cc-label mb-3">Saídas do mês</p>
+          <CurrencyValue value={d.saidasMes} size="3xl" align="left" className="font-bold text-textMain" />
+          <div className="mt-2"><Tendencia pct={d.variacaoGastoPct} inverter /></div>
         </div>
       </div>
 
-      {/* ── EVOLUÇÃO MENSAL + METAS ──
-
-          Na referencia sao dois cards de 811 e 584px dentro dos 1425px
-          uteis: 1,4fr / 1fr com o mesmo gap de 24px da linha de cima. */}
-      <div className="grid grid-cols-1 lg:grid-cols-[1.389fr_1fr] gap-[var(--cc-gap-card)]">
-
-        {/* Evolução: fluxo líquido dos últimos 6 meses, com dado real */}
-        <div className="cc-card-p">
-          <h3 className="cc-card-title mb-7">Fluxo líquido — últimos 6 meses</h3>
-          <div className="flex items-end gap-4 h-32">
-            {evolucaoMensal.map((m) => {
-              const alturaPct = Math.max(4, (Math.abs(m.liquido) / maiorMovimentoMes) * 100);
-              const positivo = m.liquido >= 0;
-              return (
-                <div key={m.chave} className="flex-1 flex flex-col items-center gap-2 h-full justify-end">
-                  <div
-                    title={formatarMoeda(m.liquido)}
-                    /* A referencia desenha barras de canto arredondado, em
-                       verde escuro, com o mes corrente em verde claro. */
-                    className={`w-full rounded-lg transition-all duration-500 ${
-                      positivo
-                        ? (m.atual ? 'bg-success' : 'bg-emerald-800')
-                        : 'bg-rose-500/70'
-                    }`}
-                    style={{ height: `${alturaPct}%` }}
-                  />
-                  <span className={`text-xs capitalize ${m.atual ? 'text-textMain font-semibold' : 'text-textSecondary'}`}>
-                    {m.label}
-                  </span>
-                </div>
-              );
-            })}
+      {/* ── Primeiros passos ── */}
+      {mostrarPassos && (
+        <div className="cc-card-p border-primary/25">
+          <div className="flex items-center justify-between gap-3 mb-5">
+            <h3 className="cc-card-title flex items-center gap-2.5"><Sparkles size={16} className="text-indigo-300" /> Primeiros passos</h3>
+            <span className="text-xs text-textSecondary">{passos.filter((p) => p.feito).length}/{passos.length} concluídos</span>
           </div>
+          <ul className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2">
+            {passos.map((p) => (
+              <li key={p.rotulo}>
+                <Link
+                  to={p.to}
+                  className={`flex items-center gap-3 rounded-xl border px-4 py-3 text-sm transition-colors ${p.feito ? 'border-emerald-500/20 text-slate-500 line-through' : 'border-hairline text-textMain hover:border-primary/50 hover:bg-surfaceLight'}`}
+                >
+                  {p.feito ? <CheckCircle2 size={16} className="text-emerald-400 shrink-0" /> : <Circle size={16} className="text-slate-600 shrink-0" />}
+                  <span className="flex-1">{p.rotulo}{p.opcional && !p.feito && <span className="text-slate-500"> (opcional)</span>}</span>
+                  {!p.feito && <ArrowRight size={14} className="text-slate-500" />}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* ── Fluxo + Metas ── */}
+      <div className="grid grid-cols-1 xl:grid-cols-[1.389fr_1fr] gap-[var(--cc-gap-card)]">
+        <div className="cc-card-p min-w-0">
+          <div className="flex items-center justify-between mb-7 gap-3">
+            <h3 className="cc-card-title">Fluxo líquido — últimos 6 meses</h3>
+            <span className="text-xs text-textSecondary hidden sm:inline">entradas − saídas</span>
+          </div>
+          {transacoes.length === 0 ? (
+            <div className="cc-empty p-10">
+              <p className="text-textSecondary text-sm mb-3">O gráfico aparece a partir do primeiro lançamento.</p>
+              <LinkVerTodas to="/capital/transacoes">Lançar agora</LinkVerTodas>
+            </div>
+          ) : (
+            <div className="flex items-end gap-3 sm:gap-4 h-36" role="img" aria-label={`Fluxo líquido mensal: ${d.evolucaoMensal.map((m) => `${m.label} ${formatarMoeda(m.liquido)}`).join(', ')}`}>
+              {d.evolucaoMensal.map((m) => {
+                const alturaPct = Math.max(4, (Math.abs(m.liquido) / d.maiorMovimentoMes) * 100);
+                const positivo = m.liquido >= 0;
+                return (
+                  <div key={m.chave} className="flex-1 flex flex-col items-center gap-2 h-full justify-end group/bar">
+                    <span className="text-[10px] text-textSecondary tabular-nums opacity-0 group-hover/bar:opacity-100 transition-opacity">
+                      {formatarMoeda(m.liquido)}
+                    </span>
+                    <div
+                      title={`${m.label}: ${formatarMoeda(m.liquido)} (entradas ${formatarMoeda(m.entradas)}, saídas ${formatarMoeda(m.saidas)})`}
+                      className={`w-full rounded-lg transition-all duration-500 ${positivo ? (m.atual ? 'bg-success' : 'bg-emerald-800') : (m.atual ? 'bg-rose-500' : 'bg-rose-500/60')}`}
+                      style={{ height: `${alturaPct}%` }}
+                    />
+                    <span className={`text-xs capitalize ${m.atual ? 'text-textMain font-semibold' : 'text-textSecondary'}`}>{m.label}</span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
 
-        {/* Metas em andamento */}
         <div className="cc-card-p">
           <div className="flex items-center justify-between mb-7">
-            <h3 className="cc-card-title flex items-center gap-2.5">
-              <Target size={18} className="text-textSecondary" /> Metas em andamento
-            </h3>
-            {ciclos.length > 0 && (
-              <Link to="/capital/ciclos" className="text-xs text-textSecondary hover:text-primary transition-colors flex items-center gap-1">
-                Ver todas <ArrowRight size={12} />
-              </Link>
-            )}
+            <h3 className="cc-card-title flex items-center gap-2.5"><Target size={18} className="text-textSecondary" /> Metas em andamento</h3>
+            {ciclos.length > 0 && <LinkVerTodas to="/capital/ciclos" />}
           </div>
 
           {ciclos.length === 0 ? (
             <div className="cc-empty p-10">
               <p className="text-textSecondary text-sm mb-3">Nenhuma meta cadastrada ainda.</p>
-              <Link to="/capital/ciclos" className="text-sm text-primary hover:text-indigo-300 font-medium inline-flex items-center gap-1">
-                Criar minha primeira meta <ArrowRight size={14} />
-              </Link>
+              <LinkVerTodas to="/capital/ciclos">Criar minha primeira meta</LinkVerTodas>
             </div>
           ) : (
             <div className="space-y-4">
-              {ciclos.slice(0, 2).map((ciclo) => {
+              {ciclos.filter((c) => !c.fim || c.fim >= d.hoje).slice(0, 2).map((ciclo) => {
                 if (ciclo.tipo === 'Meta') {
-                  // Progresso vem dos aportes registrados, não de transações (Fase 1)
                   const p = calcularProgressoMeta(ciclo, aportesMap[ciclo.id] || []);
                   return (
                     <div key={ciclo.id} className="bg-app border border-hairline rounded-xl p-5">
-                      <div className="flex justify-between items-baseline mb-3">
-                        <h4 className="font-medium text-white text-sm">{ciclo.nome}</h4>
-                        <span className="text-xs text-slate-500 tabular-nums">Alvo: {formatarMoeda(p.valorMeta)}</span>
+                      <div className="flex justify-between items-baseline mb-3 gap-3">
+                        <h4 className="font-medium text-textMain text-sm truncate">{ciclo.nome}</h4>
+                        <span className="text-xs text-slate-500 tabular-nums whitespace-nowrap">Alvo: {formatarMoeda(p.valorMeta)}</span>
                       </div>
-                      <div className="w-full bg-hairline h-1.5 rounded-full overflow-hidden mb-2">
-                        <div className="h-full rounded-full bg-primary transition-all duration-700" style={{ width: `${p.progressoPct}%` }} />
-                      </div>
+                      <ProgressBar value={p.progressoPct} tone={p.concluida ? 'success' : 'primary'} className="mb-2" label={`Progresso de ${ciclo.nome}`} />
                       <div className="flex justify-between items-baseline">
                         <span className="text-xs font-medium text-slate-400">{p.progressoPct.toFixed(0)}% concluído</span>
-                        <span className="text-sm font-semibold text-white tabular-nums">{formatarMoeda(p.valorAcumulado)}</span>
+                        <span className="text-sm font-semibold text-textMain tabular-nums">{formatarMoeda(p.valorAcumulado)}</span>
                       </div>
                     </div>
                   );
                 }
-
-                // Orçamento ad-hoc: sem mudança — soma as saídas no período
-                const gasto = transacoes
-                  .filter(t => t.tipo === 'saida' && t.data >= ciclo.inicio && t.data <= ciclo.fim)
-                  .reduce((acc, t) => acc + (parseFloat(t.valor) || 0), 0);
-                const porcentagem = Math.min(100, (gasto / ciclo.orcamento) * 100);
-                const estourado = porcentagem >= 100;
-
+                const gasto = transacoes.filter((t) => t.tipo === 'saida' && t.data >= ciclo.inicio && t.data <= ciclo.fim).reduce((acc, t) => acc + (parseFloat(t.valor) || 0), 0);
+                const teto = parseFloat(ciclo.orcamento) || 0;
+                const pct = teto > 0 ? Math.min(100, (gasto / teto) * 100) : 0;
+                const estourado = teto > 0 && gasto >= teto;
                 return (
                   <div key={ciclo.id} className="bg-app border border-hairline rounded-xl p-5">
-                    <div className="flex justify-between items-baseline mb-3">
-                      <h4 className="font-medium text-white text-sm">{ciclo.nome}</h4>
-                      <span className="text-xs text-slate-500 tabular-nums">Teto: {formatarMoeda(ciclo.orcamento)}</span>
+                    <div className="flex justify-between items-baseline mb-3 gap-3">
+                      <h4 className="font-medium text-textMain text-sm truncate">{ciclo.nome}</h4>
+                      <span className="text-xs text-slate-500 tabular-nums whitespace-nowrap">Teto: {formatarMoeda(teto)}</span>
                     </div>
-                    <div className="w-full bg-hairline h-1.5 rounded-full overflow-hidden mb-2">
-                      <div
-                        className={`h-full rounded-full transition-all duration-700 ${estourado ? 'bg-rose-500' : 'bg-indigo-500'}`}
-                        style={{ width: `${porcentagem}%` }}
-                      />
-                    </div>
+                    <ProgressBar value={pct} tone={estourado ? 'danger' : 'primary'} className="mb-2" label={`Uso de ${ciclo.nome}`} />
                     <div className="flex justify-between items-baseline">
-                      <span className={`text-xs font-medium ${estourado ? 'text-rose-400' : 'text-slate-400'}`}>
-                        {porcentagem.toFixed(0)}% utilizado
-                      </span>
-                      <span className="text-sm font-semibold text-white tabular-nums">{formatarMoeda(gasto)}</span>
+                      <span className={`text-xs font-medium ${estourado ? 'text-rose-400' : 'text-slate-400'}`}>{pct.toFixed(0)}% utilizado</span>
+                      <span className="text-sm font-semibold text-textMain tabular-nums">{formatarMoeda(gasto)}</span>
                     </div>
                   </div>
                 );
@@ -327,36 +366,26 @@ export default function DashboardFinanceiro() {
         </div>
       </div>
 
-      {/* ── RENDA MENSAL: ECONOMIA E % COMPROMETIDA (Fase 1) ──
-
-          Na referencia este e um bloco de largura cheia com container
-          proprio. O estado vazio (sem renda definida) e o que a imagem
-          mostra: icone, frase e o link de acao, centralizados. */}
-      {temRenda ? (
+      {/* ── Renda ── */}
+      {d.temRenda ? (
         <div className="cc-card-p">
-          <h3 className="cc-card-title mb-7 flex items-center gap-2.5">
-            <Wallet size={18} className="text-textSecondary" /> Renda do mês
-          </h3>
+          <h3 className="cc-card-title mb-7 flex items-center gap-2.5"><Wallet size={18} className="text-textSecondary" /> Renda do mês</h3>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-8">
             <div>
               <p className="cc-label mb-2">Renda mensal</p>
-              <CurrencyValue value={rendaMensal} size="2xl" align="left" className="font-bold text-textMain" />
+              <CurrencyValue value={d.rendaMensal} size="2xl" align="left" className="font-bold text-textMain" />
             </div>
             <div>
               <p className="cc-label mb-2">Economia do mês</p>
-              <CurrencyValue value={economiaMes} size="2xl" align="left" className={`font-bold ${economiaMes >= 0 ? 'text-success' : 'text-rose-400'}`} />
-              {variacaoEconomiaPct != null && (
-                <p className={`text-xs mt-1 flex items-center gap-1 ${variacaoEconomiaPct >= 0 ? 'text-success' : 'text-rose-400'}`}>
-                  {variacaoEconomiaPct >= 0 ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
-                  {variacaoEconomiaPct >= 0 ? '+' : ''}{variacaoEconomiaPct.toFixed(0)}% vs. mês anterior
-                </p>
-              )}
+              <CurrencyValue value={d.economiaMes} size="2xl" align="left" className={`font-bold ${d.economiaMes >= 0 ? 'text-success' : 'text-rose-400'}`} />
+              <div className="mt-1"><Tendencia pct={d.variacaoEconomiaPct} /></div>
             </div>
             <div>
               <p className="cc-label mb-2">Renda comprometida</p>
-              <p className={`text-2xl font-bold tabular-nums ${rendaComprometidaPct > 100 ? 'text-rose-400' : rendaComprometidaPct >= 80 ? 'text-amber-400' : 'text-textMain'}`}>
-                {rendaComprometidaPct.toFixed(0)}%
+              <p className={`text-2xl font-bold tabular-nums ${d.rendaComprometidaPct > 100 ? 'text-rose-400' : d.rendaComprometidaPct >= 80 ? 'text-amber-400' : 'text-textMain'}`}>
+                {d.rendaComprometidaPct.toFixed(0)}%
               </p>
+              <ProgressBar value={d.rendaComprometidaPct} tone={d.rendaComprometidaPct > 100 ? 'danger' : d.rendaComprometidaPct >= 80 ? 'warning' : 'success'} className="mt-2 max-w-[12rem]" label="Renda comprometida" />
             </div>
           </div>
         </div>
@@ -364,72 +393,64 @@ export default function DashboardFinanceiro() {
         <div className="cc-card-p text-center py-14">
           <Wallet size={22} className="text-textSecondary mx-auto mb-4" />
           <p className="text-textSecondary text-sm mb-3">Defina sua renda mensal para acompanhar economia e % da renda comprometida.</p>
-          <Link to="/capital/perfil" className="text-sm text-primary hover:text-indigo-300 font-medium inline-flex items-center gap-1">
-            Definir renda mensal <ArrowRight size={14} />
-          </Link>
+          <LinkVerTodas to="/capital/perfil">Definir renda mensal</LinkVerTodas>
         </div>
       )}
 
-      {/* ── META EM DESTAQUE: RITMO E PREVISÃO (Fase 1) ── */}
-      {metaDestaque && progressoMetaDestaque && (
+      {/* ── Meta em destaque ── */}
+      {d.metaDestaque && d.progressoMetaDestaque && (
         <div className="cc-card-p">
           <div className="flex items-center justify-between mb-6">
-            <h3 className="cc-card-title flex items-center gap-2.5">
-              <Target size={16} className="text-slate-500" /> Meta em destaque
-            </h3>
-            <Link to="/capital/ciclos" className="text-xs text-slate-500 hover:text-primary transition-colors flex items-center gap-1">
-              Ver todas <ArrowRight size={12} />
-            </Link>
+            <h3 className="cc-card-title flex items-center gap-2.5"><Target size={16} className="text-slate-500" /> Meta em destaque</h3>
+            <LinkVerTodas to="/capital/ciclos" />
           </div>
 
-          <div className="bg-surface border border-hairline rounded-2xl p-6">
-            <div className="flex justify-between items-baseline mb-4">
-              <h4 className="font-bold text-white">{metaDestaque.nome}</h4>
-              {progressoMetaDestaque.prazoEncerrado && <span className="text-xs text-rose-400 font-semibold">Prazo encerrado</span>}
+          <div className="bg-app border border-hairline rounded-2xl p-6">
+            <div className="flex justify-between items-baseline mb-4 gap-3">
+              <h4 className="font-bold text-textMain truncate">{d.metaDestaque.nome}</h4>
+              {d.progressoMetaDestaque.prazoEncerrado && <span className="text-xs text-rose-400 font-semibold whitespace-nowrap">Prazo encerrado</span>}
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <div className="flex justify-between items-baseline mb-1.5">
-                  <span className="text-xs text-slate-400">{progressoMetaDestaque.progressoPct.toFixed(0)}% concluído</span>
-                  <CurrencyValue value={progressoMetaDestaque.valorAcumulado} size="lg" className="font-bold min-w-0 text-white" />
+                  <span className="text-xs text-slate-400">{d.progressoMetaDestaque.progressoPct.toFixed(0)}% concluído</span>
+                  <CurrencyValue value={d.progressoMetaDestaque.valorAcumulado} size="lg" className="font-bold min-w-0 text-textMain" />
                 </div>
-                <div className="w-full bg-hairline h-2 rounded-full overflow-hidden mb-2">
-                  <div className="h-full bg-indigo-500 transition-all duration-1000" style={{ width: `${progressoMetaDestaque.progressoPct}%` }} />
-                </div>
+                <ProgressBar value={d.progressoMetaDestaque.progressoPct} height="h-2" className="mb-2" label="Progresso da meta em destaque" />
                 <p className="text-xs text-slate-500">
-                  Faltam {formatarMoeda(progressoMetaDestaque.valorRestante)} de {formatarMoeda(progressoMetaDestaque.valorMeta)}
-                  {progressoMetaDestaque.diasRestantes != null && !progressoMetaDestaque.prazoEncerrado && ` · ${progressoMetaDestaque.diasRestantes} dia(s) restante(s)`}
+                  Faltam {formatarMoeda(d.progressoMetaDestaque.valorRestante)} de {formatarMoeda(d.progressoMetaDestaque.valorMeta)}
+                  {d.progressoMetaDestaque.diasRestantes != null && !d.progressoMetaDestaque.prazoEncerrado && ` · ${d.progressoMetaDestaque.diasRestantes} dia(s) restante(s)`}
                 </p>
               </div>
 
               <div className="space-y-1.5">
-                {progressoMetaDestaque.ritmoNecessario != null && (
+                {d.progressoMetaDestaque.ritmoNecessario != null && (
                   <div className="flex items-center justify-between text-xs">
                     <span className="text-slate-500 flex items-center gap-1"><Clock size={12} /> Ritmo necessário</span>
-                    <span className="text-slate-300 font-medium">{formatarMoeda(progressoMetaDestaque.ritmoNecessario)}/dia</span>
+                    <span className="text-slate-300 font-medium">{formatarMoeda(d.progressoMetaDestaque.ritmoNecessario)}/dia</span>
                   </div>
                 )}
-                {progressoMetaDestaque.ritmoAtual != null && progressoMetaDestaque.ritmoAtual > 0 ? (
+                {d.progressoMetaDestaque.ritmoAtual != null && d.progressoMetaDestaque.ritmoAtual > 0 ? (
                   <>
                     <div className="flex items-center justify-between text-xs">
                       <span className="text-slate-500 flex items-center gap-1"><PiggyBank size={12} /> Ritmo atual</span>
-                      <span className="text-slate-300 font-medium">{formatarMoeda(progressoMetaDestaque.ritmoAtual)}/dia</span>
+                      <span className="text-slate-300 font-medium">{formatarMoeda(d.progressoMetaDestaque.ritmoAtual)}/dia</span>
                     </div>
-                    {progressoMetaDestaque.diferencaPct != null && (
-                      <p className={`text-xs font-semibold ${progressoMetaDestaque.diferencaPct >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-                        {progressoMetaDestaque.diferencaPct >= 0 ? 'Acima' : 'Abaixo'} do ritmo necessário ({progressoMetaDestaque.diferencaPct >= 0 ? '+' : ''}{progressoMetaDestaque.diferencaPct.toFixed(0)}%)
+                    {d.progressoMetaDestaque.diferencaPct != null && (
+                      <p className={`text-xs font-semibold ${d.progressoMetaDestaque.diferencaPct >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                        {d.progressoMetaDestaque.diferencaPct >= 0 ? 'Acima' : 'Abaixo'} do ritmo necessário ({formatarPct(d.progressoMetaDestaque.diferencaPct)})
                       </p>
                     )}
-                    {progressoMetaDestaque.dataPrevista && (
+                    {d.progressoMetaDestaque.dataPrevista && (
                       <p className="text-xs text-slate-500">
-                        Previsão: {progressoMetaDestaque.dataPrevista.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                        Previsão: {d.progressoMetaDestaque.dataPrevista.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })}
                       </p>
                     )}
                   </>
                 ) : (
                   <p className="text-xs text-slate-500">
-                    {progressoMetaDestaque.temAporte ? 'Sem ritmo recente (nenhum aporte nos últimos 30 dias)' : 'Registre um aporte para ver seu ritmo'}
+                    {d.progressoMetaDestaque.temAporte ? 'Sem ritmo recente (nenhum aporte nos últimos 30 dias)' : 'Registre um aporte para ver seu ritmo'}
                   </p>
                 )}
               </div>
@@ -438,38 +459,27 @@ export default function DashboardFinanceiro() {
         </div>
       )}
 
-      {/* ── ORÇAMENTO POR CATEGORIA (Fase 1) ── */}
+      {/* ── Orçamento por categoria ── */}
       <div className="cc-card-p">
         <div className="flex items-center justify-between mb-6">
-          <h3 className="cc-card-title flex items-center gap-2.5">
-            <PieChart size={16} className="text-slate-500" /> Orçamento por categoria
-          </h3>
-          <Link to="/capital/orcamento" className="text-xs text-slate-500 hover:text-primary transition-colors flex items-center gap-1">
-            Ver todas <ArrowRight size={12} />
-          </Link>
+          <h3 className="cc-card-title flex items-center gap-2.5"><PieChart size={16} className="text-slate-500" /> Orçamento por categoria</h3>
+          <LinkVerTodas to="/capital/orcamento" />
         </div>
 
-        {progressoCategorias.length === 0 ? (
+        {d.progressoCategorias.length === 0 ? (
           <div className="cc-empty p-8">
             <p className="text-slate-500 text-sm mb-3">Nenhum limite por categoria definido ainda.</p>
-            <Link to="/capital/orcamento" className="text-sm text-primary hover:text-indigo-300 font-medium inline-flex items-center gap-1">
-              Definir limites por categoria <ArrowRight size={14} />
-            </Link>
+            <LinkVerTodas to="/capital/orcamento">Definir limites por categoria</LinkVerTodas>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {progressoCategorias.slice(0, 3).map((c) => (
+            {d.progressoCategorias.slice(0, 3).map((c) => (
               <div key={c.categoria} className="space-y-2">
                 <div className="flex justify-between items-baseline">
                   <span className="text-slate-400 text-sm">{c.categoria}</span>
-                  <span className="font-semibold text-white tabular-nums">{formatarMoeda(c.gasto)}</span>
+                  <span className="font-semibold text-textMain tabular-nums">{formatarMoeda(c.gasto)}</span>
                 </div>
-                <div className="w-full bg-hairline h-1.5 rounded-full overflow-hidden">
-                  <div
-                    className={`h-full transition-all duration-700 ${c.estado === 'estourado' ? 'bg-rose-500' : c.estado === 'alerta' ? 'bg-amber-500' : 'bg-emerald-400'}`}
-                    style={{ width: `${Math.min(100, c.pct)}%` }}
-                  />
-                </div>
+                <ProgressBar value={c.pct} tone={tomDoEstado(c.estado)} label={`Uso de ${c.categoria}`} />
                 <p className={`text-xs ${c.estado === 'estourado' ? 'text-rose-400' : c.estado === 'alerta' ? 'text-amber-400' : 'text-slate-500'}`}>
                   {c.pct.toFixed(0)}% de {formatarMoeda(c.limite)}
                   {c.estado === 'estourado' && ' · ultrapassou o limite'}
@@ -480,99 +490,85 @@ export default function DashboardFinanceiro() {
         )}
       </div>
 
-      {/* ── COMPARAÇÃO COM O MÊS ANTERIOR (Fase 1) ── */}
-      <div className="cc-card-p">
-        <h3 className="cc-card-title mb-7">Comparação com o mês anterior</h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
-          <div>
-            <p className="cc-label mb-2">Gasto total</p>
-            {variacaoGastoPct != null ? (
-              <p className={`text-sm font-medium flex items-center gap-1.5 ${variacaoGastoPct <= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-                {variacaoGastoPct <= 0 ? <TrendingDown size={14} /> : <TrendingUp size={14} />}
-                {variacaoGastoPct >= 0 ? '+' : ''}{variacaoGastoPct.toFixed(0)}% vs. {formatarMoeda(gastoMesAnterior)} no mês anterior
-              </p>
-            ) : (
-              <p className="text-sm text-slate-500">Sem dado do mês anterior</p>
+      {/* ── Maiores despesas + Últimos lançamentos ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-[var(--cc-gap-card)]">
+        <div className="cc-card-p">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-3">
+            <h3 className="cc-card-title">Maiores despesas no mês</h3>
+            {d.maioresGastos.length > 0 && d.maioresGastos[0].fatia >= 50 && (
+              <div className="flex items-center gap-1.5 text-amber-400 text-xs font-medium">
+                <AlertTriangle size={13} /> {d.maioresGastos[0].categoria} concentra {d.maioresGastos[0].fatia.toFixed(0)}% dos gastos
+              </div>
             )}
           </div>
-          <div>
-            <p className="cc-label mb-2">Economia</p>
-            {variacaoEconomiaPct != null ? (
-              <p className={`text-sm font-medium flex items-center gap-1.5 ${variacaoEconomiaPct >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-                {variacaoEconomiaPct >= 0 ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
-                {variacaoEconomiaPct >= 0 ? '+' : ''}{variacaoEconomiaPct.toFixed(0)}% vs. mês anterior
-              </p>
-            ) : (
-              <p className="text-sm text-slate-500">Sem dado do mês anterior</p>
-            )}
-          </div>
-        </div>
-      </div>
 
-      {/* ── MAIORES DESPESAS DO MÊS ── */}
-      <div className="cc-card-p">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-3">
-          <h3 className="cc-card-title">Maiores despesas no mês</h3>
-          {maioresGastos.length > 0 && maioresGastos[0].valor > totalEntradasMes * 0.5 && (
-            <div className="flex items-center gap-1.5 text-rose-400 text-xs font-medium">
-              <AlertTriangle size={13} /> Gasto elevado em {maioresGastos[0].categoria}
+          {d.maioresGastos.length === 0 ? (
+            <div className="cc-empty p-8">
+              <p className="text-slate-500 text-sm mb-3">Nenhuma despesa registrada neste mês.</p>
+              <LinkVerTodas to="/capital/transacoes">Lançar uma transação</LinkVerTodas>
+            </div>
+          ) : (
+            <div className="space-y-5">
+              {d.maioresGastos.map((gasto, index) => {
+                const tons = ['danger', 'warning', 'primary'];
+                return (
+                  <div key={gasto.categoria} className="space-y-2">
+                    <div className="flex justify-between items-baseline">
+                      <span className="text-slate-400 text-sm">{gasto.categoria}</span>
+                      <span className="font-semibold text-textMain tabular-nums">
+                        {formatarMoeda(gasto.valor)} <span className="text-xs text-slate-500 font-normal">· {gasto.fatia.toFixed(0)}%</span>
+                      </span>
+                    </div>
+                    <ProgressBar value={gasto.fatia} tone={tons[index % 3]} label={`${gasto.categoria}: ${gasto.fatia.toFixed(0)}% das saídas`} />
+                  </div>
+                );
+              })}
+              <p className="text-xs text-slate-500 pt-1">Percentual sobre o total de saídas do mês ({formatarMoeda(d.saidasMes)}).</p>
             </div>
           )}
         </div>
 
-        {maioresGastos.length === 0 ? (
-          <div className="cc-empty p-8">
-            <p className="text-slate-500 text-sm mb-3">Nenhuma despesa registrada neste mês.</p>
-            <Link to="/capital/transacoes" className="text-sm text-primary hover:text-indigo-300 font-medium inline-flex items-center gap-1">
-              Lançar uma transação <ArrowRight size={14} />
-            </Link>
+        <div className="cc-card-p">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="cc-card-title">Últimos lançamentos</h3>
+            {transacoes.length > 0 && <LinkVerTodas to="/capital/transacoes" />}
           </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {maioresGastos.map((gasto, index) => {
-              const limiteEstimado = Math.max(gasto.valor * 1.2, 1000);
-              const cores = ['bg-rose-500', 'bg-amber-500', 'bg-indigo-400'];
-              return (
-                <LimitCard
-                  key={gasto.categoria}
-                  label={gasto.categoria}
-                  atual={gasto.valor}
-                  limite={limiteEstimado}
-                  color={cores[index % 3]}
-                />
-              );
-            })}
-          </div>
-        )}
+          {d.ultimas.length === 0 ? (
+            <div className="cc-empty p-8">
+              <p className="text-slate-500 text-sm">Seus lançamentos mais recentes aparecem aqui.</p>
+            </div>
+          ) : (
+            <ul className="divide-y divide-hairline -my-3">
+              {d.ultimas.map((t) => (
+                <li key={t.id} className="py-3 flex items-center gap-3">
+                  <span className={`w-2 h-2 rounded-full shrink-0 ${t.tipo === 'entrada' ? 'bg-emerald-400' : 'bg-rose-400'}`} aria-hidden="true" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm text-textMain truncate">{t.descricao}</p>
+                    <p className="text-xs text-slate-500">{t.categoria} · {t.data?.split('-').reverse().join('/')}</p>
+                  </div>
+                  <span className={`text-sm font-semibold tabular-nums whitespace-nowrap ${t.tipo === 'entrada' ? 'text-emerald-400' : 'text-textMain'}`}>
+                    {t.tipo === 'entrada' ? '+ ' : '− '}{formatarMoeda(t.valor)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       </div>
 
-      {/* Estado especial: usuário sem nenhuma conta cadastrada ainda */}
-      {contas.length === 0 && (
-        <div className="border border-dashed border-hairline rounded-xl p-8 text-center">
-          <Wallet size={22} className="text-slate-600 mx-auto mb-3" />
-          <p className="text-slate-400 text-sm mb-3">Conecte seu banco pelo Open Finance para ver seu saldo aqui.</p>
-          <Link to="/capital/open-finance" className="text-sm text-primary hover:text-indigo-300 font-medium inline-flex items-center gap-1">
-            Conectar banco <ArrowRight size={14} />
-          </Link>
+      {/* Atalho para o Open Finance enquanto não há banco conectado */}
+      {!contas.some((c) => c.origem === 'openfinance') && (
+        <div className="cc-empty p-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-left">
+          <div className="flex items-center gap-4">
+            <div className="w-11 h-11 rounded-2xl bg-surfaceLight flex items-center justify-center text-textSecondary shrink-0"><CreditCard size={20} /></div>
+            <div>
+              <p className="text-sm font-semibold text-textMain">Conecte seu banco pelo Open Finance</p>
+              <p className="text-xs text-textSecondary mt-0.5">Saldos e lançamentos dos últimos 90 dias entram automaticamente, sem digitar nada.</p>
+            </div>
+          </div>
+          <LinkVerTodas to="/capital/open-finance">Conectar banco</LinkVerTodas>
         </div>
       )}
-    </div>
-  );
-}
-
-function LimitCard({ label, atual, limite, color }) {
-  const porcentagem = (atual / limite) * 100;
-  const format = (v) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
-
-  return (
-    <div className="space-y-3">
-      <div className="flex justify-between items-baseline">
-        <span className="text-slate-400 text-sm">{label}</span>
-        <span className="font-semibold text-white tabular-nums">{format(atual)}</span>
-      </div>
-      <div className="w-full bg-hairline h-1.5 rounded-full overflow-hidden">
-        <div className={`h-full ${color} transition-all duration-700`} style={{ width: `${porcentagem > 100 ? 100 : porcentagem}%` }} />
-      </div>
     </div>
   );
 }

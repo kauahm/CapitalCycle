@@ -3,7 +3,7 @@ import LegalLayout, { Secao } from './LegalLayout';
 
 export default function Termos() {
   return (
-    <LegalLayout titulo="Termos de Uso" atualizadoEm="setembro de 2026">
+    <LegalLayout titulo="Termos de Uso" atualizadoEm="novembro de 2026">
 
       <Secao numero="1" titulo="Finalidade do sistema">
         <p>
@@ -12,9 +12,10 @@ export default function Termos() {
           definir limites de gasto por categoria e acompanhar metas de poupança.
         </p>
         <p>
-          O sistema não é uma instituição financeira, não movimenta dinheiro, não se
-          conecta ao seu banco e não executa nenhuma operação em seu nome. Tudo o que
-          aparece nele foi digitado por você.
+          O sistema não é uma instituição financeira, não movimenta dinheiro e não
+          executa nenhuma operação em seu nome. Ele apenas <strong>lê</strong> informações:
+          o que você digita e, se você autorizar, o que o seu banco compartilha pelo
+          Open Finance.
         </p>
       </Secao>
 
@@ -38,11 +39,20 @@ export default function Termos() {
         </p>
       </Secao>
 
-      <Secao numero="4" titulo="Dados que você cadastra">
+      <Secao numero="4" titulo="Dados que você cadastra e dados importados">
         <p>
-          As informações financeiras do sistema são inseridas manualmente por você:
-          contas, saldos, lançamentos, categorias, metas, aportes e renda mensal. A
-          exatidão desses dados depende do que você registra.
+          Parte das informações é inserida por você: lançamentos manuais, categorias,
+          metas, aportes, limites e renda mensal. A exatidão desses dados depende do
+          que você registra.
+        </p>
+        <p>
+          Outra parte pode vir do <strong>Open Finance</strong>: ao conectar um banco, o
+          sistema importa, por meio do agregador Pluggy, as contas, os saldos e os
+          lançamentos dos últimos 90 dias. A conexão é autorizada por você no ambiente
+          do próprio banco e pode ser desfeita a qualquer momento na tela Open Finance,
+          o que remove do sistema tudo o que foi importado daquele banco. Os dados
+          importados refletem o que o banco informa; o sistema não os altera, apenas
+          os classifica em categorias.
         </p>
         <p>
           Os detalhes sobre tratamento de dados estão na Política de Privacidade.
@@ -53,7 +63,11 @@ export default function Termos() {
         <p>
           O Capital Advisor é um assistente de conversa que usa um modelo de
           inteligência artificial de terceiros. As mensagens que você escreve nele são
-          enviadas ao provedor do modelo para gerar a resposta.
+          enviadas ao provedor do modelo para gerar a resposta. Se você ligar a opção
+          <strong> &ldquo;usar meus dados&rdquo;</strong>, um resumo agregado das suas
+          finanças (totais por categoria, saldos por tipo de conta e estado das metas)
+          acompanha cada pergunta. A opção fica desligada por padrão e pode ser desligada
+          a qualquer momento.
         </p>
         <p>
           As respostas são geradas automaticamente e podem conter erros ou imprecisões.

@@ -3,20 +3,23 @@ import LegalLayout, { Secao } from './LegalLayout';
 
 export default function Privacidade() {
   return (
-    <LegalLayout titulo="Política de Privacidade" atualizadoEm="setembro de 2026">
+    <LegalLayout titulo="Política de Privacidade" atualizadoEm="novembro de 2026">
 
       <Secao numero="1" titulo="Quais dados são coletados">
         <p>O sistema guarda apenas o que você fornece ou gera ao usá-lo:</p>
         <ul className="list-disc space-y-1 pl-5">
           <li><strong>Cadastro:</strong> nome, e-mail e plano escolhido.</li>
           <li><strong>Financeiros:</strong> contas e saldos, lançamentos com descrição, valor, categoria e data, limites por categoria, metas, aportes e renda mensal.</li>
+          <li><strong>Open Finance (opcional):</strong> ao conectar um banco, as contas, os saldos e os lançamentos dos últimos 90 dias informados pelo banco, com o nome e o logotipo da instituição. Suas credenciais bancárias nunca passam pelo sistema: a autenticação acontece no ambiente do banco, e a leitura é feita pelo agregador Pluggy, que atua como operador desses dados.</li>
+          <li><strong>Preferências:</strong> se o Capital Advisor pode usar um resumo dos seus dados nas respostas.</li>
           <li><strong>Uso:</strong> quantidade de consultas feitas ao Capital Advisor no mês.</li>
           <li><strong>Pagamento:</strong> registro técnico da operação simulada — plano, método, valor e identificador da transação.</li>
         </ul>
         <p>
-          Não coletamos localização, contatos, dados de navegação para publicidade nem
-          qualquer informação obtida de fora do sistema. Não há integração bancária:
-          nenhum dado é importado do seu banco.
+          Não coletamos localização, contatos nem dados de navegação para publicidade.
+          A integração bancária só existe quando você mesmo a autoriza, banco a banco,
+          e pode ser desfeita na tela Open Finance — o que remove do sistema tudo o que
+          foi importado daquele banco.
         </p>
       </Secao>
 
@@ -49,10 +52,15 @@ export default function Privacidade() {
           qualquer informação pessoal na conversa, esse conteúdo será enviado junto.
         </p>
         <p>
-          Por outro lado, o sistema <strong>não envia automaticamente</strong> seus
-          saldos, lançamentos, contas ou metas ao Advisor. Ele recebe apenas o texto da
-          conversa. Por isso o assistente não tem conhecimento dos seus dados
-          financeiros a menos que você mesmo os escreva.
+          Por padrão, o sistema <strong>não envia</strong> seus saldos, lançamentos,
+          contas ou metas ao Advisor: ele recebe apenas o texto da conversa. Você pode
+          ligar a opção <strong>&ldquo;usar meus dados&rdquo;</strong> (na tela do Advisor
+          ou em Meu Perfil). Com ela ligada, cada pergunta é acompanhada de um{' '}
+          <strong>resumo agregado</strong>: totais do mês por categoria, saldos por tipo
+          de conta, limites de orçamento e progresso das metas. Lançamentos individuais,
+          descrições, nomes de banco e dados de identificação não são enviados. A opção
+          pode ser desligada a qualquer momento, e o resumo deixa de ser enviado na
+          pergunta seguinte.
         </p>
         <p>
           O tratamento dessas mensagens pelo provedor segue as políticas do próprio
@@ -84,9 +92,9 @@ export default function Privacidade() {
           metas e limites a qualquer momento pelas telas do sistema.
         </p>
         <p>
-          Uma conta financeira com lançamentos vinculados não pode ser excluída — isso
-          é intencional, para preservar seu histórico. Nesse caso, edite a conta em vez
-          de removê-la.
+          Desconectar um banco na tela Open Finance remove do sistema as contas e os
+          lançamentos importados dele. A carteira manual e os lançamentos digitados por
+          você permanecem até que você os apague.
         </p>
       </Secao>
 

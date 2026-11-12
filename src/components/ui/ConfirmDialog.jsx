@@ -1,32 +1,68 @@
-import React from 'react';
-import Modal from './Modal';
+import React, { useState } from 'react';
 import { AlertTriangle } from 'lucide-react';
+import Dialog from './Dialog';
+import Button from './Button';
 
-export default function ConfirmDialog({ isOpen, onConfirm, onCancel, title, message }) {
+/* Confirmação padronizada. Substitui `window.confirm`, que não segue o tema,
+   não é estilizável, bloqueia a aba inteira e some em alguns navegadores
+   móveis embutidos. `onConfirm` pode ser assíncrono: o botão mostra o
+   progresso e o diálogo não fecha no meio da operação. */
+export default function ConfirmDialog({
+  open,
+  onClose,
+  onConfirm,
+  title,
+  message,
+  confirmLabel = 'Confirmar',
+  cancelLabel = 'Cancelar',
+  tone = 'danger',
+}) {
+  const [executando, setExecutando] = useState(false);
+
+  const confirmar = async () => {
+    setExecutando(true);
+    try {
+      await onConfirm?.();
+      onClose?.();
+    } finally {
+      setExecutando(false);
+    }
+  };
+
   return (
-    <Modal isOpen={isOpen} onClose={onCancel} title="Confirmação" size="sm">
-      <div className="flex flex-col items-center text-center">
-        <AlertTriangle className="w-12 h-12 text-red-500 mb-4" />
-        <h4 className="text-lg font-semibold text-gray-900 mb-2">{title}</h4>
-        <p className="text-gray-600 mb-6">{message}</p>
-        
-        <div className="flex w-full gap-3 justify-end">
-          <button
-            type="button"
-            onClick={onCancel}
-            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none"
+    <Dialog
+      open={open}
+      onClose={onClose}
+      title={title}
+      size="sm"
+      tone={tone}
+      bloqueado={executando}
+      footer={(
+        <>
+          <Button variant="secondary" onClick={onClose} disabled={executando}>
+            {cancelLabel}
+          </Button>
+          <Button
+            variant={tone === 'danger' ? 'dangerSolid' : 'primary'}
+            onClick={confirmar}
+            loading={executando}
+            data-autofocus
           >
-            Cancelar
-          </button>
-          <button
-            type="button"
-            onClick={onConfirm}
-            className="px-4 py-2 text-sm font-medium text-white bg-red-600 border border-transparent rounded-md hover:bg-red-700 focus:outline-none"
-          >
-            Confirmar
-          </button>
+            {confirmLabel}
+          </Button>
+        </>
+      )}
+    >
+      <div className="flex gap-4">
+        <div
+          className={`shrink-0 w-10 h-10 rounded-xl flex items-center justify-center ${
+            tone === 'danger' ? 'bg-rose-500/10 text-rose-400' : 'bg-primary/10 text-primary'
+          }`}
+        >
+          <AlertTriangle size={20} />
         </div>
+        <p className="text-sm text-slate-300 leading-relaxed">{message}</p>
       </div>
-    </Modal>
+    </Dialog>
   );
 }

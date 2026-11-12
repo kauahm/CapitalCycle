@@ -1,16 +1,22 @@
 import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  User, Mail, Crown, Lock, ShieldCheck, Eye, EyeOff, X, ArrowRight, AlertTriangle, Wallet, Check, Camera, Trash2,
+  User, Mail, Crown, Lock, ShieldCheck, Eye, EyeOff, X, ArrowRight, AlertTriangle, Wallet, Check, Camera, Trash2, Sparkles,
 } from 'lucide-react';
 import {
   updatePassword, reauthenticateWithCredential, reauthenticateWithPopup, EmailAuthProvider, deleteUser,
 } from 'firebase/auth';
 import { googleProvider } from '../../services/firebase';
 import { useAuth } from '../../hooks/useAuth';
+import { useToast } from '../../hooks/useToast';
 import { getPlan } from '../../components/ui/plans';
-import Toast from '../../components/ui/Toast';
 import Avatar from '../../components/ui/Avatar';
+import Button from '../../components/ui/Button';
+import Badge from '../../components/ui/Badge';
+import Dialog from '../../components/ui/Dialog';
+import PageHeader from '../../components/ui/PageHeader';
+import { Field, Input } from '../../components/ui/Field';
+import { formatarMoeda, parseValor } from '../../utils/moeda';
 import { prepararFotoPerfil, mensagemErroFoto, TIPOS_ACEITOS } from '../../utils/imagemPerfil';
 import { limparDadosDoUsuario, mensagemFalhaExclusao } from '../../utils/exclusaoConta';
 
@@ -63,9 +69,16 @@ function formatCreatedAt(valor) {
   return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
 }
 
+const TituloBloco = ({ icon: Icon, children, tone = 'text-slate-500' }) => (
+  <h3 className="text-sm font-semibold text-slate-300 flex items-center gap-2 mb-5">
+    <Icon size={16} className={tone} aria-hidden="true" /> {children}
+  </h3>
+);
+
 export default function Perfil() {
   const { currentUser, userProfile, updateUserProfile } = useAuth();
   const navigate = useNavigate();
+  const toast = useToast();
 
   // ── Dados reais da conta ─────────────────────────
   const planId = userProfile?.plan || 'jovem';
@@ -88,16 +101,18 @@ export default function Perfil() {
   const [showSenha, setShowSenha] = useState(false);
   const [pwdError, setPwdError] = useState(null);
   const [loadingPwd, setLoadingPwd] = useState(false);
-  const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
 
-  // ── Renda mensal (Fase 1) ────────────────────────
-  // Valor fixo, editável a qualquer momento — sem histórico por mês nesta fase.
+  // ── Renda mensal ─────────────────────────────────
   const [editandoRenda, setEditandoRenda] = useState(false);
   const [rendaInput, setRendaInput] = useState(String(userProfile?.renda_mensal ?? ''));
   const [salvandoRenda, setSalvandoRenda] = useState(false);
 
   // ── Foto de perfil ───────────────────────────────
   const [salvandoFoto, setSalvandoFoto] = useState(false);
+
+  // ── Advisor: contexto financeiro ─────────────────
+  const [salvandoAdvisor, setSalvandoAdvisor] = useState(false);
+  const usarDadosAdvisor = Boolean(userProfile?.advisorContexto);
 
   const handleEscolherFoto = async (e) => {
     const file = e.target.files?.[0];
@@ -109,52 +124,60 @@ export default function Perfil() {
     setSalvandoFoto(true);
     try {
       const { dataUrl } = await prepararFotoPerfil(file);
-      // Só o campo da foto é enviado: updateUserProfile grava com merge, então
-      // nome, plano, renda e aceite dos termos ficam intocados.
+      // Só o campo da foto é enviado: updateUserProfile grava com merge.
       await updateUserProfile({ fotoPerfil: dataUrl });
-      setToast({ show: true, message: 'Foto de perfil atualizada.', type: 'success' });
+      toast.success('Foto de perfil atualizada.');
     } catch (erro) {
-      // Se a gravação falhar, nada foi alterado no perfil — o avatar anterior
-      // continua na tela.
       console.error('[Perfil] Falha ao atualizar a foto:', erro?.code || erro?.message);
-      setToast({ show: true, message: mensagemErroFoto(erro?.message), type: 'error' });
+      toast.error(mensagemErroFoto(erro?.message));
     } finally {
       setSalvandoFoto(false);
     }
   };
 
   const abrirEdicaoRenda = () => {
-    setRendaInput(String(userProfile?.renda_mensal ?? ''));
+    setRendaInput(String(userProfile?.renda_mensal ?? '').replace('.', ','));
     setEditandoRenda(true);
   };
 
   const salvarRenda = async (e) => {
     e.preventDefault();
-    const valor = parseFloat(rendaInput.replace(',', '.'));
+    const valor = parseValor(rendaInput);
     if (Number.isNaN(valor) || valor < 0) {
-      setToast({ show: true, message: 'Informe um valor de renda válido.', type: 'error' });
+      toast.error('Informe um valor de renda válido.');
       return;
     }
     setSalvandoRenda(true);
     try {
-      await updateUserProfile({ renda_mensal: valor });
+      await updateUserProfile({ renda_mensal: Math.round(valor * 100) / 100 });
       setEditandoRenda(false);
-      setToast({ show: true, message: 'Renda mensal atualizada.', type: 'success' });
+      toast.success('Renda mensal atualizada.');
     } catch (erro) {
-      setToast({ show: true, message: 'Não foi possível salvar a renda mensal.', type: 'error' });
+      toast.error('Não foi possível salvar a renda mensal.');
     } finally {
       setSalvandoRenda(false);
     }
   };
 
-  // ── Exclusão da conta (Fase 5B) ──────────────────
+  const alternarAdvisor = async () => {
+    setSalvandoAdvisor(true);
+    try {
+      await updateUserProfile({ advisorContexto: !usarDadosAdvisor });
+      toast.success(!usarDadosAdvisor ? 'O Capital Advisor passa a usar um resumo dos seus dados.' : 'O Capital Advisor deixa de receber seus dados.');
+    } catch (erro) {
+      toast.error('Não foi possível salvar a preferência.');
+    } finally {
+      setSalvandoAdvisor(false);
+    }
+  };
+
+  // ── Exclusão da conta ────────────────────────────
   const [delOpen, setDelOpen] = useState(false);
   const [delEmail, setDelEmail] = useState('');
   const [delSenha, setDelSenha] = useState('');
   const [delErro, setDelErro] = useState(null);
   const [excluindo, setExcluindo] = useState(false);
-  // Trava lógica síncrona: `excluindo` só vale para o visual, e o React agenda
-  // a atualização — dois cliques rápidos passariam pelos dois. Aqui não pode.
+  // Trava lógica síncrona: `excluindo` só vale para o visual.
   const excluirLockRef = useRef(false);
 
   // Confirmação de intenção: precisa ser o e-mail da conta, sem variação.
@@ -170,8 +193,6 @@ export default function Perfil() {
   };
 
   const fecharExclusao = () => {
-    // Fechar no meio da rotina deixaria a exclusão correndo sem nada na tela
-    // dizendo o que aconteceu.
     if (excluirLockRef.current) return;
     setDelEmail('');
     setDelSenha('');
@@ -180,8 +201,8 @@ export default function Perfil() {
   };
 
   // Reautenticação pelo provedor real da conta. A senha só existe enquanto o
-  // modal está aberto: não é guardada, nem registrada, nem enviada a lugar
-  // nenhum além do próprio Firebase Authentication.
+  // modal está aberto: não é guardada nem enviada a lugar nenhum além do
+  // próprio Firebase Authentication.
   const reautenticar = async () => {
     if (usaSenha) {
       const credencial = EmailAuthProvider.credential(currentUser.email, delSenha);
@@ -195,8 +216,6 @@ export default function Perfil() {
     e.preventDefault();
     if (!currentUser) return;
 
-    // Validações locais primeiro: elas não iniciam nada destrutivo, então
-    // ainda não é hora de travar.
     if (!emailConfere) {
       setDelErro('Digite o e-mail desta conta exatamente como ele aparece acima.');
       return;
@@ -230,24 +249,13 @@ export default function Perfil() {
         await deleteUser(currentUser);
       } catch (erro) {
         if (erro?.code !== 'auth/requires-recent-login') throw erro;
-        // A limpeza pode ter demorado o bastante para a sessão deixar de ser
-        // recente. Refaz só a reautenticação e tenta de novo apenas o Auth —
-        // o Firestore já está limpo e não precisa ser percorrido outra vez.
         await reautenticar();
         await deleteUser(currentUser);
       }
 
       navigate('/', { replace: true });
     } catch (erro) {
-      // Uma etapa falhou: as seguintes não rodaram e o Auth continua de pé,
-      // então a pessoa segue autenticada e pode tentar de novo. O que já saiu
-      // não volta, e a nova tentativa apaga só o que restou.
-      console.error(
-        '[Perfil] Falha ao excluir a conta na etapa',
-        erro?.etapa || 'auth',
-        '-',
-        erro?.code || erro?.message,
-      );
+      console.error('[Perfil] Falha ao excluir a conta na etapa', erro?.etapa || 'auth', '-', erro?.code || erro?.message);
       setDelErro(erro?.code ? reauthErrorMessage(erro.code) : mensagemFalhaExclusao());
     } finally {
       excluirLockRef.current = false;
@@ -256,11 +264,12 @@ export default function Perfil() {
     }
   };
 
-  const abrirModal = () => {
+  const abrirModalSenha = () => {
     setSenhaAtual('');
     setNovaSenha('');
     setConfirmar('');
     setPwdError(null);
+    setShowSenha(false);
     setPwdOpen(true);
   };
 
@@ -275,15 +284,13 @@ export default function Perfil() {
     setLoadingPwd(true);
     setPwdError(null);
     try {
-      // Reautentica para atender ao requisito de "login recente" do Firebase
       if (usaSenha) {
         const credencial = EmailAuthProvider.credential(currentUser.email, senhaAtual);
         await reauthenticateWithCredential(currentUser, credencial);
       }
-      // Alteração real no provedor de autenticação
       await updatePassword(currentUser, novaSenha);
       setPwdOpen(false);
-      setToast({ show: true, message: 'Senha alterada com sucesso.', type: 'success' });
+      toast.success('Senha alterada com sucesso.');
     } catch (erro) {
       setPwdError(passwordErrorMessage(erro?.code || erro?.message));
     } finally {
@@ -293,34 +300,24 @@ export default function Perfil() {
 
   return (
     <div className="space-y-6">
+      <PageHeader>Informações da conta, plano, preferências e segurança.</PageHeader>
 
-      {/* HEADER */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <p className="text-sm text-slate-400">Informações da conta, plano e segurança.</p>
-      </div>
-
-      {/* ── INFORMAÇÕES DA CONTA ─────────────────────── */}
-      <div className="bg-surface border border-hairline rounded-2xl p-6">
-        <h3 className="text-sm font-semibold text-slate-300 flex items-center gap-2 mb-6">
-          <User size={16} className="text-slate-500" /> Informações da conta
-        </h3>
+      {/* ── Informações da conta ── */}
+      <div className="cc-card p-6">
+        <TituloBloco icon={User}>Informações da conta</TituloBloco>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-center">
-          {/* Nome + avatar */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-4">
             <Avatar
               fotoPerfil={userProfile?.fotoPerfil}
               photoURL={currentUser?.photoURL}
               nome={nome}
-              className="w-12 h-12 rounded-2xl shrink-0"
-              textoClassName="bg-indigo-600 text-white text-lg font-bold"
+              className="w-14 h-14 rounded-2xl shrink-0"
+              textoClassName="bg-primary text-white text-lg font-bold"
             />
             <div className="min-w-0">
-              <p className="text-xs text-slate-500 uppercase tracking-wider font-semibold mb-1">Nome</p>
-              <p className="text-white font-bold truncate">{nome}</p>
-
-              {/* Input escondido + label como botão: mantém o controle nativo
-                  acessível por teclado sem o visual padrão do navegador. */}
+              <p className="cc-label mb-1">Nome</p>
+              <p className="text-textMain font-bold truncate">{nome}</p>
               <input
                 id="foto-perfil"
                 type="file"
@@ -332,370 +329,270 @@ export default function Perfil() {
               <label
                 htmlFor="foto-perfil"
                 className={`mt-1.5 inline-flex items-center gap-1.5 text-xs font-medium transition-colors ${
-                  salvandoFoto
-                    ? 'text-slate-500 cursor-not-allowed'
-                    : 'text-indigo-400 hover:text-indigo-300 cursor-pointer'
+                  salvandoFoto ? 'text-slate-500 cursor-not-allowed' : 'text-indigo-300 hover:text-indigo-200 cursor-pointer'
                 }`}
               >
-                <Camera size={13} />
+                <Camera size={13} aria-hidden="true" />
                 {salvandoFoto ? 'Salvando...' : 'Alterar foto'}
               </label>
             </div>
           </div>
 
-          {/* E-mail */}
           <div className="min-w-0">
-            <p className="text-xs text-slate-500 uppercase tracking-wider font-semibold mb-1 flex items-center gap-1.5">
-              <Mail size={12} /> E-mail da conta
-            </p>
-            <p className="text-white font-medium truncate">{email}</p>
+            <p className="cc-label mb-1 flex items-center gap-1.5"><Mail size={12} /> E-mail da conta</p>
+            <p className="text-textMain font-medium truncate">{email}</p>
           </div>
 
-          {/* Plano atual */}
           <div>
-            <p className="text-xs text-slate-500 uppercase tracking-wider font-semibold mb-1 flex items-center gap-1.5">
-              <Crown size={12} /> Plano atual
-            </p>
-            <span className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full bg-indigo-500/10 border border-indigo-500/30 text-indigo-400">
-              <Crown size={12} /> {plan.name}
-            </span>
+            <p className="cc-label mb-1 flex items-center gap-1.5"><Crown size={12} /> Plano atual</p>
+            <Badge tone="primary" icon={Crown} className="px-3 py-1.5 text-xs rounded-full">{plan.name}</Badge>
           </div>
         </div>
 
         {membroDesde && (
-          <p className="mt-6 pt-4 border-t border-hairline text-xs text-slate-500">
-            Membro desde {membroDesde}
-          </p>
+          <p className="mt-6 pt-4 border-t border-hairline text-xs text-slate-500">Membro desde {membroDesde}</p>
         )}
       </div>
 
-      {/* ── RENDA MENSAL (Fase 1) ────────────────────── */}
-      <div className="bg-surface border border-hairline rounded-2xl p-6">
-        <h3 className="text-sm font-semibold text-slate-300 flex items-center gap-2 mb-4">
-          <Wallet size={16} className="text-slate-500" /> Renda mensal
-        </h3>
+      {/* ── Renda mensal ── */}
+      <div className="cc-card p-6">
+        <TituloBloco icon={Wallet}>Renda mensal</TituloBloco>
 
         {editandoRenda ? (
-          <form onSubmit={salvarRenda} className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-            <div className="flex-1 w-full">
-              <label className="block text-xs font-medium text-slate-400 mb-1">Valor (R$)</label>
-              <input
-                autoFocus
-                type="number"
-                step="0.01"
-                min="0"
-                value={rendaInput}
-                onChange={(e) => setRendaInput(e.target.value)}
-                className="w-full bg-app border border-hairline rounded-xl px-4 py-3 text-white focus:border-indigo-500 outline-none"
-                placeholder="0,00"
-              />
-            </div>
-            <div className="flex gap-2 shrink-0 sm:mt-6">
-              <button
-                type="submit"
-                disabled={salvandoRenda}
-                className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-sm font-bold px-4 py-3 rounded-xl transition-colors"
-              >
-                <Check size={15} /> {salvandoRenda ? 'Salvando...' : 'Salvar'}
-              </button>
-              <button
-                type="button"
-                onClick={() => setEditandoRenda(false)}
-                className="flex items-center gap-1.5 bg-surfaceLight border border-hairline hover:border-indigo-500/40 text-slate-300 text-sm font-bold px-4 py-3 rounded-xl transition-colors"
-              >
-                <X size={15} /> Cancelar
-              </button>
+          <form onSubmit={salvarRenda} className="flex flex-col sm:flex-row items-start sm:items-end gap-3" noValidate>
+            <Field label="Valor (R$)" className="flex-1 w-full">
+              <Input autoFocus type="text" inputMode="decimal" value={rendaInput} onChange={(e) => setRendaInput(e.target.value)} placeholder="0,00" />
+            </Field>
+            <div className="flex gap-2 shrink-0">
+              <Button type="submit" icon={Check} loading={salvandoRenda}>Salvar</Button>
+              <Button variant="secondary" icon={X} onClick={() => setEditandoRenda(false)}>Cancelar</Button>
             </div>
           </form>
         ) : (
           <div className="flex items-center justify-between gap-4">
-            <div>
-              {userProfile?.renda_mensal ? (
-                <p className="text-2xl font-extrabold text-white tabular-nums">
-                  {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(userProfile.renda_mensal)}
-                </p>
-              ) : (
-                <p className="text-sm text-slate-400">
-                  Defina sua renda mensal para ver economia do mês e % da renda comprometida no Dashboard.
-                </p>
-              )}
-            </div>
-            <button
-              onClick={abrirEdicaoRenda}
-              className="shrink-0 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-surfaceLight border border-hairline hover:border-indigo-500/40 hover:bg-hairline text-white text-sm font-bold transition-colors"
-            >
+            {userProfile?.renda_mensal ? (
+              <p className="text-2xl font-extrabold text-textMain tabular-nums">{formatarMoeda(userProfile.renda_mensal)}</p>
+            ) : (
+              <p className="text-sm text-textSecondary">Defina sua renda mensal para ver economia do mês e % da renda comprometida no Dashboard.</p>
+            )}
+            <Button variant="secondary" onClick={abrirEdicaoRenda} className="shrink-0">
               {userProfile?.renda_mensal ? 'Editar' : 'Definir renda'}
-            </button>
+            </Button>
           </div>
         )}
       </div>
 
-      {/* ── SEU PLANO + SEGURANÇA ────────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-
-        {/* Seu plano */}
-        <div className="bg-surface border border-hairline rounded-2xl p-6 flex flex-col">
-          <h3 className="text-sm font-semibold text-slate-300 flex items-center gap-2 mb-4">
-            <Crown size={16} className="text-slate-500" /> Seu plano
-          </h3>
-
+      {/* ── Plano + Segurança ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-[var(--cc-gap-card)]">
+        <div className="cc-card p-6 flex flex-col">
+          <TituloBloco icon={Crown}>Seu plano</TituloBloco>
           <div className="flex items-center justify-between gap-4">
             <div>
-              <p className="text-2xl font-extrabold text-white">{plan.name}</p>
-              {plan.badge && (
-                <span className="inline-block mt-1 text-[10px] font-bold bg-indigo-500/15 text-indigo-400 border border-indigo-500/30 px-2 py-0.5 rounded-full uppercase tracking-wide">
-                  {plan.badge}
-                </span>
-              )}
+              <p className="text-2xl font-extrabold text-textMain">{plan.name}</p>
+              {plan.badge && <Badge tone="primary" className="mt-1 uppercase tracking-wide text-[10px]">{plan.badge}</Badge>}
             </div>
             <div className="text-right">
               <p className="text-xs text-slate-500">R$ {plan.price}</p>
               <p className="text-xs text-slate-500">/ano</p>
             </div>
           </div>
-
-          <p className="text-sm text-slate-400 leading-relaxed mt-2">{plan.desc}</p>
-
-          <button
+          <p className="text-sm text-textSecondary leading-relaxed mt-2">{plan.desc}</p>
+          <Button
+            className="mt-5 w-full"
+            icon={ArrowRight}
             onClick={() => navigate('/cadastro', { state: { changePlan: true, currentPlan: planId } })}
-            className="mt-5 w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold transition-colors"
           >
-            Trocar plano <ArrowRight size={15} />
-          </button>
+            Trocar plano
+          </Button>
         </div>
 
-        {/* Segurança */}
-        <div className="bg-surface border border-hairline rounded-2xl p-6 flex flex-col">
-          <h3 className="text-sm font-semibold text-slate-300 flex items-center gap-2 mb-4">
-            <ShieldCheck size={16} className="text-slate-500" /> Segurança
-          </h3>
-
+        <div className="cc-card p-6 flex flex-col">
+          <TituloBloco icon={ShieldCheck}>Segurança</TituloBloco>
           {usaSenha ? (
             <>
-              <p className="text-sm text-slate-400 leading-relaxed mb-5">
+              <p className="text-sm text-textSecondary leading-relaxed mb-5">
                 Sua senha é gerenciada pelo Firebase Authentication e nunca é armazenada no nosso banco de dados.
               </p>
-              <button
-                onClick={abrirModal}
-                className="mt-auto flex items-center justify-center gap-2 py-3 rounded-xl bg-surfaceLight border border-hairline hover:border-indigo-500/40 hover:bg-hairline text-white text-sm font-bold transition-colors"
-              >
-                <Lock size={15} /> Trocar senha
-              </button>
+              <Button variant="secondary" icon={Lock} onClick={abrirModalSenha} className="mt-auto w-full">
+                Trocar senha
+              </Button>
             </>
           ) : (
-            <p className="text-sm text-slate-400 leading-relaxed">
+            <p className="text-sm text-textSecondary leading-relaxed">
               Esta conta foi criada com o Google e não possui senha própria para alteração.
             </p>
           )}
         </div>
       </div>
 
-      {/* ── EXCLUIR CONTA ────────────────────────────── */}
-      <div className="bg-surface border border-rose-500/25 rounded-2xl p-6">
-        <h3 className="text-sm font-semibold text-rose-300 flex items-center gap-2 mb-4">
-          <AlertTriangle size={16} className="text-rose-400" /> Zona de perigo
-        </h3>
-
+      {/* ── Preferência do Advisor ── */}
+      <div className="cc-card p-6">
+        <TituloBloco icon={Sparkles}>Capital Advisor</TituloBloco>
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div className="min-w-0">
-            <p className="text-sm font-bold text-white mb-1">Excluir conta</p>
-            <p className="text-sm text-slate-400 leading-relaxed">
-              Remove sua conta e seus dados financeiros — contas, transações, ciclos, metas,
-              aportes e limites de orçamento. A ação é permanente e não pode ser desfeita.
+            <p className="text-sm font-bold text-textMain mb-1">Usar meus dados nas respostas</p>
+            <p className="text-sm text-textSecondary leading-relaxed">
+              Quando ligado, um resumo agregado (totais do mês por categoria, saldos por tipo de conta e estado das metas)
+              acompanha cada pergunta. Lançamentos individuais nunca são enviados. Você pode desligar quando quiser.
             </p>
           </div>
-
           <button
             type="button"
-            onClick={abrirExclusao}
-            className="shrink-0 inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-rose-500/10 border border-rose-500/30 hover:bg-rose-500/20 text-rose-300 text-sm font-bold transition-colors"
+            role="switch"
+            aria-checked={usarDadosAdvisor}
+            aria-label="Usar meus dados nas respostas do Capital Advisor"
+            onClick={alternarAdvisor}
+            disabled={salvandoAdvisor}
+            className={`relative shrink-0 inline-flex h-7 w-12 items-center rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-60 ${usarDadosAdvisor ? 'bg-primary' : 'bg-hairline'}`}
           >
-            <Trash2 size={15} /> Excluir conta
+            <span className={`inline-block h-5 w-5 rounded-full bg-white shadow transition-transform ${usarDadosAdvisor ? 'translate-x-6' : 'translate-x-1'}`} />
           </button>
         </div>
       </div>
 
-      {/* ── MODAL EXCLUIR CONTA ──────────────────────── */}
-      {delOpen && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-surface border border-hairline rounded-3xl w-full max-w-md max-h-[90vh] overflow-y-auto shadow-2xl animate-in fade-in zoom-in duration-200">
-            <div className="p-6 border-b border-hairline flex justify-between items-center gap-3">
-              <h2 className="text-xl font-bold text-white">Excluir conta</h2>
+      {/* ── Zona de perigo ── */}
+      <div className="cc-card p-6 border-rose-500/25">
+        <TituloBloco icon={AlertTriangle} tone="text-rose-400">Zona de perigo</TituloBloco>
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div className="min-w-0">
+            <p className="text-sm font-bold text-textMain mb-1">Excluir conta</p>
+            <p className="text-sm text-textSecondary leading-relaxed">
+              Remove sua conta e seus dados financeiros — contas, transações, ciclos, metas,
+              aportes e limites de orçamento. A ação é permanente e não pode ser desfeita.
+            </p>
+          </div>
+          <Button variant="danger" icon={Trash2} onClick={abrirExclusao} className="shrink-0">Excluir conta</Button>
+        </div>
+      </div>
+
+      {/* ── Modal excluir conta ── */}
+      <Dialog
+        open={delOpen}
+        onClose={fecharExclusao}
+        bloqueado={excluindo}
+        title="Excluir conta"
+        tone="danger"
+        footer={(
+          <>
+            <Button variant="secondary" onClick={fecharExclusao} disabled={excluindo}>Cancelar</Button>
+            <Button
+              type="submit"
+              form="form-excluir"
+              variant="dangerSolid"
+              loading={excluindo}
+              disabled={!emailConfere || (usaSenha && !delSenha)}
+            >
+              {excluindo ? 'Excluindo conta...' : usaSenha ? 'Excluir conta' : 'Confirmar com o Google'}
+            </Button>
+          </>
+        )}
+      >
+        <form id="form-excluir" onSubmit={handleExcluirConta} className="space-y-4" noValidate>
+          <div className="bg-rose-500/10 border border-rose-500/20 rounded-xl px-4 py-3">
+            <p className="text-rose-200 text-xs leading-relaxed">
+              Serão removidos: seu perfil, contas, transações, ciclos, metas, aportes e limites
+              de orçamento. Os registros técnicos dos pagamentos simulados permanecem.
+              <strong className="block mt-1 font-bold">Esta ação não pode ser desfeita.</strong>
+            </p>
+          </div>
+
+          {delErro && (
+            <div className="flex gap-2 items-start bg-rose-500/10 border border-rose-500/20 rounded-xl px-4 py-3" role="alert">
+              <AlertTriangle size={14} className="text-rose-400 mt-0.5 shrink-0" />
+              <p className="text-rose-300 text-xs leading-relaxed">{delErro}</p>
+            </div>
+          )}
+
+          <Field label={<>Digite <span className="text-slate-200 font-semibold break-all">{email}</span> para confirmar</>}>
+            <Input
+              data-autofocus
+              type="text"
+              value={delEmail}
+              onChange={(e) => setDelEmail(e.target.value)}
+              disabled={excluindo}
+              autoComplete="off"
+              spellCheck="false"
+              placeholder="seu e-mail"
+              className="focus:border-rose-500 focus:ring-rose-500/20"
+            />
+          </Field>
+
+          {usaSenha ? (
+            <Field label="Senha atual">
+              <Input
+                type="password"
+                value={delSenha}
+                onChange={(e) => setDelSenha(e.target.value)}
+                disabled={excluindo}
+                autoComplete="current-password"
+                placeholder="••••••••"
+                className="focus:border-rose-500 focus:ring-rose-500/20"
+              />
+            </Field>
+          ) : (
+            <p className="text-xs text-textSecondary leading-relaxed">
+              Esta conta entra pelo Google. Ao confirmar, o Google abrirá uma janela para você
+              se identificar — sua senha do Google não é digitada aqui.
+            </p>
+          )}
+        </form>
+      </Dialog>
+
+      {/* ── Modal trocar senha ── */}
+      <Dialog
+        open={pwdOpen}
+        onClose={() => !loadingPwd && setPwdOpen(false)}
+        bloqueado={loadingPwd}
+        title="Trocar senha"
+        size="sm"
+        footer={(
+          <>
+            <Button variant="secondary" onClick={() => setPwdOpen(false)} disabled={loadingPwd}>Cancelar</Button>
+            <Button type="submit" form="form-senha" loading={loadingPwd}>Alterar senha</Button>
+          </>
+        )}
+      >
+        <form id="form-senha" onSubmit={handleTrocarSenha} className="space-y-4" noValidate>
+          {pwdError && (
+            <div className="flex gap-2 items-start bg-rose-500/10 border border-rose-500/20 rounded-xl px-4 py-3" role="alert">
+              <AlertTriangle size={14} className="text-rose-400 mt-0.5 shrink-0" />
+              <p className="text-rose-300 text-xs leading-relaxed">{pwdError}</p>
+            </div>
+          )}
+
+          {usaSenha && (
+            <Field label="Senha atual">
+              <Input data-autofocus type="password" value={senhaAtual} onChange={(e) => setSenhaAtual(e.target.value)} autoComplete="current-password" placeholder="••••••••" />
+            </Field>
+          )}
+
+          <Field label="Nova senha" hint="Mínimo de 6 caracteres.">
+            <div className="relative">
+              <Input
+                type={showSenha ? 'text' : 'password'}
+                minLength={6}
+                value={novaSenha}
+                onChange={(e) => setNovaSenha(e.target.value)}
+                autoComplete="new-password"
+                placeholder="Crie uma nova senha"
+                className="pr-11"
+              />
               <button
                 type="button"
-                onClick={fecharExclusao}
-                disabled={excluindo}
-                aria-label="Fechar"
-                className="text-slate-400 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
+                onClick={() => setShowSenha((v) => !v)}
+                aria-label={showSenha ? 'Ocultar senha' : 'Mostrar senha'}
+                className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-slate-500 hover:text-slate-300 transition-colors"
               >
-                <X size={24} />
+                {showSenha ? <EyeOff size={15} /> : <Eye size={15} />}
               </button>
             </div>
+          </Field>
 
-            <form onSubmit={handleExcluirConta} className="p-6 space-y-4">
-              <div className="bg-rose-500/10 border border-rose-500/20 rounded-xl px-4 py-3">
-                <p className="text-rose-200 text-xs leading-relaxed">
-                  Serão removidos: seu perfil, contas, transações, ciclos, metas, aportes e limites
-                  de orçamento. Os registros técnicos dos pagamentos simulados permanecem.
-                  <strong className="block mt-1 font-bold">Esta ação não pode ser desfeita.</strong>
-                </p>
-              </div>
-
-              {delErro && (
-                <div className="flex gap-2 items-start bg-rose-500/10 border border-rose-500/20 rounded-xl px-4 py-3">
-                  <AlertTriangle size={14} className="text-rose-400 mt-0.5 shrink-0" />
-                  <p className="text-rose-300 text-xs leading-relaxed">{delErro}</p>
-                </div>
-              )}
-
-              <div>
-                <label htmlFor="excluir-email" className="block text-xs font-medium text-slate-400 mb-1">
-                  Digite <span className="text-slate-200 font-semibold break-all">{email}</span> para confirmar
-                </label>
-                <input
-                  id="excluir-email"
-                  type="text"
-                  value={delEmail}
-                  onChange={(e) => setDelEmail(e.target.value)}
-                  disabled={excluindo}
-                  autoComplete="off"
-                  spellCheck="false"
-                  className="w-full bg-app border border-hairline rounded-xl px-4 py-3 text-white focus:border-rose-500 outline-none disabled:opacity-50"
-                  placeholder="seu e-mail"
-                />
-              </div>
-
-              {usaSenha ? (
-                <div>
-                  <label htmlFor="excluir-senha" className="block text-xs font-medium text-slate-400 mb-1">
-                    Senha atual
-                  </label>
-                  <input
-                    id="excluir-senha"
-                    type="password"
-                    value={delSenha}
-                    onChange={(e) => setDelSenha(e.target.value)}
-                    disabled={excluindo}
-                    autoComplete="current-password"
-                    className="w-full bg-app border border-hairline rounded-xl px-4 py-3 text-white focus:border-rose-500 outline-none disabled:opacity-50"
-                    placeholder="••••••••"
-                  />
-                </div>
-              ) : (
-                <p className="text-xs text-slate-400 leading-relaxed">
-                  Esta conta entra pelo Google. Ao confirmar, o Google abrirá uma janela para você
-                  se identificar — sua senha do Google não é digitada aqui.
-                </p>
-              )}
-
-              <div className="flex flex-col-reverse sm:flex-row gap-3 pt-1">
-                <button
-                  type="button"
-                  onClick={fecharExclusao}
-                  disabled={excluindo}
-                  className="flex-1 py-3.5 rounded-xl bg-surfaceLight border border-hairline hover:bg-hairline text-white text-sm font-bold transition-colors disabled:opacity-50"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={excluindo || !emailConfere || (usaSenha && !delSenha)}
-                  className="flex-1 py-3.5 rounded-xl bg-rose-600 hover:bg-rose-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-bold transition-colors"
-                >
-                  {excluindo ? 'Excluindo conta...' : usaSenha ? 'Excluir conta' : 'Confirmar com o Google'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* ── MODAL TROCAR SENHA ───────────────────────── */}
-      {pwdOpen && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-surface border border-hairline rounded-3xl w-full max-w-md overflow-hidden shadow-2xl animate-in fade-in zoom-in duration-200">
-            <div className="p-6 border-b border-hairline flex justify-between items-center">
-              <h2 className="text-xl font-bold text-white">Trocar senha</h2>
-              <button onClick={() => setPwdOpen(false)} className="text-slate-400 hover:text-white">
-                <X size={24} />
-              </button>
-            </div>
-
-            <form onSubmit={handleTrocarSenha} className="p-6 space-y-4">
-              {pwdError && (
-                <div className="flex gap-2 items-start bg-rose-500/10 border border-rose-500/20 rounded-xl px-4 py-3">
-                  <AlertTriangle size={14} className="text-rose-400 mt-0.5 shrink-0" />
-                  <p className="text-rose-300 text-xs leading-relaxed">{pwdError}</p>
-                </div>
-              )}
-
-              {usaSenha && (
-                <div>
-                  <label className="block text-xs font-medium text-slate-400 mb-1">Senha atual</label>
-                  <input
-                    type="password"
-                    required
-                    value={senhaAtual}
-                    onChange={(e) => setSenhaAtual(e.target.value)}
-                    autoComplete="current-password"
-                    className="w-full bg-app border border-hairline rounded-xl px-4 py-3 text-white focus:border-indigo-500 outline-none"
-                    placeholder="••••••••"
-                  />
-                </div>
-              )}
-
-              <div>
-                <label className="block text-xs font-medium text-slate-400 mb-1">Nova senha</label>
-                <div className="relative">
-                  <input
-                    type={showSenha ? 'text' : 'password'}
-                    required
-                    minLength={6}
-                    value={novaSenha}
-                    onChange={(e) => setNovaSenha(e.target.value)}
-                    autoComplete="new-password"
-                    className="w-full bg-app border border-hairline rounded-xl pl-4 pr-10 py-3 text-white focus:border-indigo-500 outline-none"
-                    placeholder="Mínimo 6 caracteres"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowSenha((v) => !v)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition-colors"
-                  >
-                    {showSenha ? <EyeOff size={14} /> : <Eye size={14} />}
-                  </button>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-slate-400 mb-1">Confirmar nova senha</label>
-                <input
-                  type={showSenha ? 'text' : 'password'}
-                  required
-                  value={confirmar}
-                  onChange={(e) => setConfirmar(e.target.value)}
-                  autoComplete="new-password"
-                  className="w-full bg-app border border-hairline rounded-xl px-4 py-3 text-white focus:border-indigo-500 outline-none"
-                  placeholder="Repita a nova senha"
-                />
-              </div>
-
-              <button
-                type="submit"
-                disabled={loadingPwd}
-                className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-bold py-3.5 rounded-xl transition-colors"
-              >
-                {loadingPwd ? 'Alterando...' : 'Alterar senha'}
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* TOAST */}
-      {toast.show && (
-        <Toast message={toast.message} type={toast.type} onClose={() => setToast({ ...toast, show: false })} />
-      )}
+          <Field label="Confirmar nova senha">
+            <Input type={showSenha ? 'text' : 'password'} value={confirmar} onChange={(e) => setConfirmar(e.target.value)} autoComplete="new-password" placeholder="Repita a nova senha" />
+          </Field>
+        </form>
+      </Dialog>
     </div>
   );
 }

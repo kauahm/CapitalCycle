@@ -1,4 +1,4 @@
-import React, { useState, useEffect, createContext, useContext } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   signInWithEmailAndPassword, signOut, onAuthStateChanged, createUserWithEmailAndPassword,
   updateProfile, signInWithPopup, sendPasswordResetEmail, setPersistence,
@@ -6,14 +6,16 @@ import {
 } from 'firebase/auth';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db, googleProvider } from '../services/firebase';
-
-const AuthContext = createContext(null);
+import { AuthContext } from './AuthContext';
+import Splash from '../components/ui/Splash';
 
 // Versão dos documentos legais vigente no cadastro. Registrada junto ao aceite
 // para que se saiba qual texto a pessoa leu. Contas criadas antes desta versão
 // simplesmente não têm o campo — a ausência é esperada e não é corrigida
 // retroativamente.
-const TERMOS_VERSAO = '1.0';
+// 1.1 (novembro/2026): passa a descrever o Open Finance e o contexto
+// financeiro opcional do Capital Advisor.
+const TERMOS_VERSAO = '1.1';
 
 /* ==========================================================================
    Operacao critica x registro secundario
@@ -303,13 +305,8 @@ export function AuthProvider({ children }) {
 
   return (
     <AuthContext.Provider value={contextValue}>
-      {!loading && children}
+      {loading ? <Splash /> : children}
     </AuthContext.Provider>
   );
 }
 
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (context === null) throw new Error('useAuth deve ser usado dentro de um AuthProvider');
-  return context;
-};

@@ -1,17 +1,22 @@
 import React from 'react';
 
-export default function Badge({ label, color = 'gray' }) {
-  const colorStyles = {
-    green: 'bg-green-100 text-green-800',
-    red: 'bg-red-100 text-red-800',
-    yellow: 'bg-yellow-100 text-yellow-800',
-    blue: 'bg-blue-100 text-blue-800',
-    gray: 'bg-gray-100 text-gray-800'
-  };
+const TONS = {
+  neutral: 'bg-hairline text-slate-300',
+  primary: 'bg-primary/15 text-indigo-300 border border-primary/30',
+  success: 'bg-emerald-500/10 text-emerald-300 border border-emerald-500/25',
+  danger: 'bg-rose-500/10 text-rose-300 border border-rose-500/25',
+  warning: 'bg-amber-500/10 text-amber-300 border border-amber-500/25',
+  info: 'bg-sky-500/10 text-sky-300 border border-sky-500/25',
+};
 
+export default function Badge({ children, tone = 'neutral', icon: Icon, className = '', title }) {
   return (
-    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${colorStyles[color]}`}>
-      {label}
+    <span
+      title={title}
+      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold whitespace-nowrap ${TONS[tone] || TONS.neutral} ${className}`}
+    >
+      {Icon && <Icon size={11} aria-hidden="true" />}
+      {children}
     </span>
   );
 }

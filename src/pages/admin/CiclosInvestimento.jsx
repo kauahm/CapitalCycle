@@ -1,359 +1,372 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Plus, Target, Calendar, Trash2, Pencil, X, PieChart, TrendingUp, TrendingDown, PiggyBank, Clock } from 'lucide-react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import {
+  Plus, Target, Calendar, Trash2, Pencil, PieChart, TrendingUp, TrendingDown, PiggyBank, Clock, CheckCircle2,
+} from 'lucide-react';
 import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, query, where } from 'firebase/firestore';
 import { db } from '../../services/firebase';
-import LoadingSpinner from '../../components/ui/LoadingSpinner';
+import { useAuth } from '../../hooks/useAuth';
+import { useToast } from '../../hooks/useToast';
+import { useAportesPorMeta } from '../../hooks/useAportesPorMeta';
+import { canAddCiclo, getLimits } from '../../components/ui/plans';
+import { calcularProgressoMeta } from '../../utils/metas';
+import { hojeStr, formatarDataCurta } from '../../utils/data';
+import { formatarMoeda, formatarDataBR, parseValor } from '../../utils/moeda';
 import CurrencyValue from '../../components/ui/CurrencyValue';
 import UpgradeModal from '../../components/ui/UpgradeModal';
-import { canAddCiclo, getLimits } from '../../components/ui/plans';
-import { useAuth } from '../../hooks/useAuth';
-import { useAportesPorMeta } from '../../hooks/useAportesPorMeta';
-import { calcularProgressoMeta } from '../../utils/metas';
-import { hojeStr } from '../../utils/data';
+import Button from '../../components/ui/Button';
+import Badge from '../../components/ui/Badge';
+import Dialog from '../../components/ui/Dialog';
+import ConfirmDialog from '../../components/ui/ConfirmDialog';
+import EmptyState from '../../components/ui/EmptyState';
+import PageHeader from '../../components/ui/PageHeader';
+import ProgressBar from '../../components/ui/ProgressBar';
+import { Field, Input, Segmented } from '../../components/ui/Field';
+import { SkeletonCard } from '../../components/ui/Skeleton';
+
+const formVazio = () => ({ nome: '', tipo: 'Meta', orcamento: '', inicio: hojeStr(), fim: '' });
 
 export default function CiclosInvestimento() {
   const { currentUser, userProfile } = useAuth();
+  const toast = useToast();
   const [ciclos, setCiclos] = useState([]);
   const [transacoes, setTransacoes] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingId, setEditingId] = useState(null);
+  const [modalAberto, setModalAberto] = useState(false);
+  const [editandoId, setEditandoId] = useState(null);
+  const [excluindo, setExcluindo] = useState(null);
   const [upgradeOpen, setUpgradeOpen] = useState(false);
+  const [filtro, setFiltro] = useState('andamento'); // 'andamento' | 'encerrados' | 'todos'
+  const [formData, setFormData] = useState(formVazio);
+  const [erros, setErros] = useState({});
 
-  // Trava de submissão do formulário de ciclo/meta: o ref é o lock lógico
-  // (síncrono, fecha a janela entre dois cliques antes de qualquer re-render);
-  // o state é só o retorno visual.
   const submitLockRef = useRef(false);
   const [salvando, setSalvando] = useState(false);
 
   // Modal "Registrar aporte" — separado do modal de criar/editar ciclo
-  const [aporteCiclo, setAporteCiclo] = useState(null); // ciclo alvo, ou null se fechado
+  const [aporteCiclo, setAporteCiclo] = useState(null);
   const [aporteValor, setAporteValor] = useState('');
   const [aporteData, setAporteData] = useState(hojeStr());
+  const [aporteErro, setAporteErro] = useState(null);
   const [salvandoAporte, setSalvandoAporte] = useState(false);
-
-  // Lock lógico do formulário de aporte — dedicado, separado do lock do
-  // formulário de ciclo/meta. `salvandoAporte` sozinho não basta: por depender
-  // de re-render, deixa passar um segundo clique disparado antes dele.
   const aporteLockRef = useRef(false);
 
-  const [formData, setFormData] = useState({
-    nome: '',
-    tipo: 'Orçamento', // Pode ser 'Orçamento' ou 'Meta'
-    orcamento: '',
-    inicio: '',
-    fim: ''
-  });
-
-  // Trava por plano: plano Jovem permite até 2 ciclos em andamento
   const planId = userProfile?.plan || 'jovem';
   const hoje = hojeStr();
   const ciclosAtivos = ciclos.filter((c) => !c.fim || c.fim >= hoje).length;
   const limiteCiclos = getLimits(planId).ciclosAtivos;
 
-  // Aportes das metas (subcoleção ciclos/{id}/aportes) — não afeta ciclos do
-  // tipo Orçamento, que continuam calculados a partir de transactions.
-  const metaIds = ciclos.filter((c) => c.tipo === 'Meta').map((c) => c.id);
+  const metaIds = useMemo(() => ciclos.filter((c) => c.tipo === 'Meta').map((c) => c.id), [ciclos]);
   const aportesMap = useAportesPorMeta(metaIds, currentUser?.uid);
 
   useEffect(() => {
-    if (!currentUser) return;
-
-    // 1. Buscar as Metas e Ciclos do usuário logado
-    const qCiclos = query(
-      collection(db, 'ciclos'),
-      where('uid', '==', currentUser.uid)
-    );
-    const unsubCiclos = onSnapshot(qCiclos, (snapshot) => {
-      const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      docs.sort((a, b) => (a.fim || '').localeCompare(b.fim || ''));
-      setCiclos(docs);
-    });
-
-    // 2. Buscar Transações do usuário logado para calcular as barras de progresso
-    const qTransacoes = query(collection(db, 'transactions'), where('uid', '==', currentUser.uid));
-    const unsubTransacoes = onSnapshot(qTransacoes, (snapshot) => {
-      setTransacoes(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    if (!currentUser) return undefined;
+    const onErro = (erro) => {
+      console.error('[Ciclos] Falha ao ler dados:', erro?.code || erro?.message);
       setLoading(false);
-    });
-
-    return () => {
-      unsubCiclos();
-      unsubTransacoes();
     };
+    const unsubCiclos = onSnapshot(
+      query(collection(db, 'ciclos'), where('uid', '==', currentUser.uid)),
+      (snapshot) => {
+        const docs = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
+        docs.sort((a, b) => (a.fim || '9999').localeCompare(b.fim || '9999'));
+        setCiclos(docs);
+        setLoading(false);
+      },
+      onErro,
+    );
+    const unsubTransacoes = onSnapshot(
+      query(collection(db, 'transactions'), where('uid', '==', currentUser.uid)),
+      (snapshot) => setTransacoes(snapshot.docs.map((d) => ({ id: d.id, ...d.data() }))),
+      onErro,
+    );
+    return () => { unsubCiclos(); unsubTransacoes(); };
   }, [currentUser]);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const visiveis = useMemo(() => ciclos.filter((c) => {
+    const encerrado = Boolean(c.fim) && c.fim < hoje;
+    if (filtro === 'andamento') return !encerrado;
+    if (filtro === 'encerrados') return encerrado;
+    return true;
+  }), [ciclos, filtro, hoje]);
 
-    // Trava por plano: não cria ciclo além do limite do plano Jovem
-    if (!editingId && !canAddCiclo(planId, ciclosAtivos)) {
-      setUpgradeOpen(true);
-      return;
-    }
+  // ── Criar / editar ──────────────────────────────────────────────────
+  const abrirNovo = () => {
+    if (!canAddCiclo(planId, ciclosAtivos)) { setUpgradeOpen(true); return; }
+    setEditandoId(null);
+    setFormData(formVazio());
+    setErros({});
+    setModalAberto(true);
+  };
 
-    // Um período que termina antes de começar não tem dias restantes válidos e
-    // tornaria todo o cálculo de ritmo sem sentido. O input também recebe `min`,
-    // mas a checagem aqui cobre quem digitar a data à mão.
-    if (formData.inicio && formData.fim && formData.fim < formData.inicio) {
-      window.alert('A data final não pode ser anterior à data de início.');
-      return;
-    }
+  const abrirEdicao = (ciclo) => {
+    setFormData({
+      nome: ciclo.nome || '',
+      tipo: ciclo.tipo || 'Orçamento',
+      orcamento: String(ciclo.orcamento ?? '').replace('.', ','),
+      inicio: ciclo.inicio || '',
+      fim: ciclo.fim || '',
+    });
+    setEditandoId(ciclo.id);
+    setErros({});
+    setModalAberto(true);
+  };
 
-    // Lock adquirido aqui de propósito: depois da saída antecipada do plano
-    // (que não inicia operação nenhuma) e imediatamente antes do try. Como não
-    // há instrução entre a aquisição e o try, todo caminho a partir daqui passa
-    // pelo finally e libera a trava.
+  const fecharModal = () => {
+    if (salvando) return;
+    setModalAberto(false);
+    setEditandoId(null);
+  };
+
+  const validar = () => {
+    const e = {};
+    const valor = parseValor(formData.orcamento);
+    if (!formData.nome.trim()) e.nome = 'Dê um nome ao objetivo.';
+    if (Number.isNaN(valor) || valor <= 0) e.orcamento = 'Informe um valor maior que zero.';
+    if (!formData.inicio) e.inicio = 'Informe a data de início.';
+    if (!formData.fim) e.fim = 'Informe a data final.';
+    // Um período que termina antes de começar não tem dias restantes válidos
+    // e tornaria todo o cálculo de ritmo sem sentido.
+    if (formData.inicio && formData.fim && formData.fim < formData.inicio) e.fim = 'A data final não pode ser anterior ao início.';
+    setErros(e);
+    return Object.keys(e).length === 0;
+  };
+
+  const handleSubmit = async (ev) => {
+    ev.preventDefault();
+    if (!editandoId && !canAddCiclo(planId, ciclosAtivos)) { setUpgradeOpen(true); return; }
+    if (!validar()) return;
     if (submitLockRef.current) return;
     submitLockRef.current = true;
     setSalvando(true);
-
     try {
       const dados = {
-        ...formData,
-        orcamento: parseFloat(formData.orcamento) || 0,
+        nome: formData.nome.trim(),
+        tipo: formData.tipo,
+        orcamento: Math.round(parseValor(formData.orcamento) * 100) / 100,
+        inicio: formData.inicio,
+        fim: formData.fim,
       };
-
-      if (editingId) {
-        await updateDoc(doc(db, 'ciclos', editingId), dados);
+      if (editandoId) {
+        await updateDoc(doc(db, 'ciclos', editandoId), dados);
+        toast.success('Objetivo atualizado.');
       } else {
-        await addDoc(collection(db, 'ciclos'), {
-          ...dados,
-          uid: currentUser.uid,
-          criadoEm: new Date()
-        });
+        await addDoc(collection(db, 'ciclos'), { ...dados, uid: currentUser.uid, criadoEm: new Date() });
+        toast.success(formData.tipo === 'Meta' ? 'Meta criada. Registre aportes para acompanhar o ritmo.' : 'Orçamento criado.');
       }
-      closeModal();
+      setModalAberto(false);
+      setEditandoId(null);
     } catch (error) {
-      console.error("Erro ao salvar ciclo: ", error);
+      console.error('[Ciclos] Erro ao salvar:', error);
+      toast.error('Não foi possível salvar o objetivo.');
     } finally {
       submitLockRef.current = false;
       setSalvando(false);
     }
   };
 
-  const handleEdit = (ciclo) => {
-    setFormData({
-      nome: ciclo.nome || '',
-      tipo: ciclo.tipo || 'Orçamento',
-      orcamento: String(ciclo.orcamento ?? ''),
-      inicio: ciclo.inicio || '',
-      fim: ciclo.fim || ''
-    });
-    setEditingId(ciclo.id);
-    setIsModalOpen(true);
-  };
-
-  const closeModal = () => {
-    setIsModalOpen(false);
-    setEditingId(null);
-    setFormData({ nome: '', tipo: 'Orçamento', orcamento: '', inicio: '', fim: '' });
-  };
-
-  const handleDelete = async (id) => {
-    if (window.confirm("Deseja realmente excluir esta meta/orçamento?")) {
-      await deleteDoc(doc(db, 'ciclos', id));
+  const confirmarExclusao = async () => {
+    if (!excluindo) return;
+    try {
+      await deleteDoc(doc(db, 'ciclos', excluindo.id));
+      toast.success('Objetivo excluído.');
+    } catch (error) {
+      console.error('[Ciclos] Erro ao excluir:', error);
+      toast.error('Não foi possível excluir.');
+      throw error;
     }
   };
 
+  // ── Aporte ──────────────────────────────────────────────────────────
   const abrirAporte = (ciclo) => {
     setAporteCiclo(ciclo);
     setAporteValor('');
     setAporteData(hojeStr());
+    setAporteErro(null);
   };
 
   const fecharAporte = () => {
+    if (salvandoAporte) return;
     setAporteCiclo(null);
-    setAporteValor('');
   };
 
   const salvarAporte = async (e) => {
     e.preventDefault();
     if (!aporteCiclo) return;
-
-    const valorNumerico = parseFloat(aporteValor);
-    if (Number.isNaN(valorNumerico) || valorNumerico <= 0) return;
-
-    // Lock adquirido só aqui: depois das duas saídas antecipadas (ciclo ausente
-    // e valor inválido), que não iniciam escrita nenhuma, e antes do addDoc.
-    // Daqui em diante todo caminho passa pelo finally.
+    const valorNumerico = parseValor(aporteValor);
+    if (Number.isNaN(valorNumerico) || valorNumerico <= 0) { setAporteErro('Informe um valor maior que zero.'); return; }
+    if (!aporteData || aporteData > hojeStr()) { setAporteErro('A data do aporte não pode estar no futuro.'); return; }
     if (aporteLockRef.current) return;
     aporteLockRef.current = true;
     setSalvandoAporte(true);
     try {
       // Registro de destinação de dinheiro para a meta — nunca cria
-      // transação, nunca mexe em saldo de conta (ver especificação, item 3).
+      // transação, nunca mexe em saldo de conta.
       await addDoc(collection(db, 'ciclos', aporteCiclo.id, 'aportes'), {
-        valor: valorNumerico,
+        valor: Math.round(valorNumerico * 100) / 100,
         data: aporteData,
         uid: currentUser.uid,
-        criadoEm: new Date()
+        criadoEm: new Date(),
       });
-      fecharAporte();
+      toast.success(`Aporte de ${formatarMoeda(valorNumerico)} registrado em ${aporteCiclo.nome}.`);
+      setAporteCiclo(null);
     } catch (error) {
-      console.error('Erro ao registrar aporte: ', error);
-      alert('Erro ao registrar aporte: ' + error.message);
+      console.error('[Ciclos] Erro ao registrar aporte:', error);
+      setAporteErro('Não foi possível registrar o aporte. Tente novamente.');
     } finally {
       aporteLockRef.current = false;
       setSalvandoAporte(false);
     }
   };
 
-  const formatarMoeda = (valor) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor);
-  const formatarData = (dataStr) => dataStr ? dataStr.split('-').reverse().join('/') : '';
-  const formatarDataObj = (date) => date ? date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '';
-
-  if (loading) return <div className="h-[80vh] flex items-center justify-center"><LoadingSpinner size="lg" color="text-indigo-500" /></div>;
+  const acoesCard = (ciclo) => (
+    <div className="relative z-10 mt-5 flex items-center justify-end gap-1 md:mt-0 md:absolute md:top-4 md:right-4 md:opacity-0 md:transition-opacity md:group-hover:opacity-100 md:group-focus-within:opacity-100">
+      <Button variant="ghost" size="icon" onClick={() => abrirEdicao(ciclo)} aria-label={`Editar ${ciclo.nome}`} title="Editar" className="bg-app hover:!text-indigo-300">
+        <Pencil size={15} />
+      </Button>
+      <Button variant="ghost" size="icon" onClick={() => setExcluindo(ciclo)} aria-label={`Excluir ${ciclo.nome}`} title="Excluir" className="bg-app hover:!text-rose-400">
+        <Trash2 size={15} />
+      </Button>
+    </div>
+  );
 
   return (
     <div className="space-y-6">
-      
-      {/* HEADER */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <p className="text-sm text-slate-400">Defina seus orçamentos mensais e acompanhe seus grandes objetivos.</p>
+      <PageHeader
+        actions={(
+          <>
+            {limiteCiclos != null && !loading && (
+              <Badge tone={ciclosAtivos >= limiteCiclos ? 'warning' : 'neutral'} className="px-3 py-2 text-xs">
+                {ciclosAtivos}/{limiteCiclos} em andamento
+              </Badge>
+            )}
+            <Button icon={Plus} onClick={abrirNovo} disabled={loading}>Novo objetivo</Button>
+          </>
+        )}
+      >
+        Metas de poupança com ritmo calculado e orçamentos por período.
+      </PageHeader>
 
-        <div className="flex items-center gap-3">
-          {limiteCiclos != null && (
-            <span className="text-xs font-semibold text-slate-500 whitespace-nowrap bg-surface border border-hairline px-3 py-2 rounded-xl">
-              {ciclosAtivos}/{limiteCiclos} em andamento
-            </span>
-          )}
-          <button
-            onClick={() => {
-              if (!canAddCiclo(planId, ciclosAtivos)) { setUpgradeOpen(true); return; }
-              setEditingId(null); setIsModalOpen(true);
-            }}
-            className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-xl font-medium transition-colors flex items-center gap-2"
-          >
-            <Plus size={18} /> Novo Objetivo
-          </button>
+      {!loading && ciclos.length > 0 && (
+        <div className="w-full sm:max-w-sm">
+          <Segmented
+            ariaLabel="Filtrar objetivos"
+            value={filtro}
+            onChange={setFiltro}
+            options={[
+              { value: 'andamento', label: 'Em andamento', activeClass: 'bg-surfaceLight !text-textMain' },
+              { value: 'encerrados', label: 'Encerrados', activeClass: 'bg-surfaceLight !text-textMain' },
+              { value: 'todos', label: 'Todos', activeClass: 'bg-surfaceLight !text-textMain' },
+            ]}
+          />
         </div>
-      </div>
+      )}
 
-      {/* LISTA DE METAS E ORÇAMENTOS */}
-      {ciclos.length === 0 ? (
-        <div className="bg-surface border border-hairline rounded-2xl p-12 text-center">
-          <Target size={48} className="mx-auto text-slate-600 mb-4" />
-          <h3 className="text-lg font-bold text-white mb-2">Nenhum ciclo ativo</h3>
-          <p className="text-slate-400">Crie um orçamento para o mês ou uma meta financeira (ex: Reserva de Emergência).</p>
+      {loading ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-[var(--cc-gap-card)]">
+          <SkeletonCard linhas={4} /><SkeletonCard linhas={4} /><SkeletonCard linhas={4} />
         </div>
+      ) : ciclos.length === 0 ? (
+        <EmptyState
+          icon={Target}
+          title="Nenhum objetivo ainda"
+          description="Crie uma meta (ex.: reserva de emergência) para acompanhar quanto guardar por dia, semana e mês — ou um orçamento para um período específico."
+          actionLabel="Criar primeiro objetivo"
+          onAction={abrirNovo}
+        />
+      ) : visiveis.length === 0 ? (
+        <EmptyState compact icon={Target} title="Nada neste filtro" description="Troque o filtro acima para ver os demais objetivos." />
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-          {ciclos.map((ciclo) => {
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-[var(--cc-gap-card)]">
+          {visiveis.map((ciclo) => {
             if (ciclo.tipo === 'Orçamento') {
-              // Orçamento ad-hoc: sem mudança — soma as SAÍDAS no período do ciclo
-              const transacoesFiltradas = transacoes.filter(t => t.data >= ciclo.inicio && t.data <= ciclo.fim);
-              const valorAtual = transacoesFiltradas.filter(t => t.tipo === 'saida').reduce((acc, t) => acc + (parseFloat(t.valor) || 0), 0);
-              const porcentagem = Math.min(100, (valorAtual / ciclo.orcamento) * 100);
-              const isEstourado = porcentagem >= 100;
+              const valorAtual = transacoes
+                .filter((t) => t.tipo === 'saida' && t.data >= ciclo.inicio && t.data <= ciclo.fim)
+                .reduce((acc, t) => acc + (parseFloat(t.valor) || 0), 0);
+              const teto = parseFloat(ciclo.orcamento) || 0;
+              const porcentagem = teto > 0 ? Math.min(100, (valorAtual / teto) * 100) : 0;
+              const estourado = teto > 0 && valorAtual >= teto;
+              const encerrado = Boolean(ciclo.fim) && ciclo.fim < hoje;
 
               return (
-                <div key={ciclo.id} className="bg-surface border border-hairline p-6 rounded-2xl relative overflow-hidden group hover:border-indigo-500/30 transition-colors">
+                <div key={ciclo.id} className="cc-card p-6 relative overflow-hidden group hover:border-primary/30 transition-colors">
                   <div className="flex items-center gap-3 mb-4">
-                    <div className="p-3 rounded-xl bg-emerald-500/10 text-emerald-400">
-                      <PieChart size={20} />
-                    </div>
-                    <div>
-                      <h3 className="text-white font-bold">{ciclo.nome}</h3>
-                      <span className="text-xs text-slate-400">{ciclo.tipo}</span>
+                    <div className="p-3 rounded-xl bg-emerald-500/10 text-emerald-400" aria-hidden="true"><PieChart size={20} /></div>
+                    <div className="min-w-0">
+                      <h3 className="text-textMain font-bold truncate">{ciclo.nome}</h3>
+                      <span className="text-xs text-textSecondary">Orçamento {encerrado && '· encerrado'}</span>
                     </div>
                   </div>
 
                   <div className="flex items-center gap-2 text-xs text-slate-500 mb-6 font-medium">
-                    <Calendar size={14} />
-                    {formatarData(ciclo.inicio)} até {formatarData(ciclo.fim)}
+                    <Calendar size={14} aria-hidden="true" />
+                    {formatarDataBR(ciclo.inicio)} até {formatarDataBR(ciclo.fim)}
                   </div>
 
                   <div className="space-y-2">
                     <div className="flex justify-between items-end gap-3">
-                      <span className="text-slate-400 text-xs uppercase font-bold tracking-wider whitespace-nowrap">Gasto</span>
-                      <CurrencyValue value={valorAtual} size="lg" className={`font-bold min-w-0 ${isEstourado ? 'text-rose-400' : 'text-white'}`} />
+                      <span className="cc-label">Gasto</span>
+                      <CurrencyValue value={valorAtual} size="lg" className={`font-bold min-w-0 ${estourado ? 'text-rose-400' : 'text-textMain'}`} />
                     </div>
-                    <div className="w-full bg-hairline h-2 rounded-full overflow-hidden">
-                      <div className={`h-full transition-all duration-1000 ${isEstourado ? 'bg-rose-500' : 'bg-emerald-400'}`} style={{ width: `${porcentagem}%` }}></div>
+                    <ProgressBar value={porcentagem} tone={estourado ? 'danger' : porcentagem >= 90 ? 'warning' : 'success'} height="h-2" label={`Uso de ${ciclo.nome}`} />
+                    <div className="flex justify-between items-baseline text-xs">
+                      <span className={estourado ? 'text-rose-400 font-semibold' : 'text-textSecondary'}>
+                        {porcentagem.toFixed(0)}% utilizado{estourado && ' · teto ultrapassado'}
+                      </span>
+                      <span className="text-slate-500">Teto: {formatarMoeda(teto)}</span>
                     </div>
-                    <p className="text-xs text-slate-500 text-right">Alvo: {formatarMoeda(ciclo.orcamento)}</p>
                   </div>
 
-                  {/* Ações no rodapé no mobile: flutuando no topo direito elas
-                      cobririam o nome do ciclo — medido, 64px de colisão a
-                      320px. A partir de md voltam ao canto superior direito,
-                      discretas até o hover ou o foco por teclado. */}
-                  <div className="relative z-10 mt-5 flex items-center justify-end gap-2 md:mt-0 md:absolute md:top-4 md:right-4 md:opacity-0 md:transition-opacity md:group-hover:opacity-100 md:group-focus-within:opacity-100">
-                    <button onClick={() => handleEdit(ciclo)} className="text-slate-600 hover:text-indigo-400 bg-app p-2 rounded-lg" title="Editar">
-                      <Pencil size={16} />
-                    </button>
-                    <button onClick={() => handleDelete(ciclo.id)} className="text-slate-600 hover:text-rose-400 bg-app p-2 rounded-lg" title="Excluir">
-                      <Trash2 size={16} />
-                    </button>
-                  </div>
+                  {acoesCard(ciclo)}
                 </div>
               );
             }
 
-            // Meta: progresso vem exclusivamente dos aportes registrados (não de transações)
+            // Meta: progresso vem exclusivamente dos aportes registrados.
             const aportes = aportesMap[ciclo.id] || [];
             const p = calcularProgressoMeta(ciclo, aportes);
-
-            // Períodos maiores que o horizonte vêm como null e ficam de fora:
-            // não faz sentido dizer quanto guardar por mês quando faltam 6 dias.
             const equivalentes = p.equivalentes
-              ? [
-                  ['Por semana', p.equivalentes.porSemana],
-                  ['Por mês', p.equivalentes.porMes],
-                  ['Por ano', p.equivalentes.porAno],
-                ].filter(([, valor]) => valor != null)
+              ? [['Por semana', p.equivalentes.porSemana], ['Por mês', p.equivalentes.porMes], ['Por ano', p.equivalentes.porAno]].filter(([, v]) => v != null)
               : [];
 
             return (
-              <div key={ciclo.id} className="bg-surface border border-hairline p-6 rounded-2xl relative overflow-hidden group hover:border-indigo-500/30 transition-colors">
+              <div key={ciclo.id} className={`cc-card p-6 relative overflow-hidden group transition-colors ${p.concluida ? 'border-emerald-500/30' : 'hover:border-primary/30'}`}>
                 <div className="flex items-center gap-3 mb-4">
-                  <div className="p-3 rounded-xl bg-indigo-500/10 text-indigo-400">
-                    <Target size={20} />
+                  <div className={`p-3 rounded-xl ${p.concluida ? 'bg-emerald-500/10 text-emerald-400' : 'bg-primary/10 text-indigo-300'}`} aria-hidden="true">
+                    {p.concluida ? <CheckCircle2 size={20} /> : <Target size={20} />}
                   </div>
-                  <div>
-                    <h3 className="text-white font-bold">{ciclo.nome}</h3>
-                    <span className="text-xs text-slate-400">{ciclo.tipo}</span>
+                  <div className="min-w-0">
+                    <h3 className="text-textMain font-bold truncate">{ciclo.nome}</h3>
+                    <span className="text-xs text-textSecondary">Meta{p.concluida && ' · concluída'}</span>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 text-xs text-slate-500 mb-6 font-medium">
-                  <Calendar size={14} />
-                  {formatarData(ciclo.inicio)} até {formatarData(ciclo.fim)}
-                  {p.prazoEncerrado && <span className="text-rose-400 font-semibold ml-1">· prazo encerrado</span>}
+                <div className="flex items-center gap-2 text-xs text-slate-500 mb-6 font-medium flex-wrap">
+                  <Calendar size={14} aria-hidden="true" />
+                  {formatarDataBR(ciclo.inicio)} até {formatarDataBR(ciclo.fim)}
+                  {p.prazoEncerrado && !p.concluida && <Badge tone="danger">prazo encerrado</Badge>}
                 </div>
 
                 <div className="space-y-2">
                   <div className="flex justify-between items-end gap-3">
-                    <span className="text-slate-400 text-xs uppercase font-bold tracking-wider whitespace-nowrap">Acumulado</span>
-                    <CurrencyValue value={p.valorAcumulado} size="lg" className="font-bold min-w-0 text-white" />
+                    <span className="cc-label">Acumulado</span>
+                    <CurrencyValue value={p.valorAcumulado} size="lg" className="font-bold min-w-0 text-textMain" />
                   </div>
-
-                  <div className="w-full bg-hairline h-2 rounded-full overflow-hidden">
-                    <div className="h-full bg-indigo-500 transition-all duration-1000" style={{ width: `${p.progressoPct}%` }}></div>
-                  </div>
-
-                  <div className="flex justify-between items-baseline">
-                    <span className="text-xs font-medium text-slate-400">{p.progressoPct.toFixed(0)}% concluído</span>
-                    <p className="text-xs text-slate-500">Alvo: {formatarMoeda(p.valorMeta)}</p>
+                  <ProgressBar value={p.progressoPct} tone={p.concluida ? 'success' : 'primary'} height="h-2" label={`Progresso de ${ciclo.nome}`} />
+                  <div className="flex justify-between items-baseline text-xs">
+                    <span className="font-medium text-textSecondary">{p.progressoPct.toFixed(0)}% concluído</span>
+                    <span className="text-slate-500">Alvo: {formatarMoeda(p.valorMeta)}</span>
                   </div>
 
                   {!p.concluida && (
-                    <p className="text-xs text-slate-400 pt-1">
-                      Faltam <span className="text-white font-semibold">{formatarMoeda(p.valorRestante)}</span>
-                      {p.prazoEncerrado
-                        ? ' · prazo encerrado'
-                        : p.diasRestantes != null
-                          ? ` · ${p.diasRestantes} dia(s) restante(s)`
-                          : ' · sem prazo definido'}
+                    <p className="text-xs text-textSecondary pt-1">
+                      Faltam <span className="text-textMain font-semibold">{formatarMoeda(p.valorRestante)}</span>
+                      {p.prazoEncerrado ? ' · prazo encerrado' : p.diasRestantes != null ? ` · ${p.diasRestantes} dia(s) restante(s)` : ' · sem prazo definido'}
                     </p>
                   )}
 
-                  {/* Ritmo: só mostra necessário/atual quando faz sentido calcular */}
                   {!p.concluida && !p.prazoEncerrado && p.equivalentes && (
                     <div className="pt-2 border-t border-hairline mt-2 space-y-1">
                       {p.equivalentes.hoje != null ? (
-                        /* Último dia do prazo: todo o restante precisa entrar hoje. */
                         <div className="flex items-center justify-between text-xs">
                           <span className="text-slate-500 flex items-center gap-1"><Clock size={12} /> Guardar hoje</span>
                           <span className="text-amber-400 font-semibold">{formatarMoeda(p.equivalentes.hoje)}</span>
@@ -364,18 +377,15 @@ export default function CiclosInvestimento() {
                             <span className="text-slate-500 flex items-center gap-1"><Clock size={12} /> Ritmo necessário</span>
                             <span className="text-slate-300 font-medium">{formatarMoeda(p.equivalentes.porDia)}/dia</span>
                           </div>
-
                           {equivalentes.length > 0 && (
                             <div className="flex flex-wrap gap-x-4 gap-y-1">
                               {equivalentes.map(([rotulo, valor]) => (
                                 <span key={rotulo} className="text-xs text-slate-500">
-                                  {rotulo}{' '}
-                                  <span className="text-slate-300 font-medium">{formatarMoeda(valor)}</span>
+                                  {rotulo} <span className="text-slate-300 font-medium">{formatarMoeda(valor)}</span>
                                 </span>
                               ))}
                             </div>
                           )}
-
                           {p.equivalentes.horizonte === 'menos-de-uma-semana' && (
                             <p className="text-xs text-slate-600">Menos de 1 semana restante</p>
                           )}
@@ -397,7 +407,7 @@ export default function CiclosInvestimento() {
                               </p>
                             )}
                             {p.dataPrevista && (
-                              <p className="text-xs text-slate-500">Previsão de conclusão: {formatarDataObj(p.dataPrevista)}</p>
+                              <p className="text-xs text-slate-500">Previsão de conclusão: {formatarDataCurta(p.dataPrevista)}</p>
                             )}
                             {p.atrasoDias != null && (
                               <p className="text-xs text-amber-400">No ritmo atual, ~{Math.ceil(p.atrasoDias)} dia(s) de atraso</p>
@@ -412,146 +422,113 @@ export default function CiclosInvestimento() {
                     </div>
                   )}
 
-                  <button
-                    onClick={() => abrirAporte(ciclo)}
-                    className="w-full mt-3 flex items-center justify-center gap-2 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/30 text-indigo-300 text-xs font-bold py-2.5 rounded-xl transition-colors"
-                  >
-                    <PiggyBank size={14} /> Registrar aporte
-                  </button>
+                  {!p.concluida && (
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      icon={PiggyBank}
+                      onClick={() => abrirAporte(ciclo)}
+                      className="w-full mt-3 !border-primary/30 !text-indigo-300 hover:!bg-primary/10"
+                    >
+                      Registrar aporte
+                    </Button>
+                  )}
                 </div>
 
-                {/* Mesmo princípio do card de Orçamento: no mobile as ações
-                    entram no fluxo, no rodapé, para não cobrir o nome nem o
-                    bloco de ritmo; de md em diante voltam a flutuar no canto. */}
-                <div className="relative z-10 mt-5 flex items-center justify-end gap-2 md:mt-0 md:absolute md:top-4 md:right-4 md:opacity-0 md:transition-opacity md:group-hover:opacity-100 md:group-focus-within:opacity-100">
-                  <button onClick={() => handleEdit(ciclo)} className="text-slate-600 hover:text-indigo-400 bg-app p-2 rounded-lg" title="Editar">
-                    <Pencil size={16} />
-                  </button>
-                  <button onClick={() => handleDelete(ciclo.id)} className="text-slate-600 hover:text-rose-400 bg-app p-2 rounded-lg" title="Excluir">
-                    <Trash2 size={16} />
-                  </button>
-                </div>
+                {acoesCard(ciclo)}
               </div>
             );
           })}
         </div>
       )}
 
-      {/* MODAL NOVO CICLO */}
-      {isModalOpen && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-surface border border-hairline rounded-2xl w-full max-w-md overflow-hidden shadow-2xl">
-            <div className="p-6 border-b border-hairline flex justify-between items-center">
-              <h2 className="text-xl font-bold text-white">{editingId ? 'Editar Ciclo / Meta' : 'Novo Ciclo / Meta'}</h2>
-              <button onClick={closeModal} className="text-slate-400 hover:text-white">
-                <X size={24} />
-              </button>
-            </div>
-            
-            <form onSubmit={handleSubmit} className="p-6 space-y-4">
-              
-              <div className="flex p-1 bg-app rounded-xl border border-hairline">
-                <button type="button" onClick={() => setFormData({ ...formData, tipo: 'Orçamento' })} className={`flex-1 py-2 text-sm font-bold rounded-lg transition-colors ${formData.tipo === 'Orçamento' ? 'bg-emerald-500 text-white' : 'text-slate-400 hover:text-white'}`}>
-                  Orçamento Mensal
-                </button>
-                <button type="button" onClick={() => setFormData({ ...formData, tipo: 'Meta' })} className={`flex-1 py-2 text-sm font-bold rounded-lg transition-colors ${formData.tipo === 'Meta' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'}`}>
-                  Meta / Viagem
-                </button>
-              </div>
+      {/* Novo / editar */}
+      <Dialog
+        open={modalAberto}
+        onClose={fecharModal}
+        bloqueado={salvando}
+        title={editandoId ? 'Editar objetivo' : 'Novo objetivo'}
+        footer={(
+          <>
+            <Button variant="secondary" onClick={fecharModal} disabled={salvando}>Cancelar</Button>
+            <Button type="submit" form="form-ciclo" loading={salvando}>
+              {editandoId ? 'Salvar alterações' : `Criar ${formData.tipo === 'Meta' ? 'meta' : 'orçamento'}`}
+            </Button>
+          </>
+        )}
+      >
+        <form id="form-ciclo" onSubmit={handleSubmit} className="space-y-4" noValidate>
+          <Segmented
+            ariaLabel="Tipo de objetivo"
+            value={formData.tipo}
+            onChange={(tipo) => setFormData({ ...formData, tipo })}
+            options={[
+              { value: 'Meta', label: 'Meta de poupança', activeClass: 'bg-primary' },
+              { value: 'Orçamento', label: 'Orçamento do período', activeClass: 'bg-emerald-500' },
+            ]}
+          />
+          <p className="text-xs text-textSecondary leading-relaxed">
+            {formData.tipo === 'Meta'
+              ? 'Você registra aportes e o CapitalCycle calcula quanto guardar por dia, semana e mês para chegar lá no prazo.'
+              : 'Um teto de gastos para o período: as saídas lançadas entre as datas contam automaticamente.'}
+          </p>
 
-              <div>
-                <label className="block text-xs font-medium text-slate-400 mb-1">Nome do Objetivo</label>
-                <input required type="text" value={formData.nome} onChange={e => setFormData({...formData, nome: e.target.value})} className="w-full bg-app border border-hairline rounded-xl px-4 py-3 text-white focus:border-indigo-500 outline-none" placeholder={formData.tipo === 'Meta' ? "Ex: Viagem Japão" : "Ex: Orçamento de Junho"} />
-              </div>
+          <Field label="Nome" error={erros.nome}>
+            <Input data-autofocus type="text" value={formData.nome} onChange={(e) => setFormData({ ...formData, nome: e.target.value })} placeholder={formData.tipo === 'Meta' ? 'Ex.: Reserva de emergência' : 'Ex.: Orçamento de dezembro'} maxLength={60} />
+          </Field>
 
-              <div>
-                <label className="block text-xs font-medium text-slate-400 mb-1">Valor Alvo/Limite (R$)</label>
-                <input required type="number" step="0.01" value={formData.orcamento} onChange={e => setFormData({...formData, orcamento: e.target.value})} className="w-full bg-app border border-hairline rounded-xl px-4 py-3 text-white focus:border-indigo-500 outline-none" placeholder="0,00" />
-              </div>
+          <Field label={formData.tipo === 'Meta' ? 'Valor da meta (R$)' : 'Teto de gastos (R$)'} error={erros.orcamento}>
+            <Input type="text" inputMode="decimal" value={formData.orcamento} onChange={(e) => setFormData({ ...formData, orcamento: e.target.value })} placeholder="0,00" />
+          </Field>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-medium text-slate-400 mb-1">Data de Início</label>
-                  <input required type="date" value={formData.inicio} onChange={e => setFormData({...formData, inicio: e.target.value})} className="w-full bg-app border border-hairline rounded-xl px-4 py-3 text-white focus:border-indigo-500 outline-none [color-scheme:dark]" />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-slate-400 mb-1">Data Final</label>
-                  {/* `min` impede escolher uma data anterior ao início já no
-                      seletor do navegador, antes mesmo do submit. */}
-                  <input required type="date" min={formData.inicio || undefined} value={formData.fim} onChange={e => setFormData({...formData, fim: e.target.value})} className="w-full bg-app border border-hairline rounded-xl px-4 py-3 text-white focus:border-indigo-500 outline-none [color-scheme:dark]" />
-                </div>
-              </div>
-
-              <button
-                type="submit"
-                disabled={salvando}
-                className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-bold py-3.5 rounded-xl transition-colors mt-4"
-              >
-                {salvando ? 'Salvando...' : (editingId ? 'Salvar Alterações' : `Salvar ${formData.tipo}`)}
-              </button>
-            </form>
+          <div className="grid grid-cols-2 gap-4">
+            <Field label="Início" error={erros.inicio}>
+              <Input type="date" value={formData.inicio} onChange={(e) => setFormData({ ...formData, inicio: e.target.value })} />
+            </Field>
+            <Field label="Fim" error={erros.fim}>
+              <Input type="date" min={formData.inicio || undefined} value={formData.fim} onChange={(e) => setFormData({ ...formData, fim: e.target.value })} />
+            </Field>
           </div>
-        </div>
-      )}
+        </form>
+      </Dialog>
 
-      {/* MODAL REGISTRAR APORTE */}
-      {aporteCiclo && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-surface border border-hairline rounded-2xl w-full max-w-md overflow-hidden shadow-2xl">
-            <div className="p-6 border-b border-hairline flex justify-between items-center">
-              <div>
-                <h2 className="text-xl font-bold text-white">Registrar aporte</h2>
-                <p className="text-xs text-slate-400 mt-1">{aporteCiclo.nome}</p>
-              </div>
-              <button onClick={fecharAporte} className="text-slate-400 hover:text-white">
-                <X size={24} />
-              </button>
-            </div>
+      {/* Aporte */}
+      <Dialog
+        open={Boolean(aporteCiclo)}
+        onClose={fecharAporte}
+        bloqueado={salvandoAporte}
+        title="Registrar aporte"
+        description={aporteCiclo?.nome}
+        size="sm"
+        footer={(
+          <>
+            <Button variant="secondary" onClick={fecharAporte} disabled={salvandoAporte}>Cancelar</Button>
+            <Button type="submit" form="form-aporte" loading={salvandoAporte} icon={PiggyBank}>Registrar</Button>
+          </>
+        )}
+      >
+        <form id="form-aporte" onSubmit={salvarAporte} className="space-y-4" noValidate>
+          <p className="text-xs text-textSecondary leading-relaxed">
+            Registra dinheiro destinado a esta meta. Não cria uma transação nem altera o saldo de nenhuma conta.
+          </p>
+          <Field label="Valor guardado (R$)" error={aporteErro}>
+            <Input data-autofocus type="text" inputMode="decimal" value={aporteValor} onChange={(e) => { setAporteValor(e.target.value); setAporteErro(null); }} placeholder="0,00" />
+          </Field>
+          <Field label="Data">
+            <Input type="date" value={aporteData} max={hojeStr()} onChange={(e) => setAporteData(e.target.value)} />
+          </Field>
+        </form>
+      </Dialog>
 
-            <form onSubmit={salvarAporte} className="p-6 space-y-4">
-              <p className="text-xs text-slate-500 leading-relaxed">
-                Isso registra dinheiro destinado a esta meta. Não cria uma transação nem altera o saldo de nenhuma conta.
-              </p>
+      <ConfirmDialog
+        open={Boolean(excluindo)}
+        onClose={() => setExcluindo(null)}
+        onConfirm={confirmarExclusao}
+        title={`Excluir ${excluindo?.tipo === 'Meta' ? 'meta' : 'orçamento'}`}
+        confirmLabel="Excluir"
+        message={excluindo ? `"${excluindo.nome}" será removido${excluindo.tipo === 'Meta' ? ' junto com o histórico de aportes' : ''}. Esta ação não pode ser desfeita.` : ''}
+      />
 
-              <div>
-                <label className="block text-xs font-medium text-slate-400 mb-1">Valor guardado (R$)</label>
-                <input
-                  autoFocus
-                  required
-                  type="number"
-                  step="0.01"
-                  min="0.01"
-                  value={aporteValor}
-                  onChange={(e) => setAporteValor(e.target.value)}
-                  className="w-full bg-app border border-hairline rounded-xl px-4 py-3 text-white focus:border-indigo-500 outline-none"
-                  placeholder="0,00"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-slate-400 mb-1">Data</label>
-                <input
-                  required
-                  type="date"
-                  value={aporteData}
-                  onChange={(e) => setAporteData(e.target.value)}
-                  className="w-full bg-app border border-hairline rounded-xl px-4 py-3 text-white focus:border-indigo-500 outline-none [color-scheme:dark]"
-                />
-              </div>
-
-              <button
-                type="submit"
-                disabled={salvandoAporte}
-                className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-bold py-3.5 rounded-xl transition-colors mt-4"
-              >
-                {salvandoAporte ? 'Salvando...' : 'Registrar aporte'}
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Modal de upgrade */}
       <UpgradeModal feature="ciclos" open={upgradeOpen} onClose={() => setUpgradeOpen(false)} />
     </div>
   );

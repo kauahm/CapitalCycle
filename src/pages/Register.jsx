@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Eye, EyeOff, Check, ArrowLeft } from 'lucide-react';
-import Toast from '../components/ui/Toast';
+import { useToast } from '../hooks/useToast';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
 import { PLAN_LIST as PLANS } from '../components/ui/plans';
 
@@ -178,9 +178,9 @@ export default function Register() {
   // Esta tela não cria a conta: ela só coleta os dados e encaminha para o
   // pagamento, que é quem chama o cadastro no fim do fluxo.
   const [loading] = useState(false);
-  const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
 
   const navigate = useNavigate();
+  const toast = useToast();
 
   // Avança para o step 2 após escolher o plano — ou, em troca de plano, vai
   // direto para o pagamento (não precisa recoletar nome/e-mail/senha)
@@ -198,19 +198,15 @@ export default function Register() {
     e.preventDefault();
 
     if (password !== confirmPassword) {
-      setToast({ show: true, message: 'As senhas não coincidem.', type: 'error' });
+      toast.error('As senhas não coincidem.');
       return;
     }
     if (password.length < 6) {
-      setToast({ show: true, message: 'A senha deve ter pelo menos 6 caracteres.', type: 'error' });
+      toast.error('A senha deve ter pelo menos 6 caracteres.');
       return;
     }
     if (!aceitouTermos) {
-      setToast({
-        show: true,
-        message: 'Você precisa aceitar os Termos de Uso e a Política de Privacidade para continuar.',
-        type: 'error',
-      });
+      toast.error('Você precisa aceitar os Termos de Uso e a Política de Privacidade para continuar.');
       return;
     }
 
@@ -234,11 +230,7 @@ export default function Register() {
   // sem ele. Nenhuma senha viaja neste caminho: o Google é quem autentica.
   const handleGoogleRegister = () => {
     if (!aceitouTermos) {
-      setToast({
-        show: true,
-        message: 'Você precisa aceitar os Termos de Uso e a Política de Privacidade para continuar.',
-        type: 'error',
-      });
+      toast.error('Você precisa aceitar os Termos de Uso e a Política de Privacidade para continuar.');
       return;
     }
 
@@ -545,15 +537,6 @@ export default function Register() {
           </div>
         )}
       </div>
-
-      {/* Toast */}
-      {toast.show && (
-        <Toast
-          message={toast.message}
-          type={toast.type}
-          onClose={() => setToast({ ...toast, show: false })}
-        />
-      )}
     </div>
   );
 }

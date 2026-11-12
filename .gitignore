@@ -73,3 +73,7 @@ dist/
 
 # Skills/config locais do Claude Code (não fazem parte do produto)
 .claude/
+
+# Arquivo de segredos local sem ponto (nunca versionar)
+env
+env.*

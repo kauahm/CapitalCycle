@@ -4,15 +4,16 @@ import {
   ArrowLeft, Check, Copy, CreditCard, QrCode,
   ShieldCheck, Lock, Clock, X, User
 } from 'lucide-react';
-import Toast from '../components/ui/Toast';
+import { useToast } from '../hooks/useToast';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
 import { useAuth } from '../hooks/useAuth';
+import { PLANS as PLANOS } from '../components/ui/plans';
 
-// ─── Planos espelhados do Register (cobrança anual) ─────────────────────────
-const PLANS = {
-  jovem:  { id: 'jovem',  name: 'Jovem',  price: 44.90, priceStr: '44,90' },
-  adulto: { id: 'adulto', name: 'Adulto', price: 64.90, priceStr: '64,90' },
-};
+// Fonte única dos planos (src/components/ui/plans.js). Antes esta tela
+// espelhava preços à mão e podia divergir do cadastro e da home.
+const PLANS = Object.fromEntries(
+  Object.values(PLANOS).map((p) => [p.id, { id: p.id, name: p.name, price: p.priceNum, priceStr: p.price }]),
+);
 
 // Tempo de expiração do QR Code PIX (em segundos) — só simulação
 const PIX_EXPIRATION_SECONDS = 300;
@@ -72,8 +73,6 @@ const FakeQRCode = ({ payload, size = 200 }) => {
     };
     return border(0, 0) || border(cells - 7, 0) || border(0, cells - 7);
   };
-
-  const cellSize = size / cells;
 
   return (
     <div
@@ -142,6 +141,7 @@ function MetodoCard({ selecionado, onSelecionar, Icone, corIcone, titulo, subtit
 // ─── Componente Principal ─────────────────────────────────────────────────────
 export default function Payment() {
   const navigate = useNavigate();
+  const toast = useToast();
   const location = useLocation();
   const { registerWithPayment, registerWithPaymentGoogle, changePlanWithPayment } = useAuth();
 
@@ -192,7 +192,6 @@ export default function Payment() {
      Um ref muda no mesmo tick do clique, entao fecha a porta antes de o
      segundo evento ser processado. */
   const confirmacaoLockRef = useRef(false);
-  const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
 
   // ── Limpa o timer do PIX ao sair ──
   useEffect(() => {
@@ -255,9 +254,9 @@ export default function Payment() {
   const handleCopyPix = async () => {
     try {
       await navigator.clipboard.writeText(pixPayload);
-      setToast({ show: true, message: 'Código PIX copiado!', type: 'success' });
+      toast.success('Código PIX copiado!');
     } catch {
-      setToast({ show: true, message: 'Não foi possível copiar o código.', type: 'error' });
+      toast.error('Não foi possível copiar o código.');
     }
   };
 
@@ -285,19 +284,19 @@ export default function Payment() {
     // Validações
     const n = cardNumber.replace(/\D/g, '');
     if (n.length < 13) {
-      setToast({ show: true, message: 'Número de cartão inválido.', type: 'error' });
+      toast.error('Número de cartão inválido.');
       return;
     }
     if (!cardName.trim() || cardName.trim().length < 3) {
-      setToast({ show: true, message: 'Informe o nome impresso no cartão.', type: 'error' });
+      toast.error('Informe o nome impresso no cartão.');
       return;
     }
     if (cardExpiry.length < 5) {
-      setToast({ show: true, message: 'Data de validade inválida.', type: 'error' });
+      toast.error('Data de validade inválida.');
       return;
     }
     if (cardCvv.length < 3) {
-      setToast({ show: true, message: 'CVV inválido.', type: 'error' });
+      toast.error('CVV inválido.');
       return;
     }
 
@@ -319,11 +318,7 @@ export default function Payment() {
       confirmacaoLockRef.current = false;
       setLoading(false);
       setStep('card-form');
-      setToast({
-        show: true,
-        message: 'Cartão recusado. Use outro cartão (a simulação recusa cartões terminados em 0000).',
-        type: 'error',
-      });
+      toast.error('Cartão recusado. Use outro cartão (a simulação recusa cartões terminados em 0000).');
       return;
     }
 
@@ -364,17 +359,17 @@ export default function Payment() {
       if (error.code === 'auth/email-already-in-use') {
         // Agora so chega aqui quando a senha NAO confere, ou seja, quando o
         // e-mail e mesmo de outra pessoa.
-        setToast({ show: true, message: 'Este e-mail já tem conta. Faça login para continuar.', type: 'error' });
+        toast.error('Este e-mail já tem conta. Faça login para continuar.');
       } else if (error.code === 'auth/popup-closed-by-user' || error.code === 'auth/cancelled-popup-request') {
-        setToast({ show: true, message: 'Popup do Google fechado. Tente novamente.', type: 'warning' });
+        toast.warning('Popup do Google fechado. Tente novamente.');
       } else if (error.code === 'auth/network-request-failed') {
-        setToast({ show: true, message: 'Sem conexão. Verifique sua internet e tente novamente.', type: 'error' });
+        toast.error('Sem conexão. Verifique sua internet e tente novamente.');
       } else if (error.code === 'auth/weak-password') {
-        setToast({ show: true, message: 'A senha precisa ter ao menos 6 caracteres.', type: 'error' });
+        toast.error('A senha precisa ter ao menos 6 caracteres.');
       } else if (error.code === 'auth/invalid-email') {
-        setToast({ show: true, message: 'E-mail inválido. Volte e corrija o endereço.', type: 'error' });
+        toast.error('E-mail inválido. Volte e corrija o endereço.');
       } else {
-        setToast({ show: true, message: 'Não foi possível concluir. Tente novamente.', type: 'error' });
+        toast.error('Não foi possível concluir. Tente novamente.');
       }
     }
   };
@@ -843,15 +838,6 @@ export default function Payment() {
           </p>
         </div>
       </div>
-
-      {/* Toast */}
-      {toast.show && (
-        <Toast
-          message={toast.message}
-          type={toast.type}
-          onClose={() => setToast({ ...toast, show: false })}
-        />
-      )}
     </div>
   );
 }
