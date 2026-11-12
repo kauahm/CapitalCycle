@@ -30,7 +30,7 @@ export default function Topbar({ onMenuClick }) {
     const path = location.pathname;
     if (path.includes('dashboard')) return 'Dashboard';
     if (path.includes('transacoes')) return 'Transações';
-    if (path.includes('contas')) return 'Contas';
+    if (path.includes('open-finance')) return 'Open Finance';
     if (path.includes('ciclos')) return 'Ciclos e Metas';
     if (path.includes('orcamento')) return 'Orçamento por Categoria';
     if (path.includes('analise-ia')) return 'Capital Advisor';

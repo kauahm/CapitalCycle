@@ -25,7 +25,7 @@ export const PLAN_LIST = [
     feats: [
       'Dashboard financeiro completo',
       'Até 100 lançamentos por mês',
-      '1 conta cadastrada',
+      '1 banco conectado via Open Finance',
       '2 ciclos de meta ou orçamento em andamento',
       'Capital Advisor — 50 consultas/mês',
     ],
@@ -47,7 +47,7 @@ export const PLAN_LIST = [
     badge: 'Mais popular',
     feats: [
       'Tudo do plano Jovem',
-      'Contas e lançamentos ilimitados',
+      'Bancos e lançamentos ilimitados',
       'Ciclos e metas ilimitados',
       'Capital Advisor — consultas ilimitadas',
       'Sincronização em tempo real',
@@ -102,8 +102,8 @@ export const canConsultarIA = (planId, usadasNoMes) => {
 // ── Metadados das travas → usados pelo UpgradeModal ────────────────────
 export const GATES = {
   contas: {
-    title: 'Limite de contas alcançado',
-    message: 'O plano Jovem permite 1 conta cadastrada. Faça upgrade para o plano Adulto e cadastre quantas contas precisar.',
+    title: 'Limite de bancos conectados alcançado',
+    message: 'O plano Jovem permite 1 banco conectado pelo Open Finance. Faça upgrade para o plano Adulto e conecte quantos bancos precisar.',
     requiredPlan: 'adulto',
   },
   ciclos: {

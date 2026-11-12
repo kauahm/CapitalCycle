@@ -550,9 +550,9 @@ export default function DashboardFinanceiro() {
       {contas.length === 0 && (
         <div className="border border-dashed border-hairline rounded-xl p-8 text-center">
           <Wallet size={22} className="text-slate-600 mx-auto mb-3" />
-          <p className="text-slate-400 text-sm mb-3">Cadastre sua primeira conta para começar a ver seu saldo aqui.</p>
-          <Link to="/capital/contas" className="text-sm text-primary hover:text-indigo-300 font-medium inline-flex items-center gap-1">
-            Cadastrar conta <ArrowRight size={14} />
+          <p className="text-slate-400 text-sm mb-3">Conecte seu banco pelo Open Finance para ver seu saldo aqui.</p>
+          <Link to="/capital/open-finance" className="text-sm text-primary hover:text-indigo-300 font-medium inline-flex items-center gap-1">
+            Conectar banco <ArrowRight size={14} />
           </Link>
         </div>
       )}

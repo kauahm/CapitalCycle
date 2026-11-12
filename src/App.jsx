@@ -10,7 +10,7 @@ import Payment from './pages/Payment';
 // Rotas internas carregadas sob demanda (reduz o bundle inicial)
 const DashboardFinanceiro = lazy(() => import('./pages/admin/DashboardFinanceiro'));
 const Transacoes = lazy(() => import('./pages/admin/Transacoes'));
-const ContasBancarias = lazy(() => import('./pages/admin/ContasBancarias'));
+const OpenFinance = lazy(() => import('./pages/admin/OpenFinance'));
 const CiclosInvestimento = lazy(() => import('./pages/admin/CiclosInvestimento'));
 const OrcamentoCategoria = lazy(() => import('./pages/admin/OrcamentoCategoria'));
 const AnaliseIA = lazy(() => import('./pages/admin/AnaliseIA'));
@@ -79,7 +79,9 @@ export default function App() {
           >
             <Route path="dashboard" element={<Suspense fallback={<RouteLoading />}><DashboardFinanceiro /></Suspense>} />
             <Route path="transacoes" element={<Suspense fallback={<RouteLoading />}><Transacoes /></Suspense>} />
-            <Route path="contas" element={<Suspense fallback={<RouteLoading />}><ContasBancarias /></Suspense>} />
+            <Route path="open-finance" element={<Suspense fallback={<RouteLoading />}><OpenFinance /></Suspense>} />
+            {/* Antiga aba Contas — links salvos caem no Open Finance */}
+            <Route path="contas" element={<Navigate to="/capital/open-finance" replace />} />
             <Route path="ciclos" element={<Suspense fallback={<RouteLoading />}><CiclosInvestimento /></Suspense>} />
             <Route path="orcamento" element={<Suspense fallback={<RouteLoading />}><OrcamentoCategoria /></Suspense>} />
             <Route path="analise-ia" element={<Suspense fallback={<RouteLoading />}><AnaliseIA /></Suspense>} />
