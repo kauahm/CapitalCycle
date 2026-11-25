@@ -86,9 +86,25 @@ function buildPayload(history, contexto) {
   };
 }
 
+// Histórico do chat por usuário, salvo no navegador — sem isso a conversa
+// se perdia ao recarregar a página ou trocar de aba.
+const chaveHistorico = (uid) => `capitalcycle:advisor:${uid}`;
+
+function carregarHistorico(uid) {
+  if (!uid) return [MENSAGEM_INICIAL];
+  try {
+    const bruto = localStorage.getItem(chaveHistorico(uid));
+    const salvo = bruto ? JSON.parse(bruto) : null;
+    return Array.isArray(salvo) && salvo.length > 0 ? salvo : [MENSAGEM_INICIAL];
+  } catch {
+    return [MENSAGEM_INICIAL];
+  }
+}
+
 export default function AnaliseIA() {
   const toast = useToast();
-  const [messages, setMessages] = useState([MENSAGEM_INICIAL]);
+  const { userProfile, currentUser, updateUserProfile } = useAuth();
+  const [messages, setMessages] = useState(() => carregarHistorico(currentUser?.uid));
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const sendLockRef = useRef(false);
@@ -98,7 +114,6 @@ export default function AnaliseIA() {
   const apiKey = ENV_KEY;
   const model = ENV_MODEL || MODELO_PADRAO;
 
-  const { userProfile, currentUser, updateUserProfile } = useAuth();
   const planId = userProfile?.plan || 'jovem';
   const limiteIA = getLimits(planId).consultasIAMes;
   const mesKey = mesAtualKey();
@@ -117,6 +132,28 @@ export default function AnaliseIA() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
   }, [messages, isTyping]);
+
+  // currentUser chega async (useAuth resolve depois do primeiro render) — ao
+  // ficar disponível, troca o estado inicial pelo histórico salvo dele.
+  const uidCarregadoRef = useRef(null);
+  useEffect(() => {
+    const uid = currentUser?.uid;
+    if (!uid || uidCarregadoRef.current === uid) return;
+    uidCarregadoRef.current = uid;
+    setMessages(carregarHistorico(uid));
+  }, [currentUser]);
+
+  // Salva a conversa a cada mudança, para sobreviver a recarregar a página
+  // ou voltar depois de navegar para outra aba do painel.
+  useEffect(() => {
+    const uid = currentUser?.uid;
+    if (!uid) return;
+    try {
+      localStorage.setItem(chaveHistorico(uid), JSON.stringify(messages));
+    } catch (err) {
+      console.error('[Capital Advisor] Falha ao salvar o histórico da conversa:', err?.message);
+    }
+  }, [messages, currentUser]);
 
   // Carrega o contador de consultas de IA do mês corrente
   useEffect(() => {
@@ -318,6 +355,9 @@ export default function AnaliseIA() {
     setMessages([MENSAGEM_INICIAL]);
     setError(null);
     setAvisoCota(null);
+    if (currentUser?.uid) {
+      try { localStorage.removeItem(chaveHistorico(currentUser.uid)); } catch { /* ignora */ }
+    }
   };
 
   const conversaVazia = messages.length <= 1;
