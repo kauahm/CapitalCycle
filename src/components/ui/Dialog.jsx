@@ -35,6 +35,15 @@ export default function Dialog({
   const origemRef = useRef(null);
   const tituloId = useId();
 
+  // onClose/bloqueado chegam como funções/valores novos a cada render do pai
+  // (ex.: `onClose={() => setX(null)}`, sem useCallback). Guardá-los em refs
+  // evita que o efeito abaixo dependa deles — senão ele reexecutaria a cada
+  // tecla digitada no formulário e devolveria o foco ao primeiro campo.
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+  const bloqueadoRef = useRef(bloqueado);
+  bloqueadoRef.current = bloqueado;
+
   useEffect(() => {
     if (!open) return undefined;
     origemRef.current = document.activeElement;
@@ -47,9 +56,9 @@ export default function Dialog({
     document.body.style.overflow = 'hidden';
 
     const onKey = (e) => {
-      if (e.key === 'Escape' && !bloqueado) {
+      if (e.key === 'Escape' && !bloqueadoRef.current) {
         e.stopPropagation();
-        onClose?.();
+        onCloseRef.current?.();
       }
       if (e.key === 'Tab' && painel) {
         const itens = [...painel.querySelectorAll(FOCAVEIS)].filter((el) => el.offsetParent !== null);
@@ -71,7 +80,8 @@ export default function Dialog({
       document.body.style.overflow = anteriorOverflow;
       origemRef.current?.focus?.();
     };
-  }, [open, onClose, bloqueado]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   if (!open) return null;
 
